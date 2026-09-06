@@ -13,3 +13,4 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 [assembly: AssemblyProduct("ApiPerleRare")]
 [assembly: AssemblyTitle("ApiPerleRare")]
 [assembly: AssemblyVersion("2022.2.6.0")]
+[assembly: InternalsVisibleTo("ApiPerleRare.Tests")]

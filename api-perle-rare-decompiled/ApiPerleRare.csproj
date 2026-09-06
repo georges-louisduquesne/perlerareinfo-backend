@@ -12,7 +12,9 @@
   <PropertyGroup>
     <RootNamespace />
   </PropertyGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <InternalsVisibleTo Include="ApiPerleRare.Tests" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Exchange.WebServices.NETStandard">
       <HintPath>../api-perle-rare-publish/Microsoft.Exchange.WebServices.NETStandard.dll</HintPath>

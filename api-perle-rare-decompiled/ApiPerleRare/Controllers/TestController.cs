@@ -1,4 +1,5 @@
 using System;
+using ApiPerleRare.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,7 @@ public class TestController : ControllerBase
 		_searchService = searchService;
 	}
 
-	[AllowAnonymous]
+	[Authorize(Roles = "Admin")]
 	[HttpGet("info")]
 	public IActionResult Info()
 	{
@@ -28,13 +29,13 @@ public class TestController : ControllerBase
 		{
 			return Ok(_testService.GetInfo());
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
-			return Ok(ex.ToString());
+			return Ok(ClientError.Generic);
 		}
 	}
 
-	[AllowAnonymous]
+	[Authorize(Roles = "Admin")]
 	[HttpGet("clearcache")]
 	public IActionResult ClearCache()
 	{
@@ -43,9 +44,9 @@ public class TestController : ControllerBase
 			_searchService.ClearCache();
 			return Ok("Cache vidé");
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
-			return Ok(ex.ToString());
+			return Ok(ClientError.Generic);
 		}
 	}
 }

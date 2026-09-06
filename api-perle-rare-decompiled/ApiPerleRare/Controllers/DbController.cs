@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -16,7 +17,7 @@ namespace ApiPerleRare.Controllers;
 [Route("api/[controller]")]
 [EnableCors]
 [ApiController]
-[Authorize]
+[Authorize(Roles = "Admin")]
 public class DbController : ControllerBase
 {
 	private readonly ApplicationDbContext _dbContext;
@@ -52,7 +53,7 @@ public class DbController : ControllerBase
 		catch (Exception ex)
 		{
 			Exception ex2 = ex;
-			return BadRequest(ex2.ToString());
+			return BadRequest(ClientError.Generic);
 		}
 	}
 
@@ -91,7 +92,7 @@ public class DbController : ControllerBase
 		}
 		catch (Exception ex)
 		{
-			return BadRequest(ex.ToString());
+			return BadRequest(ClientError.Generic);
 		}
 	}
 
@@ -123,7 +124,7 @@ public class DbController : ControllerBase
 		}
 		catch (Exception ex)
 		{
-			return BadRequest(ex.ToString());
+			return BadRequest(ClientError.Generic);
 		}
 	}
 
@@ -151,7 +152,7 @@ public class DbController : ControllerBase
 		}
 		catch (Exception ex)
 		{
-			return BadRequest(ex.ToString());
+			return BadRequest(ClientError.Generic);
 		}
 	}
 

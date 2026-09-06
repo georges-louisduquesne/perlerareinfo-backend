@@ -11,6 +11,7 @@ using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using ApiPerleRare.Predicates;
 using ApiPerleRare.YanportModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
@@ -19,6 +20,7 @@ namespace ApiPerleRare.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(Roles = "Admin")]
 public class HealthController : ControllerBase
 {
 	public class Difference

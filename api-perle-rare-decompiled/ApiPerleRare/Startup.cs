@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 using ApiPerleRare.Helpers;
@@ -55,7 +56,19 @@ public class Startup
 		{
 			options.AddDefaultPolicy(delegate(CorsPolicyBuilder builder)
 			{
-				builder.WithOrigins("https://dev.perle-rare.info", "https://perle-rare.info", "https://warm-canverns-48629-92fab798385f.herokuapp.com", "https://prinfo.flutterflow.app").AllowCredentials().AllowAnyHeader()
+				var origins = new List<string>
+				{
+					"https://dev.perle-rare.info",
+					"https://perle-rare.info",
+					"https://warm-canverns-48629-92fab798385f.herokuapp.com",
+					"https://prinfo.flutterflow.app"
+				};
+				if (IsLocalSafe)
+				{
+					origins.Add("http://localhost:4200");
+					origins.Add("http://127.0.0.1:4200");
+				}
+				builder.WithOrigins(origins.ToArray()).AllowCredentials().AllowAnyHeader()
 					.AllowAnyMethod();
 			});
 		});
@@ -155,18 +168,22 @@ public class Startup
 
 	public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 	{
-		app.UseSwagger();
-		app.UseSwaggerUI(delegate(SwaggerUIOptions c)
+		bool exposeDocs = env.IsDevelopment() || IsLocalSafe;
+		if (exposeDocs)
 		{
-			c.SwaggerEndpoint("/swagger/v1/swagger.json", "Perle-rare.info API V1");
-		});
+			app.UseSwagger();
+			app.UseSwaggerUI(delegate(SwaggerUIOptions c)
+			{
+				c.SwaggerEndpoint("/swagger/v1/swagger.json", "Perle-rare.info API V1");
+			});
+			RewriteOptions option = new RewriteOptions();
+			option.AddRedirect("^$", "swagger");
+			app.UseRewriter(option);
+		}
 		if (env.IsDevelopment())
 		{
 			app.UseDeveloperExceptionPage();
 		}
-		RewriteOptions option = new RewriteOptions();
-		option.AddRedirect("^$", "swagger");
-		app.UseRewriter(option);
 		if (!IsLocalSafe)
 		{
 			app.UseHttpsRedirection();

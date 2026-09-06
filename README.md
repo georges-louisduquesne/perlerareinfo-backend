@@ -40,7 +40,14 @@ Puis ouvrir [http://localhost:5080/swagger](http://localhost:5080/swagger).
 Mode `PR_LOCAL_SAFE=1` : pas de tâches planifiées (Yanport / mails / UPDATE), pas de redirection HTTPS.  
 La base utilisée est MariaDB **lecture seule** (`cursor_client`). Les POST/PUT échoueront côté droits SQL — c’est voulu.
 
-Smoke : `curl -s http://localhost:5080/api/Test/info` → `DBName=perle-rareinfo`
+Tests (contrat front + helpers sécu) :
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet test tests/ApiPerleRare.Tests/ApiPerleRare.Tests.csproj
+```
+
+Smoke manuel : Swagger local [http://localhost:5080/swagger](http://localhost:5080/swagger). `GET /api/Test/info` est désormais **401** sans token Admin.
 
 ## Prérequis locaux
 

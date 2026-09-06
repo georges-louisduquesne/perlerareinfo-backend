@@ -130,7 +130,6 @@ internal class PRExchangeService : IExchangeService
 	private ExchangeService GetExchangeService(string userName = null, string password = null)
 	{
 		ExchangeService service = new ExchangeService(ExchangeVersion.Exchange2013_SP1, _parisTimeZone);
-		ServicePointManager.ServerCertificateValidationCallback = (object obj, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors) => true;
 		service.Credentials = new WebCredentials(userName ?? _ecs.Username, password ?? _ecs.Password, _ecs.Domain);
 		service.Url = new Uri("https://" + _ecs.Server + "/EWS/Exchange.asmx");
 		return service;

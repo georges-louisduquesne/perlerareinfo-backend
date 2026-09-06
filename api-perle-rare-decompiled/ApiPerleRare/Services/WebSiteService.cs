@@ -17,7 +17,6 @@ internal class WebSiteService : IWebSiteService
 		_siteUrl = "https://old.perle-rare.info/";
 		ServicePointManager.Expect100Continue = true;
 		ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-		ServicePointManager.ServerCertificateValidationCallback = (object _003Cp0_003E, X509Certificate? _003Cp1_003E, X509Chain? _003Cp2_003E, SslPolicyErrors _003Cp3_003E) => true;
 	}
 
 	public void SendRequest(string url, string method = "GET", object post = null)

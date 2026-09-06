@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
@@ -16,6 +17,7 @@ namespace ApiPerleRare.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class PropertyContactsController : ControllerBase
 {
 	public class PropertyContactEx : PropertyContact
@@ -146,20 +148,24 @@ public class PropertyContactsController : ControllerBase
 				{
 					await c.OpenAsync();
 				}
-				string tableName = $"annonces_refcontact_{pc.PcRefContact}";
+				string tableName = "annonces_refcontact_" + pc.PcRefContact;
+				SqlSafety.Identifier(tableName);
 				if (c.DoesTableExist(tableName))
 				{
 					using (MySqlCommand cmd = (MySqlCommand)c.CreateCommand())
 					{
-						int actif = (pc.PcActif ? 1 : 0);
-						cmd.CommandText = $"\r\nUPDATE {tableName} SET A_Actif={actif}, A_Rate={pc.PcRate}, A_Com=@com WHERE A_RefAnnGlob IN (SELECT AG_Ref FROM annonces_globales WHERE AG_IdPropertyYanport='{pc.PcPropertyId}')\r\n";
+						cmd.CommandText = $"UPDATE {tableName} SET A_Actif=@actif, A_Rate=@rate, A_Com=@com WHERE A_RefAnnGlob IN (SELECT AG_Ref FROM annonces_globales WHERE AG_IdPropertyYanport=@pid)";
+						cmd.Parameters.AddWithValue("@actif", pc.PcActif ? 1 : 0);
+						cmd.Parameters.AddWithValue("@rate", pc.PcRate);
 						cmd.Parameters.AddWithValue("@com", pc.PcCom ?? "");
+						cmd.Parameters.AddWithValue("@pid", pc.PcPropertyId ?? "");
 						await cmd.ExecuteNonQueryAsync();
 					}
 					if (pc.PcVu)
 					{
 						using MySqlCommand cmd2 = (MySqlCommand)c.CreateCommand();
-						cmd2.CommandText = $"\r\nUPDATE {tableName} SET A_Date_Aff=CURDATE() WHERE (A_Date_Aff IS NULL OR A_Date_Aff='0000-00-00') AND A_RefAnnGlob IN (SELECT AG_Ref FROM annonces_globales WHERE AG_IdPropertyYanport='{pc.PcPropertyId}')\r\n";
+						cmd2.CommandText = $"UPDATE {tableName} SET A_Date_Aff=CURDATE() WHERE (A_Date_Aff IS NULL OR A_Date_Aff='0000-00-00') AND A_RefAnnGlob IN (SELECT AG_Ref FROM annonces_globales WHERE AG_IdPropertyYanport=@pid)";
+						cmd2.Parameters.AddWithValue("@pid", pc.PcPropertyId ?? "");
 						await cmd2.ExecuteNonQueryAsync();
 					}
 				}

@@ -1,42 +1,78 @@
 ---
-description: Workflow backend sécurisé — Git, VPS, jamais de prod API
+description: Workflow backend — contrat API figé, zéro régression front, jamais de prod
 alwaysApply: true
 ---
 
 # Perle Rare — workflow agent backend
 
-## Toujours rappeler Git
+Plan : `docs/PLAN-MIGRATION.md` (proposition 10 j + audit août 2026).  
+Front Angular (`pearlrare-front`) : **aucun changement**. L’API migrée doit rester un drop-in.
 
-Après un travail significatif :
+## Contrat API — gelé
 
-1. **Rappeler** qu’il faut `commit` puis `push` sur la branche courante.
-2. **Ne pas** commit / push sans demande explicite.
-3. Ne jamais `--force` sur `main` / `master` ; pas de skip hooks.
+Le CRM Angular doit parler à la nouvelle API **sans modification front**. Interdit de changer :
+
+| Figé | Exemples |
+|------|----------|
+| Routes | `/api/User/authenticate`, `/api/ContactsRecherches`, `/api/File/Upload`… |
+| Verbes HTTP | GET/POST/PUT/DELETE existants |
+| Query string | `where`, `orderby`, `take`, `skip`, `select`, `photos`, `correspondances` |
+| Corps JSON (noms + casse) | `login`/`password` en entrée ; `token`, `firstName`, `isAdmin`… en sortie |
+| Formes de réponse | tableaux vs objet, `IsSuccess` / `Errors` / `FileContent` sur File |
+| Auth front | Bearer déjà envoyé après login ; `User/authenticate` reste anonyme |
+| CORS + cookies | `withCredentials: true` ; ne pas casser les origines front (`dev.perle-rare.info`, `perle-rare.info`) |
+
+Autorisé **sans** changer le contrat visible :
+
+- Ajouter `[Authorize]` sur une route que le front n’appelle **jamais** anonyme
+- Restreindre Health / Test / Db / Swagger (le front ne les utilise pas)
+- Corriger SQL, TLS, path traversal **à comportement métier égal**
+- Ajouter une route **nouvelle** (ex. liveness) si l’ancienne reste
+
+Avant **toute** modification de controller / DTO / JSON :
+
+1. Grep `pearlrare-front/src` (surtout `communications.service.ts`) pour la route et les champs.
+2. Si le front lit le champ → le garder (même vide / masqué, pas supprimé).
+3. Si doute → **ne pas changer** la forme ; noter dans `docs/PLAN-MIGRATION.md`.
+
+Inventaire front (non exhaustif, source de vérité = le code Angular) :
+
+`User/authenticate`, `User/SwitchDispo`, `User/SwitchFilter`, `TypesMails`, `TypesTaches`, `TypesEvenements`, `Templates`, `Evenements` (+ Contact, Prospects, RdvClients, ClientsLast, Transactions, OffresEnCours, EncaissementsEnCours), `Taches` (+ Prospects, Clients, ActiveCount), `Formulaires` (+ ActiveCount), `ContactsRecherches` (+ Count, Accueil), `ConseillersPersonnels`, `ConseillersPersonnelsTaches`, `ConseillersPersonnelsEvenements`, `AgentCommerciauxTaches`, `ContactIntermediaires`, `IntermediairesDirects` (+ Top30Agences), `IntermediairesIndirects`, `Biens` (+ NonVus), `AnnoncesGlobales` (+ RecupInfosAnnonces2, ViderInfosAnnonces), `MetaMoteurs`, `Audits`, `Origines`, `CodesPostaux`, `TagsAnnonces`, `Quartiers`, `Negociateurs`, `contactBiens`, `Exchange/*`, `File/Upload` + `File/{fn}`, `search/{text}`.
+
+## Zéro régression
+
+- Ne pas « nettoyer » un JSON (renommer `CpNom` → `nom`, passer snake_case, wrapper `{ data: … }`).
+- Ne pas changer le serializer global (camelCase ASP.NET, `WhenWritingNull`).
+- Ne pas durcir une validation si le front envoie déjà des valeurs « sales » (dates, encodage).
+- Pagination / rate-limit : ne pas casser `take=0` ou les listes actuelles **tant que** le front les utilise ; documenter avant de plafonner.
+- Hash mots de passe : **bascule douce** à la reconnexion (clair toujours accepté jusqu’à 1re connexion, puis hash). Jamais invalider tous les comptes d’un coup.
+- JWT plus court : uniquement après créneau client (invalide les sessions). Pas en silence.
+- Recette locale après chaque palier : `curl` authenticate + 2–3 GET métier avec token, Swagger local, build `dotnet build`.
+
+## Git
+
+1. Rappeler commit / push après un palier.
+2. Ne pas commit / push sans demande.
+3. Pas de `--force` sur `main` ; pas de skip hooks.
+4. Ne jamais committer `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`, `api-perle-rare-publish/`.
 
 ## Production — interdit par défaut
 
-| Cible | Action agent |
-|-------|----------------|
-| **API prod** `https://api.perle-rare.info` et `/var/www/api.perle-rare.info` | **Interdit** sauf ordre écrit (« déploie l’API en prod ») |
-| **Front prod** `/var/www/prod.perle-rare.info` | **Interdit** (autre dépôt) |
-| **MariaDB** | User `cursor_client` = **SELECT only**. Jamais INSERT/UPDATE/DELETE |
-| **SSH VPS** | Lecture seule (ls, git log, ps, curl). Aucun restart, aucun write |
+| Cible | Action |
+|-------|--------|
+| API prod `https://api.perle-rare.info` et `/var/www/api.perle-rare.info` | Interdit sauf « déploie l’API en prod » |
+| Front prod | Interdit (autre dépôt) |
+| MariaDB | `cursor_client` = **SELECT only** |
+| SSH VPS | Lecture seule. Aucun write / restart / hook git |
 
-- Ne jamais rsync / scp **vers** le VPS sans permission explicite.
-- Ne jamais toucher les hooks git `api.perle-rare.info.git`.
+Rotation des secrets (plan §7) : **créneau client obligatoire**, jamais tout seul.
 
-## VPS (référence)
+## VPS
 
-- Host : `142.4.216.57` — SSH port **2477**, user `administrateur`, clé locale `git.key`
-- Docs : `infra/ovh/README.md`, `infra/ovh/servers.json`
-- API git bare : `/home/administrateur/api.perle-rare.info.git`
-- API live : `/var/www/api.perle-rare.info` (Kestrel localhost:5000 derrière Apache 443)
+- `142.4.216.57` port **2477**, user `administrateur`, clé `git.key`
+- Docs : `infra/ovh/README.md`
+- Live ≠ git publish (DLL live plus récente). Ne pas assumer que le décompilé = prod.
 
-## Secrets
+## Phrase type
 
-- Ne pas committer `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`
-- Ne pas coller mots de passe / JWT / tokens dans le chat ou les docs versionnées
-
-## Phrase type en fin de tâche
-
-> Changements prêts en local. Tu veux que je **commit** ? (prod API et VPS non touchés)
+> Changements prêts en local. Contrat API inchangé (front non modifié). Tu veux que je **commit** ? (prod et VPS non touchés)

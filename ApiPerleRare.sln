@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiPerleRare", "api-perle-rare-decompiled\ApiPerleRare.csproj", "{EB5E4F25-D65E-4CDA-A21D-03151B3F7A79}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ACF73C78-BB00-4D3C-BD05-A30B917DE9AF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiPerleRare.Tests", "tests\ApiPerleRare.Tests\ApiPerleRare.Tests.csproj", "{71E05A51-E51C-4A95-A35B-B62DC5DFD921}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB5E4F25-D65E-4CDA-A21D-03151B3F7A79}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB5E4F25-D65E-4CDA-A21D-03151B3F7A79}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB5E4F25-D65E-4CDA-A21D-03151B3F7A79}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB5E4F25-D65E-4CDA-A21D-03151B3F7A79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71E05A51-E51C-4A95-A35B-B62DC5DFD921}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71E05A51-E51C-4A95-A35B-B62DC5DFD921}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71E05A51-E51C-4A95-A35B-B62DC5DFD921}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71E05A51-E51C-4A95-A35B-B62DC5DFD921}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{71E05A51-E51C-4A95-A35B-B62DC5DFD921} = {ACF73C78-BB00-4D3C-BD05-A30B917DE9AF}
+	EndGlobalSection
+EndGlobal

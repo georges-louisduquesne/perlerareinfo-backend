@@ -533,7 +533,8 @@ public class AnnoncesGlobalesController : ControllerBase
 			string p = MakePredicate(field, m.Groups["before"].Value.Trim());
 			string otherField = GetSqlFieldName(new string[1] { m.Groups["field"].Value });
 			string otherValue = m.Groups["value"].Value;
-			return $"(({p}) AND {otherField}={otherValue})";
+			string otherLit = SqlSafety.IsNumber(otherValue) ? SqlSafety.NumberLiteral(otherValue) : SqlSafety.Quote(otherValue);
+			return $"(({p}) AND {otherField}={otherLit})";
 		}
 		if (value == "*")
 		{
@@ -550,7 +551,7 @@ public class AnnoncesGlobalesController : ControllerBase
 		}
 		if (value.StartsWith(">="))
 		{
-			return fn + " >= " + value.Substring(2, value.Length - 2);
+			return fn + " >= " + SqlSafety.NumberLiteral(value.Substring(2, value.Length - 2).Trim());
 		}
 		if (value == "NC")
 		{
@@ -578,7 +579,7 @@ public class AnnoncesGlobalesController : ControllerBase
 				}
 				unit = "month";
 			}
-			return $"{fn}<=DATE_ADD(NOW(), INTERVAL {nb} {unit})";
+			return $"{fn}<=DATE_ADD(NOW(), INTERVAL {SqlSafety.NumberLiteral(nb)} {unit})";
 		}
 		m = rgx_in.Match(value);
 		if (m.Success)
@@ -604,13 +605,13 @@ public class AnnoncesGlobalesController : ControllerBase
 			}
 			return positives + " AND " + negatives;
 		}
-		return fn + " = '" + value + "'";
+		return fn + " = " + SqlSafety.Quote(value);
 	}
 
 	private static string GetSqlFieldName(string[] propNames)
 	{
 		string propName = propNames.Single();
-		return rgx_fields.Replace(propName, delegate(Match m)
+		string sqlName = rgx_fields.Replace(propName, delegate(Match m)
 		{
 			if (string.Compare(m.Value, "AgRefAgc", ignoreCase: true) == 0)
 			{
@@ -619,5 +620,6 @@ public class AnnoncesGlobalesController : ControllerBase
 			string value = m.Value;
 			return "AG_" + value.Substring(2, value.Length - 2);
 		});
+		return SqlSafety.Identifier(sqlName);
 	}
 }

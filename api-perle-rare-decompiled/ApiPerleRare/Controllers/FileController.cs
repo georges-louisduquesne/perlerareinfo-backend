@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using ApiPerleRare.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -50,20 +51,14 @@ public class FileController : ControllerBase
 	{
 		try
 		{
-			if (string.IsNullOrWhiteSpace(_oldWebSiteFolder))
+			if (!SafeFilePath.TryResolve(_oldWebSiteFolder, fileUpload.FileName, out string fullPath, out string error))
 			{
-				throw new Exception("'OldWebSiteFolder' non spécifié");
+				throw new Exception(error);
 			}
-			fileUpload.FileName = fileUpload.FileName.Replace("\\", "/");
-			if (!fileUpload.FileName.Contains("/"))
+			if (string.IsNullOrEmpty(fileUpload.FileContent) || fileUpload.FileContent.Length > 28_000_000)
 			{
-				throw new Exception("Il faut obligatoirement spécifier un dossier");
+				throw new Exception("Fichier trop volumineux");
 			}
-			if (Path.GetExtension(fileUpload.FileName).ToLower() == ".php")
-			{
-				throw new Exception("Interdit d'uploader un fichier PHP");
-			}
-			string fullPath = Path.Combine(_oldWebSiteFolder, fileUpload.FileName);
 			string folder = Path.GetDirectoryName(fullPath);
 			if (!Directory.Exists(folder))
 			{
@@ -73,15 +68,15 @@ public class FileController : ControllerBase
 			return new FileResponse
 			{
 				IsSuccess = true,
-				FullPath = fullPath
+				FullPath = fileUpload.FileName.Replace("\\", "/")
 			};
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
 			return new FileResponse
 			{
 				IsSuccess = false,
-				Errors = ex.ToString()
+				Errors = ClientError.Generic
 			};
 		}
 	}
@@ -92,19 +87,13 @@ public class FileController : ControllerBase
 	{
 		try
 		{
-			if (string.IsNullOrWhiteSpace(_oldWebSiteFolder))
+			if (!SafeFilePath.TryResolve(_oldWebSiteFolder, request.FileName, out string fullPath, out string error))
 			{
-				throw new Exception("'OldWebSiteFolder' non spécifié");
+				throw new Exception(error);
 			}
-			request.FileName = request.FileName.Replace("\\", "/");
-			string fullPath = Path.Combine(_oldWebSiteFolder, request.FileName);
 			if (!System.IO.File.Exists(fullPath))
 			{
-				throw new Exception("Fichier '" + fullPath + "' introuvable");
-			}
-			if (Path.GetExtension(request.FileName).ToLower() == ".php")
-			{
-				throw new Exception("Interdit de télécharger un fichier PHP");
+				throw new Exception("Fichier introuvable");
 			}
 			return new FileDownloadResponse
 			{
@@ -112,12 +101,12 @@ public class FileController : ControllerBase
 				FileContent = Convert.ToBase64String(System.IO.File.ReadAllBytes(fullPath))
 			};
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
 			return new FileDownloadResponse
 			{
 				IsSuccess = false,
-				Errors = ex.ToString()
+				Errors = ClientError.Generic
 			};
 		}
 	}

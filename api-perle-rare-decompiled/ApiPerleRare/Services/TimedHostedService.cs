@@ -48,8 +48,9 @@ public class TimedHostedService : IHostedService, IDisposable
 		}
 		_executing = true;
 		DateTime execution = DateTime.Now;
-		using (IServiceScope scope = _serviceScopeFactory.CreateScope())
+		try
 		{
+			using IServiceScope scope = _serviceScopeFactory.CreateScope();
 			using ApplicationDbContext dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 			Type[] availableTaskTypes = _availableTaskTypes;
 			foreach (Type taskType in availableTaskTypes)
@@ -77,9 +78,12 @@ public class TimedHostedService : IHostedService, IDisposable
 				log.StlDateFin = DateTime.Now;
 				dbContext.SaveChanges();
 			}
+			_lastExecution = execution;
 		}
-		_lastExecution = execution;
-		_executing = false;
+		finally
+		{
+			_executing = false;
+		}
 	}
 
 	public Task StopAsync(CancellationToken stoppingToken)
