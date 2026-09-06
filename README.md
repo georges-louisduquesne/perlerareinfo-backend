@@ -26,6 +26,22 @@ Ce dépôt reprend la partie backend qui vivait dans `pearlrare-front` (infra OV
 └── .cursor/                     # règle agent + MCP (mcp.json gitignored)
 ```
 
+## Lancer en local (sans jobs prod)
+
+Le SDK **.NET 8** est dans `~/.dotnet` (le `dotnet` système en x64 3.1/6.0 ne suffit pas).
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+./scripts/run-local.sh
+```
+
+Puis ouvrir [http://localhost:5080/swagger](http://localhost:5080/swagger).
+
+Mode `PR_LOCAL_SAFE=1` : pas de tâches planifiées (Yanport / mails / UPDATE), pas de redirection HTTPS.  
+La base utilisée est MariaDB **lecture seule** (`cursor_client`). Les POST/PUT échoueront côté droits SQL — c’est voulu.
+
+Smoke : `curl -s http://localhost:5080/api/Test/info` → `DBName=perle-rareinfo`
+
 ## Prérequis locaux
 
 - Clé `git.key` à la racine (déjà copiée depuis le front, non versionnée)

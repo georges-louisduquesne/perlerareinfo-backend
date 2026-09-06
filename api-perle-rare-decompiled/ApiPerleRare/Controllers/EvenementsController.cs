@@ -144,7 +144,7 @@ public class EvenementsController : ControllerBase
 			}).AsNoTracking();
 			query = ApplyDefaultFilter(query, option);
 			query = EFHelper<EvenementsEx>.Apply(query, where, orderby, take, skip, select);
-			return (ActionResult<IEnumerable<EvenementsEx>>)(IEnumerable<EvenementsEx>)(await query.ToListAsync());
+			return (await query.ToListAsync());
 		}
 		catch (Exception ex)
 		{
@@ -161,7 +161,7 @@ public class EvenementsController : ControllerBase
 		{
 			IQueryable<ContactEvenements> query = _context.ContactEvenements.AsNoTracking();
 			query = EFHelper<ContactEvenements>.Apply(query, where, orderby, take, skip, select);
-			return (ActionResult<IEnumerable<ContactEvenements>>)(IEnumerable<ContactEvenements>)(await query.ToListAsync());
+			return (await query.ToListAsync());
 		}
 		catch (Exception ex)
 		{

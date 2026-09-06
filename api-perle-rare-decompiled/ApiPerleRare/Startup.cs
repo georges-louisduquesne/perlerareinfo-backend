@@ -29,7 +29,9 @@ public class Startup
 {
 	public IConfiguration Configuration { get; }
 
-	public static bool IsDevMachine => Environment.UserName == "jbhuber" || Environment.MachineName == "PORT0623001";
+	public static bool IsLocalSafe => string.Equals(Environment.GetEnvironmentVariable("PR_LOCAL_SAFE"), "1", StringComparison.Ordinal);
+
+	public static bool IsDevMachine => IsLocalSafe || Environment.UserName == "jbhuber" || Environment.MachineName == "PORT0623001";
 
 	public Startup(IConfiguration configuration)
 	{
@@ -41,7 +43,10 @@ public class Startup
 		string connectionString = Configuration.GetConnectionString("PerleRareDB");
 		services.AddDbContext<ApplicationDbContext>(delegate(DbContextOptionsBuilder opt)
 		{
-			opt.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), delegate(MySqlDbContextOptionsBuilder o)
+			var serverVersion = IsLocalSafe
+				? ServerVersion.Parse("10.5.0-mariadb")
+				: ServerVersion.AutoDetect(connectionString);
+			opt.UseMySql(connectionString, serverVersion, delegate(MySqlDbContextOptionsBuilder o)
 			{
 				o.CommandTimeout(180);
 			});
@@ -130,8 +135,11 @@ public class Startup
 			options.Cookie.HttpOnly = true;
 			options.Cookie.IsEssential = true;
 		});
-		services.AddHostedService<QueuedHostedService>();
-		services.AddHostedService<TimedHostedService>();
+		if (!IsLocalSafe)
+		{
+			services.AddHostedService<QueuedHostedService>();
+			services.AddHostedService<TimedHostedService>();
+		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 		if (IsDevMachine)
 		{
@@ -159,7 +167,10 @@ public class Startup
 		RewriteOptions option = new RewriteOptions();
 		option.AddRedirect("^$", "swagger");
 		app.UseRewriter(option);
-		app.UseHttpsRedirection();
+		if (!IsLocalSafe)
+		{
+			app.UseHttpsRedirection();
+		}
 		app.UseRouting();
 		app.UseCors();
 		app.UseAuthentication();

@@ -38,7 +38,7 @@ public class BiensController : ControllerBase
 			IQueryable<Biens> query = _context.Biens.AsNoTracking();
 			query = ApplyDefaultFilter(query);
 			query = EFHelper<Biens>.Apply(query, where, orderby, take, skip, select);
-			return (ActionResult<IEnumerable<Biens>>)(IEnumerable<Biens>)(await query.ToListAsync());
+			return (await query.ToListAsync());
 		}
 		catch (Exception ex)
 		{

@@ -981,7 +981,7 @@ public class YanportScheduledTask : AbstractScheduledTask
 		AddField(list, (AnnoncesGlobales ag) => ag.AgNbPieces, "A_NbPieces", (ImportContext ic) => ic.Hit.Features?.Geometry?.RoomCount);
 		AddField(list, (AnnoncesGlobales ag) => ag.AgSurface, "A_Surface", (ImportContext ic) => ToInt(ic.Hit.Features?.Geometry?.Surface));
 		AddField(list, (AnnoncesGlobales ag) => ag.AgEtage, "A_Etage", (ImportContext ic) => ic.Hit.Features?.Geometry?.Floors?.FirstOrDefault()?.Level);
-		AddField(list, (AnnoncesGlobales ag) => ag.AgEstExclusif, "A_EstExclusif", (ImportContext ic) => (ic.Hit.Marketing?.ExclusiveMandate == true) ?? false);
+		AddField(list, (AnnoncesGlobales ag) => ag.AgEstExclusif, "A_EstExclusif", (ImportContext ic) => ic.Hit.Marketing?.ExclusiveMandate == true);
 		AddField(list, (AnnoncesGlobales ag) => ag.AgEstDernierEtage, "A_EstDernierEtage", (ImportContext ic) => EstDernierEtage(ic.Hit.Features));
 		AddField(list, (AnnoncesGlobales ag) => ag.AgDateDebut, "A_DateDebut", (ImportContext ic) => GetDateOnly(ic.Hit.Marketing?.PublicationStartDate.ToLocalTime()?.Date));
 		AddField(list, (AnnoncesGlobales ag) => ag.AgAnnee, "A_Annee", (ImportContext ic) => ic.Hit.Features?.Construction?.Year);

@@ -104,7 +104,7 @@ public class ContactsRecherchesController : ControllerBase
 				r.CNegociateur_I = i;
 			});
 		}
-		return (ActionResult<IEnumerable<ContactsRechercheEx>>)(IEnumerable<ContactsRechercheEx>)res2;
+		return res2;
 	}
 
 	private void Complete(string login, Action<string> photoSetter, Action<string> initialesSetter)
@@ -225,7 +225,7 @@ public class ContactsRecherchesController : ControllerBase
 					}
 				}
 			}
-			return (ActionResult<IEnumerable<ContactsRechercheAccueil>>)(IEnumerable<ContactsRechercheAccueil>)resa;
+			return resa;
 		}
 		catch (Exception ex)
 		{

@@ -38,7 +38,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			{
 				EncodingHelper.FixEncodingInStringProperties(cr);
 			}
-			return (ActionResult<IEnumerable<ConseillersPersonnels>>)(IEnumerable<ConseillersPersonnels>)res;
+			return res;
 		}
 		catch (Exception ex)
 		{

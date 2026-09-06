@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "ApiPerleRare-local": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "PR_LOCAL_SAFE": "1"
+      }
+    }
+  }
+}

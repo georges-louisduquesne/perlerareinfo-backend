@@ -12,7 +12,4 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 [assembly: AssemblyInformationalVersion("1.0.0+f4b978635e44401fecab54e2e1cdf9e709f33df4")]
 [assembly: AssemblyProduct("ApiPerleRare")]
 [assembly: AssemblyTitle("ApiPerleRare")]
-[assembly: ApplicationPart("Swashbuckle.AspNetCore.Annotations")]
-[assembly: ApplicationPart("Swashbuckle.AspNetCore.SwaggerGen")]
 [assembly: AssemblyVersion("2022.2.6.0")]
-[module: RefSafetyRules(11)]

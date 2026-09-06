@@ -44,6 +44,6 @@ public class OriginesController : ControllerBase
 				});
 			}
 		}
-		return (ActionResult<IEnumerable<Origines>>)(IEnumerable<Origines>)list;
+		return list;
 	}
 }

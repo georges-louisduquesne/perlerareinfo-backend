@@ -3,8 +3,7 @@
     <AssemblyName>ApiPerleRare</AssemblyName>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp7.0</TargetFramework>
-    <PlatformTarget>x64</PlatformTarget>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>
     <LangVersion>11.0</LangVersion>

@@ -33,7 +33,7 @@ public class AuditsController : ControllerBase
 			IQueryable<Audit> query = _context.Audit.AsNoTracking();
 			query = ApplyDefaultFilter(query);
 			query = EFHelper<Audit>.Apply(query, where, orderby, take, skip, select);
-			return (ActionResult<IEnumerable<Audit>>)(IEnumerable<Audit>)(await query.ToListAsync());
+			return (await query.ToListAsync());
 		}
 		catch (Exception ex)
 		{

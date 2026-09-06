@@ -22,6 +22,6 @@ public class TypesSupprformsController : ControllerBase
 	[HttpGet]
 	public async Task<ActionResult<IEnumerable<TypesSupprform>>> GetTypesSupprform()
 	{
-		return (ActionResult<IEnumerable<TypesSupprform>>)(IEnumerable<TypesSupprform>)(await _context.TypesSupprform.ToListAsync());
+		return (await _context.TypesSupprform.ToListAsync());
 	}
 }

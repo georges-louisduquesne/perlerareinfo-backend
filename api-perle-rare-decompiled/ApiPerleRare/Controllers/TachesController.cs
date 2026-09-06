@@ -82,7 +82,7 @@ public class TachesController : ControllerBase
 			query = EFHelper<TachesEx>.Apply(query, where, orderby, take, skip, select);
 			List<TachesEx> list = await query.ToListAsync();
 			list.FixEncoding();
-			return (ActionResult<IEnumerable<TachesEx>>)(IEnumerable<TachesEx>)CompleteTachesExes(list);
+			return CompleteTachesExes(list);
 		}
 		catch (Exception ex)
 		{

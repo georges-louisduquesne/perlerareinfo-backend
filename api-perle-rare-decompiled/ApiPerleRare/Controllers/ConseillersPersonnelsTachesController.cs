@@ -36,7 +36,7 @@ public class ConseillersPersonnelsTachesController : ControllerBase
 			{
 				EncodingHelper.FixEncodingInStringProperties(cr);
 			}
-			return (ActionResult<IEnumerable<ConseillersPersonnelsTaches>>)(IEnumerable<ConseillersPersonnelsTaches>)res;
+			return res;
 		}
 		catch (Exception ex)
 		{
@@ -68,7 +68,7 @@ public class ConseillersPersonnelsTachesController : ControllerBase
 					NomComplet = string.Concat(cp.CpNomFamille + " ", cp.CpPrenom)
 				};
 			query = EFHelper<AgentCommerciauxTache>.Apply(query, where, orderby, take, skip, select);
-			return (ActionResult<IEnumerable<AgentCommerciauxTache>>)(IEnumerable<AgentCommerciauxTache>)(await query.ToListAsync());
+			return (await query.ToListAsync());
 		}
 		catch (Exception ex)
 		{

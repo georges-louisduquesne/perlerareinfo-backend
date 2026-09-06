@@ -114,7 +114,7 @@ public class PropertyContactsController : ControllerBase
 	[HttpGet]
 	public async Task<ActionResult<IEnumerable<PropertyContact>>> GetPropertyContact()
 	{
-		return (ActionResult<IEnumerable<PropertyContact>>)(IEnumerable<PropertyContact>)(await _context.PropertyContact.ToListAsync());
+		return (await _context.PropertyContact.ToListAsync());
 	}
 
 	[HttpGet("{id}")]
