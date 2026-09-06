@@ -1,0 +1,39 @@
+[
+  {
+    "id": "220326",
+    "name": "ns5000052.ip-142-4-216.net",
+    "ip": "142.4.216.57",
+    "reverseDns": "ns5000052.ip-142-4-216.net.",
+    "model": "eg",
+    "os": "debian11",
+    "region": "ca-east-bhs",
+    "datacentre": "bhs1",
+    "status": "Normal",
+    "monitoring": "Enabled with proactive intervention",
+    "renewalType": "Automatic",
+    "expiryDate": "01/08/2026",
+    "monthlyPrice": "116.99 €",
+    "tags": [],
+    "role": "production",
+    "notes": "OVH dedicated server — Perle Rare hosting. This repo is local setup only; do not write to the VPS.",
+    "ssh": {
+      "host": "142.4.216.57",
+      "port": 2477,
+      "user": "administrateur",
+      "keyFile": "../../git.key"
+    },
+    "services": {
+      "apache": true,
+      "kestrel": true,
+      "mysql": true,
+      "docker": false
+    },
+    "deployPaths": {
+      "frontDev": "/var/www/dev.perle-rare.info",
+      "frontProd": "/var/www/prod.perle-rare.info",
+      "api": "/var/www/api.perle-rare.info",
+      "gitFront": "/home/administrateur/dev.perle-rare.info.git",
+      "gitApi": "/home/administrateur/api.perle-rare.info.git"
+    }
+  }
+]

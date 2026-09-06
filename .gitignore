@@ -1,0 +1,39 @@
+# compiled
+/dist
+/bin
+/obj
+*.user
+*.suo
+
+# local secrets / keys
+git.key
+*.pem
+.id_rsa
+.id_ed25519
+.env
+.env.*
+!.env.example
+
+# MCP + DB credentials (never commit)
+.cursor/mcp.json
+infra/ovh/secrets/
+infra/ovh/cursor-client/windows-kit/mcp.json
+infra/ovh/cursor-client/windows-kit/credentials.env
+
+# Publish binaries + appsettings with secrets (local reference only)
+/api-perle-rare-publish/
+/api-perle-rare-live/
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+!**/appsettings.example.json
+
+# IDE
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db

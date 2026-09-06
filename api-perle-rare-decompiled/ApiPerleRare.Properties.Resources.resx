@@ -1,0 +1,302 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>1.3</value></resheader><resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><data name="MailTemplate" xml:space="preserve"><value>&lt;html&gt;
+&lt;head&gt;
+&lt;style&gt;
+@font-face
+{
+	font-family:"ITC Avant Garde Std Bk";
+	panose-1:2 11 5 2 2 2 2 2 2 4;
+}
+
+html,body
+{
+	font-family:"ITC Avant Garde Std Bk",Verdana,sans-serif;
+	font-size:10pt;
+	line-height:1.5
+}
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+%CONTENTS%
+&lt;/body&gt;
+&lt;/html&gt;</value></data>
+  <data name="CreateContactAnnoncesParameters" xml:space="preserve"><value>AG_Ref &gt; A_RefAnnGlob
+AG_CP &gt; A_Ville
+AG_Surface &gt; A_Surf
+
+// `A_Actif` tinyint(4) NOT NULL default '1',
+Source &gt; A_Source
+Date_Aspi &gt; A_Date_Aspi
+Date_Aff &gt; A_Date_Aff
+Com &gt; A_Com
+
+`A_Annonceur` varchar(50) NOT NULL,
+`A_TelAnnonceur` varchar(14) NOT NULL,
+// `A_Pos` int(11) NOT NULL default '9999999',
+`A_Image` varchar(255) default NULL,
+`A_Prix` varchar(12) default NULL,
+`A_Type` varchar(50) default NULL,
+`A_NbPieces` tinyint(3) unsigned default '0',
+`A_Etage` varchar(2) default NULL,
+`A_NbChambres` varchar(2) default NULL,
+`A_Desc` varchar(3000) default NULL,
+`A_Lien` varchar(255) NOT NULL,
+//`A_Com` varchar(200) NOT NULL,
+//`A_Rate` int(11) unsigned NOT NULL default '0',
+//`A_Dedouble` int(11) unsigned NOT NULL default '0',
+`A_EstExclusif` tinyint(1) NOT NULL default '0',
+`A_EstDernierEtage` tinyint(1) NOT NULL default '0',</value></data>
+  <data name="CreateContactAnnonces" xml:space="preserve"><value>CREATE TABLE IF NOT EXISTS `annonces_refcontact_{contactRef}` (
+          `A_RefAnn` bigint(10) unsigned NOT NULL auto_increment,
+          `A_RefAnnGlob` int(10) unsigned NOT NULL DEFAULT '0',
+          `A_Actif` tinyint(4) NOT NULL default '1',
+          `A_Source` varchar(50) NOT NULL,
+          `A_Annonceur` varchar(50) NOT NULL,
+          `A_TelAnnonceur` varchar(14) NOT NULL,
+          `A_Date_Aspi` date NOT NULL,
+          `A_Date_Aff` date NOT NULL,
+          `A_Pos` int(11) NOT NULL default '9999999',
+          `A_Image` varchar(255) default NULL,
+          `A_Prix` varchar(12) default NULL,
+          `A_Ville` varchar(50) default NULL,
+          `A_Type` varchar(50) default NULL,
+          `A_NbPieces` tinyint(3) unsigned default '0',
+          `A_Surf` int(11) unsigned NOT NULL default '0',
+          `A_Etage` varchar(2) default NULL,
+          `A_NbChambres` varchar(2) default NULL,
+          `A_Desc` varchar(3000) default NULL,
+          `A_Lien` varchar(255) NOT NULL,
+          `A_Com` varchar(200) NOT NULL,
+          `A_Rate` int(11) unsigned NOT NULL default '0',
+          `A_Dedouble` int(11) unsigned NOT NULL default '0',
+          `A_EstExclusif` tinyint(1) NOT NULL default '0',
+          `A_EstDernierEtage` tinyint(1) NOT NULL default '0',
+          UNIQUE KEY `A_Lien` (`A_Lien`),
+          PRIMARY KEY `A_RefAnn` (`A_RefAnn`),
+          KEY `A_RefAnnGlob` (`A_RefAnnGlob`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;
+
+CREATE TRIGGER annonces_refcontact_{contactRef}_oninsert AFTER INSERT
+	ON annonces_refcontact_{contactRef} FOR EACH ROW
+	BEGIN
+	
+	-- bon contact ?
+	SET @refconseiller := (SELECT CP_RefConseiller FROM conseillers_personnels cp
+	  INNER JOIN contacts_recherche c ON c.C_NomFamilleConseiller=cp.CP_Login
+		 WHERE cp.CP_Actif=1 AND cp.CP_Login IS NOT NULL AND cp.CP_Login &lt;&gt; '' AND c.C_RefContact={contactRef} AND c.C_Statut='CLIENT ACTIF' AND c.C_TypeRecherche='0' AND c.C_AlerteMail=1);
+		 
+	 IF @refconseiller is not NULL AND NEW.A_RefAnnGlob IS NOT NULL &amp;&amp; NEW.A_RefAnnGlob &lt;&gt; 0 AND NEW.A_Actif = 1 THEN
+	   
+	   SET @gr := (SELECT ag.AG_Ref_AGC FROM annonces_globales ag WHERE ag.AG_Ref=NEW.A_RefAnnGlob);
+	   
+	   -- nouveau A_RefAnnGlob ?
+	   SET @nb := (SELECT COUNT(*) FROM annonces_globales ag WHERE ag.AG_Ref_AGC=@gr AND ag.AG_Ref &lt;&gt; NEW.A_RefAnnGlob);
+	   -- SET @nb := (SELECT COUNT(*) FROM annonces_globales ag WHERE ag.AG_Ref_AGC=@gr);
+		IF @nb = 0 THEN
+			 INSERT INTO `notifications` (`N_Type`, `N_RefConseiller`, `N_RefContact`, `N_RefAnn`, `N_CreatedOn`, `N_State`, `N_NewPrix`) 
+			 VALUES ('NOUVEAU BIEN', @refconseiller, '{contactRef}', NEW.A_RefAnn, NOW(), '0', NEW.A_Prix);
+		 END IF;
+	 END IF;
+	END;
+
+CREATE TRIGGER annonces_refcontact_{contactRef}_onupdate AFTER UPDATE
+	ON annonces_refcontact_{contactRef} FOR EACH ROW
+	BEGIN
+		-- bon contact ?
+		SET @refconseiller := (SELECT CP_RefConseiller FROM conseillers_personnels cp
+		INNER JOIN contacts_recherche c ON c.C_NomFamilleConseiller=cp.CP_Login
+			WHERE cp.CP_Actif=1 AND cp.CP_Login IS NOT NULL AND cp.CP_Login &lt;&gt; '' AND c.C_RefContact={contactRef} AND c.C_Statut='CLIENT ACTIF' AND c.C_TypeRecherche='0' AND c.C_AlerteMail=1);
+			
+		IF @refconseiller is not NULL AND NEW.A_RefAnnGlob IS NOT NULL &amp;&amp; NEW.A_RefAnnGlob &lt;&gt; 0 AND NEW.A_Actif = 1 THEN
+		
+			IF OLD.A_RefAnnGlob IS NULL THEN
+				-- on considère ça comme un INSERT !
+				SET @gr := (SELECT ag.AG_Ref_AGC FROM annonces_globales ag WHERE ag.AG_Ref=NEW.A_RefAnnGlob);
+		
+				-- nouveau A_RefAnnGlob ?
+				SET @nb := (SELECT COUNT(*) FROM annonces_globales ag WHERE ag.AG_Ref_AGC=@gr AND ag.AG_Ref &lt;&gt; NEW.A_RefAnnGlob);
+				-- SET @nb := (SELECT COUNT(*) FROM annonces_globales ag WHERE ag.AG_Ref_AGC=@gr);
+				IF @nb = 0 THEN
+					INSERT INTO `notifications` (`N_Type`, `N_RefConseiller`, `N_RefContact`, `N_RefAnn`, `N_CreatedOn`, `N_State`, `N_NewPrix`) 
+					VALUES ('NOUVEAU BIEN', @refconseiller, '{contactRef}', NEW.A_RefAnn, NOW(), '0', NEW.A_Prix);
+				END IF;
+			ELSEIF OLD.A_Prix &lt;&gt; NEW.A_Prix THEN 
+				INSERT INTO `notifications` (`N_Type`, `N_RefConseiller`, `N_RefContact`, `N_RefAnn`, `N_CreatedOn`, `N_State`, `N_OldPrix`, `N_NewPrix`) 
+				VALUES ('MODIF PRIX', @refconseiller, '{contactRef}', NEW.A_RefAnn, NOW(), '0', OLD.A_Prix, NEW.A_Prix);
+			END IF;
+		END IF;
+		        		
+		-- on met à jour property_contact
+		SET @propertyId := (SELECT AG_IdPropertyYanport FROM annonces_globales ag WHERE ag.AG_Ref=NEW.A_RefAnnGlob);
+		IF @propertyId is not NULL THEN
+			-- rien
+			UPDATE property_contact SET PC_Rate=NEW.A_Rate, PC_Com=NEW.A_Com, PC_Actif=NEW.A_Actif, PC_Vu=CASE WHEN NEW.A_Date_Aff IS NULL OR NEW.A_Date_Aff='0000-00-00' THEN 0 ELSE 1 END WHERE PC_PropertyId=@propertyId AND PC_RefContact={contactRef};
+		END IF;
+	END ;</value></data>
+  <data name="NicolasQuery" xml:space="preserve"><value>{
+  "where": "agDateFin IS NULL",
+  "contactRef": 2154,
+  "apply": true,
+  "fields": [
+    {
+      "field": "AgTypeTransaction",
+      "checkedValues": [ "A" ],
+      "uncheckedValues": [ "L" ]
+    },
+    {
+      "field": "AgType",
+      "checkedValues": [],
+      "uncheckedValues": [ "Appartement", "Maison", "Locaux pro" ]
+    },
+    {
+      "field": "AgNbPieces",
+      "checkedValues": [],
+      "uncheckedValues": [ "1", "2", "3", "4", "5", "&gt;=6", "NULL" ]
+    },
+    {
+      "field": "AgNbChambres",
+      "checkedValues": [],
+      "uncheckedValues": [ "0", "1", "2", "3", "4", "5", "&gt;=6", "NULL" ]
+    },
+    {
+      "field": "AgEstDernierEtage",
+      "checkedValues": [],
+      "uncheckedValues": [ "1" ]
+    },
+    {
+      "field": "AgEstExclusif",
+      "checkedValues": [],
+      "uncheckedValues": [ "1" ]
+    },
+    {
+      "field": "AgEstRecent",
+      "checkedValues": [],
+      "uncheckedValues": [ "1" ]
+    },
+    {
+      "field": "AgEtage",
+      "checkedValues": [],
+      "uncheckedValues": [ "0", "1", "2", "3", "&gt;=4", "NULL" ]
+    },
+    {
+      "field": "AgDateDebut",
+      "checkedValues": [],
+      "uncheckedValues": [ "&lt;=-3j", "&lt;=-8j", "&lt;=-30j", "&lt;=-3m" ]
+    },
+    {
+      "field": "AgSurface",
+      "checkedValues": [ "20..395" ],
+      "uncheckedValues": [ "10..395", "18..395", "20..397", "20..405" ]
+    },
+    {
+      "field": "AgPrix",
+      "checkedValues": [ "150000..500000" ],
+      "uncheckedValues": [ "50000..500000", "130000..500000", "150000..520000", "150000..600000" ]
+    },
+    {
+      "field": "AgPrix/AgSurface",
+      "checkedValues": [ "7575..12543" ],
+      "uncheckedValues": [ "-92425..12543", "-12425..12543", "7575..32543", "7575..112543" ]
+    },
+    {
+      "field": "AgQuartier2",
+      "checkedValues": [],
+      "uncheckedValues": [ "* with AgCp=75001", "* with AgCp=75002", "* with AgCp=75003", "* with AgCp=75004", "* with AgCp=75005", "* with AgCp=75006", "* with AgCp=75007", "* with AgCp=75008", "* with AgCp=75009", "* with AgCp=75010", "* with AgCp=75011", "* with AgCp=75012", "* with AgCp=75013", "* with AgCp=75014", "* with AgCp=75015", "* with AgCp=75016", "* with AgCp=75017", "* with AgCp=75018", "* with AgCp=75019", "* with AgCp=75020", "* with AgCp=78000", "* with AgCp=92100", "* with AgCp=92110", "* with AgCp=92120", "* with AgCp=92130", "* with AgCp=92170", "* with AgCp=92200", "* with AgCp=92210", "* with AgCp=92240", "* with AgCp=92250", "* with AgCp=92270", "* with AgCp=92300", "* with AgCp=92310", "* with AgCp=92360", "* with AgCp=92380", "* with AgCp=92400", "* with AgCp=92600", "* with AgCp=92700", "* with AgCp=92800", "* with AgCp=93100", "* with AgCp=93170", "* with AgCp=93260", "* with AgCp=93310", "* with AgCp=93400", "* with AgCp=93500", "* with AgCp=94120", "* with AgCp=94130", "* with AgCp=94160", "* with AgCp=94220", "* with AgCp=94300" ]
+    },
+    {
+      "field": "AgListeTags",
+      "checkedValues": [ "IN ()" ],
+      "uncheckedValues": []
+    }
+  ]
+}</value></data>
+  <data name="NotificationMailTemplate" xml:space="preserve"><value>&lt;html&gt;
+&lt;head&gt;
+&lt;style&gt;
+@font-face{
+    font-family: "ITCAvantGardeStd";
+    src:url("https://old.perle-rare.info/pages/assets/fonts/ITCAvantGardeStd-Bk.otf");
+}
+
+@font-face{
+    font-family: "ITCAvantGardeStd";
+    src:url("https://old.perle-rare.info/pages/assets/fonts/ITCAvantGardeStd-Bold.otf");
+    font-weight: bold;
+}
+
+@font-face{
+    font-family: "ITCAvantGardeStd";
+    src:url("https://old.perle-rare.info/pages/assets/fonts/ITCAvantGardeStd-BkObl.otf");
+    font-style: italic;
+}
+
+@font-face{
+    font-family: "ITCAvantGardeStd";
+    src:url("https://old.perle-rare.info/pages/assets/fonts/ITCAvantGardeStd-BoldObl.otf");
+    font-weight: bold;
+    font-style: italic;
+}
+
+*{border:0;padding:0;margin:0;background:50% 50% no-repeat;text-decoration:none;color:inherit;box-sizing:border-box;font-weight:400}
+:focus{outline:0}
+b,b *,strong,strong *{font-weight:700}
+ol,ul{list-style:none}
+button,input,input:not([type]),input[type=color],input[type=text],input[type=time],input[type=url],input[type=week],input[type=button],input[type=reset],input[type=submit],input[type=date],input[type=datetime],input[type=datetime-local],input[type=email],input[type=month],input[type=number],input[type=password],input[type=search],input[type=tel],pre,select,textarea{font:inherit}
+.mce-container textarea{display:inline-block!important}
+.mce-content-body{font-family:ITCAvantGardeStd!important;font-size:14px;color:#626262;padding:0 5px 5px}
+.mce-content-body h1,.mce-content-body h2,.mce-content-body h3,.mce-content-body h4,.mce-content-body h5,.mce-content-body h6{font-family:aileron;font-weight:200;line-height:1.4em;margin:25px 0 15px}
+.mce-content-body *{background-position:initial}
+.mce-content-body h1{font-size:34px}
+.mce-content-body h2{font-size:30px}
+.mce-content-body h3{font-size:26px}
+.mce-content-body h4{font-size:22px}
+.mce-content-body h5{font-size:18px}
+.mce-content-body h6{font-size:14px}
+.mce-content-body p{margin:25px 0}
+.mce-content-body ol,.mce-content-body ul{margin-left:15px;list-style-position:outside;margin-bottom:20px}
+.mce-content-body ol li,.mce-content-body ul li{margin-left:10px;margin-bottom:10px;color:#626262}
+.mce-content-body ul{list-style-type:disc}
+.mce-content-body ol{list-style-type:decimal}
+.mce-content-body a[href]{text-decoration:underline}
+.mce-content-body table{width:100%;border-spacing:0;border-collapse:separate;border:1px solid #aaa}
+.mce-content-body table tr:nth-child(even){background:#FAFAFA}
+.mce-content-body table caption,.mce-content-body table td,.mce-content-body table th{padding:15px 7px;font:inherit}
+.mce-content-body table th{font-weight:400;color:#6E6E6E;background-position:100% 100%;background-size:2px 10px;background-repeat:no-repeat}
+.mce-content-body table th:last-child{background:0 0}
+.mce-content-body hr{border-top:2px solid #BBB}
+
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body class='mce-content-body'&gt;
+%CONTENTS%
+&lt;/body&gt;
+&lt;/html&gt;</value></data>
+  </root>

@@ -1,0 +1,196 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using ApiPerleRare.Helpers;
+using ApiPerleRare.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
+
+namespace ApiPerleRare.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class PropertyContactsController : ControllerBase
+{
+	public class PropertyContactEx : PropertyContact
+	{
+		public Annonceur[] Annonceurs { get; set; }
+	}
+
+	public class Annonceur
+	{
+		public long Id { get; set; }
+
+		public string Name { get; set; }
+
+		public string Email { get; set; }
+
+		[JsonPropertyName("PhoneNumber")]
+		public string Phone { get; set; }
+
+		public IntermediairesDirects IntDirect { get; set; }
+
+		public IntermediairesIndirects IntIndirect { get; set; }
+	}
+
+	private readonly ApplicationDbContext _context;
+
+	public PropertyContactsController(ApplicationDbContext context)
+	{
+		_context = context;
+	}
+
+	[HttpGet]
+	[Route("/api/contact/{contactRef}/properties")]
+	public async Task<ActionResult<SelectResult<PropertyContactEx>>> GetProperties(long contactRef, [FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
+	{
+		try
+		{
+			IQueryable<PropertyContact> query = _context.PropertyContact.Where((PropertyContact pc) => (long)pc.PcRefContact == contactRef);
+			SelectResult<PropertyContact> res = await EFHelper<PropertyContact>.Select(query, where, orderby, take, skip, select, (IQueryable<PropertyContact> q) => q.Include((PropertyContact p) => p.PcProperty));
+			SelectResult<PropertyContactEx> res2 = new SelectResult<PropertyContactEx>
+			{
+				Total = res.Total,
+				Items = res.Items.Select((PropertyContact source) => EFHelper<PropertyContact>.Copy<PropertyContactEx>(source)).ToArray()
+			};
+			PropertyContactEx[] items = res2.Items;
+			foreach (PropertyContactEx i in items)
+			{
+				if (!string.IsNullOrEmpty(i.PcProperty?.PAnnonceurs))
+				{
+					i.Annonceurs = JsonSerializer.Deserialize<Annonceur[]>(i.PcProperty.PAnnonceurs);
+				}
+			}
+			long[] idIds = (from annonceur in res2.Items.SelectMany((PropertyContactEx propertyContactEx) => propertyContactEx.Annonceurs)
+				where annonceur.Id != 0
+				select annonceur.Id).Distinct().ToArray();
+			if (idIds.Length != 0)
+			{
+				IntermediairesDirects[] intDirects = _context.IntermediairesDirects.Where((IntermediairesDirects intermediairesDirects) => idIds.Contains(intermediairesDirects.IIdYanport)).Include((IntermediairesDirects v) => v.ContactIntermediaire).AsNoTracking()
+					.ToArray();
+				foreach (Annonceur a in res2.Items.SelectMany((PropertyContactEx propertyContactEx) => propertyContactEx.Annonceurs))
+				{
+					if (a.Id != 0)
+					{
+						a.IntDirect = intDirects.FirstOrDefault((IntermediairesDirects d) => d.IIdYanport == a.Id);
+					}
+				}
+				string[] groupEventuels = (from d in intDirects
+					select d.IGroupeEventuel into g
+					where !string.IsNullOrEmpty(g)
+					select g).Distinct().ToArray();
+				if (groupEventuels.Length != 0)
+				{
+					IntermediairesIndirects[] intIndirects = _context.IntermediairesIndirects.Where((IntermediairesIndirects ii) => groupEventuels.Contains(ii.I2NomIntermIndirect)).AsNoTracking().ToArray();
+					foreach (Annonceur a2 in res2.Items.SelectMany((PropertyContactEx propertyContactEx) => propertyContactEx.Annonceurs))
+					{
+						if (a2.IntDirect != null && !string.IsNullOrEmpty(a2.IntDirect.IGroupeEventuel))
+						{
+							a2.IntIndirect = intIndirects.FirstOrDefault((IntermediairesIndirects d) => d.I2NomIntermIndirect == a2.IntDirect.IGroupeEventuel);
+						}
+					}
+				}
+			}
+			return res2;
+		}
+		catch (Exception ex)
+		{
+			Exception ex2 = ex;
+			return BadRequest(ex2.ToString());
+		}
+	}
+
+	private IQueryable<PropertyContact> ApplyDefaultFilter(IQueryable<PropertyContact> query)
+	{
+		return query;
+	}
+
+	[HttpGet]
+	public async Task<ActionResult<IEnumerable<PropertyContact>>> GetPropertyContact()
+	{
+		return (ActionResult<IEnumerable<PropertyContact>>)(IEnumerable<PropertyContact>)(await _context.PropertyContact.ToListAsync());
+	}
+
+	[HttpGet("{id}")]
+	public async Task<ActionResult<PropertyContact>> GetPropertyContact(uint id)
+	{
+		PropertyContact propertyContact = await _context.PropertyContact.FindAsync(id);
+		if (propertyContact == null)
+		{
+			return NotFound();
+		}
+		return propertyContact;
+	}
+
+	[HttpPut("{id}")]
+	public async Task<IActionResult> PutPropertyContact(uint id, PropertyContact pc)
+	{
+		if (id != pc.PcId)
+		{
+			return BadRequest();
+		}
+		_context.Entry(pc).State = EntityState.Modified;
+		try
+		{
+			await _context.SaveChangesAsync();
+			if (pc.PcRefContact != 0)
+			{
+				DbConnection c = _context.Database.GetDbConnection();
+				if (c.State != ConnectionState.Open)
+				{
+					await c.OpenAsync();
+				}
+				string tableName = $"annonces_refcontact_{pc.PcRefContact}";
+				if (c.DoesTableExist(tableName))
+				{
+					using (MySqlCommand cmd = (MySqlCommand)c.CreateCommand())
+					{
+						int actif = (pc.PcActif ? 1 : 0);
+						cmd.CommandText = $"\r\nUPDATE {tableName} SET A_Actif={actif}, A_Rate={pc.PcRate}, A_Com=@com WHERE A_RefAnnGlob IN (SELECT AG_Ref FROM annonces_globales WHERE AG_IdPropertyYanport='{pc.PcPropertyId}')\r\n";
+						cmd.Parameters.AddWithValue("@com", pc.PcCom ?? "");
+						await cmd.ExecuteNonQueryAsync();
+					}
+					if (pc.PcVu)
+					{
+						using MySqlCommand cmd2 = (MySqlCommand)c.CreateCommand();
+						cmd2.CommandText = $"\r\nUPDATE {tableName} SET A_Date_Aff=CURDATE() WHERE (A_Date_Aff IS NULL OR A_Date_Aff='0000-00-00') AND A_RefAnnGlob IN (SELECT AG_Ref FROM annonces_globales WHERE AG_IdPropertyYanport='{pc.PcPropertyId}')\r\n";
+						await cmd2.ExecuteNonQueryAsync();
+					}
+				}
+			}
+		}
+		catch (DbUpdateConcurrencyException)
+		{
+			if (!PropertyContactExists(id))
+			{
+				return NotFound();
+			}
+			throw;
+		}
+		return NoContent();
+	}
+
+	[HttpDelete("{id}")]
+	public async Task<IActionResult> DeletePropertyContact(uint id)
+	{
+		PropertyContact propertyContact = await _context.PropertyContact.FindAsync(id);
+		if (propertyContact == null)
+		{
+			return NotFound();
+		}
+		_context.PropertyContact.Remove(propertyContact);
+		await _context.SaveChangesAsync();
+		return NoContent();
+	}
+
+	private bool PropertyContactExists(uint id)
+	{
+		return _context.PropertyContact.Any((PropertyContact e) => e.PcId == id);
+	}
+}

@@ -1,0 +1,42 @@
+---
+description: Workflow backend sécurisé — Git, VPS, jamais de prod API
+alwaysApply: true
+---
+
+# Perle Rare — workflow agent backend
+
+## Toujours rappeler Git
+
+Après un travail significatif :
+
+1. **Rappeler** qu’il faut `commit` puis `push` sur la branche courante.
+2. **Ne pas** commit / push sans demande explicite.
+3. Ne jamais `--force` sur `main` / `master` ; pas de skip hooks.
+
+## Production — interdit par défaut
+
+| Cible | Action agent |
+|-------|----------------|
+| **API prod** `https://api.perle-rare.info` et `/var/www/api.perle-rare.info` | **Interdit** sauf ordre écrit (« déploie l’API en prod ») |
+| **Front prod** `/var/www/prod.perle-rare.info` | **Interdit** (autre dépôt) |
+| **MariaDB** | User `cursor_client` = **SELECT only**. Jamais INSERT/UPDATE/DELETE |
+| **SSH VPS** | Lecture seule (ls, git log, ps, curl). Aucun restart, aucun write |
+
+- Ne jamais rsync / scp **vers** le VPS sans permission explicite.
+- Ne jamais toucher les hooks git `api.perle-rare.info.git`.
+
+## VPS (référence)
+
+- Host : `142.4.216.57` — SSH port **2477**, user `administrateur`, clé locale `git.key`
+- Docs : `infra/ovh/README.md`, `infra/ovh/servers.json`
+- API git bare : `/home/administrateur/api.perle-rare.info.git`
+- API live : `/var/www/api.perle-rare.info` (Kestrel localhost:5000 derrière Apache 443)
+
+## Secrets
+
+- Ne pas committer `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`
+- Ne pas coller mots de passe / JWT / tokens dans le chat ou les docs versionnées
+
+## Phrase type en fin de tâche
+
+> Changements prêts en local. Tu veux que je **commit** ? (prod API et VPS non touchés)

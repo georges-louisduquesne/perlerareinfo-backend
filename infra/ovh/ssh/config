@@ -1,0 +1,15 @@
+Host perlerare-ovh
+    HostName 142.4.216.57
+    User administrateur
+    Port 2477
+    IdentityFile ../../../git.key
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+
+Host perlerare-ovh-ns
+    HostName ns5000052.ip-142-4-216.net
+    User administrateur
+    Port 2477
+    IdentityFile ../../../git.key
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new

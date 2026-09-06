@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "perlerare-mariadb": {
+      "command": "npx",
+      "args": ["-y", "@benborla29/mcp-server-mysql"],
+      "env": {
+        "MYSQL_HOST": "142.4.216.57",
+        "MYSQL_PORT": "17075",
+        "MYSQL_USER": "cursor_client",
+        "MYSQL_PASS": "PASTE_PASSWORD_FROM_secrets_cursor-client.env",
+        "MYSQL_DB": "perle-rareinfo"
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Never commit private keys or connection secrets
+*.pem
+*.key
+id_rsa
+id_ed25519
+.env
+.env.*
+secrets/
