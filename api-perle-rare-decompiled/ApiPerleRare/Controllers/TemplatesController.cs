@@ -1,26 +1,12 @@
-using System.Threading.Tasks;
-using ApiPerleRare.Helpers;
+using ApiPerleRare.Application.Catalog;
 using ApiPerleRare.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 
 namespace ApiPerleRare.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
-[Authorize]
-public class TemplatesController : ControllerBase
+public class TemplatesController : QueryEntitiesController<Templates>
 {
-	private readonly ApplicationDbContext _context;
-
-	public TemplatesController(ApplicationDbContext context)
+	public TemplatesController(IQueryEntitiesUseCase<Templates> query)
+		: base(query)
 	{
-		_context = context;
-	}
-
-	[HttpGet]
-	public async Task<ActionResult<SelectResult<Templates>>> GetTemplates([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
-	{
-		return await EFHelper<Templates>.Select(_context.Templates, where, orderby, take, skip, select);
 	}
 }

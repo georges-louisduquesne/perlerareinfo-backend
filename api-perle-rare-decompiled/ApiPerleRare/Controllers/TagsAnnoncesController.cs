@@ -1,27 +1,18 @@
 using System.Threading.Tasks;
-using ApiPerleRare.Helpers;
+using ApiPerleRare.Application.Catalog;
 using ApiPerleRare.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ApiPerleRare.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
-[Authorize]
-public class TagsAnnoncesController : ControllerBase
+public class TagsAnnoncesController : QueryEntitiesController<TagsAnnonce>
 {
 	private readonly ApplicationDbContext _context;
 
-	public TagsAnnoncesController(ApplicationDbContext context)
+	public TagsAnnoncesController(IQueryEntitiesUseCase<TagsAnnonce> query, ApplicationDbContext context)
+		: base(query)
 	{
 		_context = context;
-	}
-
-	[HttpGet]
-	public async Task<ActionResult<SelectResult<TagsAnnonce>>> GetTagsAnnonce([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
-	{
-		return await EFHelper<TagsAnnonce>.Select(_context.TagsAnnonce, where, orderby, take, skip, select);
 	}
 
 	[HttpGet("{id}")]

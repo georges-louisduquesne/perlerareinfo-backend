@@ -23,7 +23,7 @@ Légende : `pending` · `in_progress` · `local_done` · `blocked` (créneau cli
 
 | # | Livrable | Statut | Notes contrat |
 |---|----------|--------|----------------|
-| 9 | Dépôt source maintenable | in_progress | Auth extrait en use case SOLID (`Application/Authentication`) |
+| 9 | Dépôt source maintenable | in_progress | Auth + File + catalogue listes extraits (`Application/`) |
 | 10 | Secrets hors git, build reproductible | local_done | `.gitignore` appsettings réels |
 | 11 | .NET 8 LTS | local_done | Target `net8.0` local |
 | 12 | Hash mots de passe (bascule douce) | pending | `User/authenticate` inchangé |

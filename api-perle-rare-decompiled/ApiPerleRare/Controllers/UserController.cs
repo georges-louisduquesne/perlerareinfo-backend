@@ -13,18 +13,18 @@ public class UserController : ControllerBase
 {
 	private readonly IAuthenticateUseCase _authenticate;
 
-	private readonly IUserService _userService;
+	private readonly ISwitchDispoUseCase _switchDispo;
 
-	private readonly IUserSessionService _userSessionService;
+	private readonly ISwitchFilterUseCase _switchFilter;
 
 	public UserController(
 		IAuthenticateUseCase authenticate,
-		IUserService userService,
-		IUserSessionService userSessionService)
+		ISwitchDispoUseCase switchDispo,
+		ISwitchFilterUseCase switchFilter)
 	{
 		_authenticate = authenticate;
-		_userService = userService;
-		_userSessionService = userSessionService;
+		_switchDispo = switchDispo;
+		_switchFilter = switchFilter;
 	}
 
 	[AllowAnonymous]
@@ -47,15 +47,14 @@ public class UserController : ControllerBase
 	public bool SwitchDispo()
 	{
 		int refConseiller = this.GetUserId();
-		IPAddress? obj = base.Request?.HttpContext?.Connection?.RemoteIpAddress;
-		return _userService.SwitchDispo(refConseiller, obj?.ToString());
+		IPAddress obj = base.Request?.HttpContext?.Connection?.RemoteIpAddress;
+		return _switchDispo.Execute(refConseiller, obj?.ToString());
 	}
 
 	[HttpGet("SwitchFilter")]
 	[Authorize]
 	public bool SwitchFilter()
 	{
-		_userSessionService.Filter = !_userSessionService.Filter;
-		return _userSessionService.Filter;
+		return _switchFilter.Execute();
 	}
 }
