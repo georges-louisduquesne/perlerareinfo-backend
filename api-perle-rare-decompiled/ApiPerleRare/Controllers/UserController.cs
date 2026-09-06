@@ -1,6 +1,5 @@
 using System.Net;
-using ApiPerleRare.Entities;
-using ApiPerleRare.Models;
+using ApiPerleRare.Application.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +11,18 @@ namespace ApiPerleRare.Controllers;
 [ApiController]
 public class UserController : ControllerBase
 {
+	private readonly IAuthenticateUseCase _authenticate;
+
 	private readonly IUserService _userService;
 
 	private readonly IUserSessionService _userSessionService;
 
-	public UserController(IUserService userService, IUserSessionService userSessionService)
+	public UserController(
+		IAuthenticateUseCase authenticate,
+		IUserService userService,
+		IUserSessionService userSessionService)
 	{
+		_authenticate = authenticate;
 		_userService = userService;
 		_userSessionService = userSessionService;
 	}
@@ -26,29 +31,15 @@ public class UserController : ControllerBase
 	[HttpPost("authenticate")]
 	public IActionResult Authenticate([FromBody] AuthenticateModel model)
 	{
-		string token;
-		ConseillersPersonnels user = _userService.Authenticate(model.Login, model.Password, out token);
-		if (user == null)
+		AuthenticateResult result = _authenticate.Execute(model.Login, model.Password);
+		if (!result.Success)
 		{
 			return BadRequest(new
 			{
 				message = "Login or password is incorrect"
 			});
 		}
-		return Ok(new UserModel
-		{
-			FirstName = user.CpPrenom,
-			LastName = user.CpNomFamille,
-			Login = user.CpLogin,
-			Id = user.CpRefConseiller,
-			Token = token,
-			IsAdmin = user.CpAdmin,
-			IsNegociateur = user.CpNegociateur,
-			AutoLogin = user.CpAutoLogin,
-			Dispo = user.CpDispo,
-			Filter = !user.CpAdmin,
-			Email = user.CpMel
-		});
+		return Ok(result.Session);
 	}
 
 	[HttpGet("SwitchDispo")]

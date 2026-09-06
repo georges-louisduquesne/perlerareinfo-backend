@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
+using ApiPerleRare.Application.Authentication;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using ApiPerleRare.Services;
@@ -136,6 +137,7 @@ public class Startup
 		});
 		services.AddHttpContextAccessor();
 		services.AddScoped<IUserService, UserService>();
+		services.AddScoped<IAuthenticateUseCase, AuthenticateUseCase>();
 		services.AddScoped<ITestService, TestService>();
 		services.AddScoped<ISearchService, SearchService>();
 		services.AddScoped<IAuditService, AuditService>();
