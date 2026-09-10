@@ -26,7 +26,7 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 	public async Task<SelectResult<ProspectEvenements>> Execute(EntityQuery query, string userLogin, bool applyNegociateurFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<Evenements> evenements = _context.Evenements;
+		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking();
 		evenements = evenements.Where((Evenements q) => q.EStatut == 1);
 		string[] prospectionTypes = await EventTypeCache.GetProspectionTypes(_cache, _context);
 		if (prospectionTypes.Length != 0)

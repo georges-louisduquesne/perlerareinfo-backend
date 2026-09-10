@@ -26,7 +26,7 @@ public sealed class ListClientLastEvenementsUseCase : IListClientLastEvenementsU
 	public async Task<SelectResult<ClientLastEvenements>> Execute(EntityQuery query, string userLogin, bool applyNegociateurFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<Evenements> evenements = _context.Evenements;
+		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking();
 		evenements = evenements.Where((Evenements q) => q.EStatut == 1);
 		DateTime today = DateTime.Today;
 		evenements = evenements.Where((Evenements e) => e.EDate < today);

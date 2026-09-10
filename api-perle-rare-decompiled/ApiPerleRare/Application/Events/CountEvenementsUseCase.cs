@@ -22,7 +22,7 @@ public sealed class CountEvenementsUseCase : ICountEvenementsUseCase
 
 	public async Task<int> Execute(string where, string option, string userLogin, bool applyNegociateurFilter)
 	{
-		IQueryable<Evenements> evenements = _context.Evenements;
+		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking();
 		evenements = await ApplyDefaultFilter(evenements, option, userLogin, applyNegociateurFilter);
 		evenements = EFHelper<Evenements>.Apply(evenements, where);
 		return await evenements.CountAsync();

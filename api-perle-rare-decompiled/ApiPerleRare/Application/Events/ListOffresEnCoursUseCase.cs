@@ -110,7 +110,7 @@ public sealed class ListOffresEnCoursUseCase : IListOffresEnCoursUseCase
 		using (DbCommand cmd = c.CreateCommand())
 		{
 			cmd.CommandText = sql;
-			using DbDataReader reader = cmd.ExecuteReader();
+			await using DbDataReader reader = await cmd.ExecuteReaderAsync();
 			infos = reader.ToModels<OffreInfo>();
 		}
 		int[] evenementIds = (from i in infos
@@ -125,7 +125,7 @@ public sealed class ListOffresEnCoursUseCase : IListOffresEnCoursUseCase
 			selectResult.Items = new ClientEvenements[0];
 			return selectResult;
 		}
-		IQueryable<Evenements> evenements = _context.Evenements;
+		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking();
 		evenements = evenements.Where((Evenements e) => evenementIds.Contains(e.ERefEvenement));
 		if (applyNegociateurFilter && !string.IsNullOrEmpty(userLogin))
 		{

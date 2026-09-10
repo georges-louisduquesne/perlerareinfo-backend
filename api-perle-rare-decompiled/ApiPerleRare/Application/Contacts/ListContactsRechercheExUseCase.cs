@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Abstractions;
 using ApiPerleRare.Controllers;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.EntityFrameworkCore;
-using ApiPerleRare.Application.Abstractions;
 
 namespace ApiPerleRare.Application.Contacts;
 
@@ -34,10 +34,11 @@ public sealed class ListContactsRechercheExUseCase : IListContactsRechercheExUse
 		IQueryable<ContactsRecherche> query = _context.ContactsRecherche.AsNoTracking();
 		query = ApplyDefaultFilter(query, applyFilter, userLogin);
 		query = EFHelper<ContactsRecherche>.Apply(query, where, orderby, take, skip, select);
-		List<ContactsRecherche> res = await query.AsNoTracking().ToListAsync();
+		List<ContactsRecherche> res = await query.ToListAsync();
 		res.FixEncoding();
 		EFHelper<ContactsRecherche>.ConvertPhpSerializedToJson(res);
 		List<ContactsRechercheEx> res2 = res.Select((ContactsRecherche v) => EFHelper<ContactsRecherche>.Copy<ContactsRechercheEx>(v)).ToList();
+		WarmConseillers(res2);
 		foreach (ContactsRechercheEx r in res2)
 		{
 			Complete(r.C2emeApporteur, delegate(string p)
@@ -84,6 +85,29 @@ public sealed class ListContactsRechercheExUseCase : IListContactsRechercheExUse
 			});
 		}
 		return res2;
+	}
+
+	private void WarmConseillers(List<ContactsRechercheEx> rows)
+	{
+		HashSet<string> logins = new HashSet<string>(StringComparer.Ordinal);
+		foreach (ContactsRechercheEx r in rows)
+		{
+			AddLogin(logins, r.C2emeApporteur);
+			AddLogin(logins, r.C2emeConseiller);
+			AddLogin(logins, r.C2emeNegociateur);
+			AddLogin(logins, r.CApporteur);
+			AddLogin(logins, r.CNomFamilleConseiller);
+			AddLogin(logins, r.CNegociateur);
+		}
+		_userService.WarmConseillers(logins);
+	}
+
+	private static void AddLogin(HashSet<string> logins, string login)
+	{
+		if (!string.IsNullOrEmpty(login))
+		{
+			logins.Add(login);
+		}
 	}
 
 	private void Complete(string login, Action<string> photoSetter, Action<string> initialesSetter)

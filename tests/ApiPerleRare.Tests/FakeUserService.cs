@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ApiPerleRare.Models;
 
 namespace ApiPerleRare.Tests;
@@ -29,6 +30,10 @@ internal class FakeUserService : IUserService
 	public bool SwitchDispo(int refConseiller, string remoteIpAddress) => false;
 
 	public ConseillersPersonnels GetConseiller(string login) => null;
+
+	public void WarmConseillers(IEnumerable<string> logins)
+	{
+	}
 
 	public string GetInfo() => "DBName=perle-rareinfo";
 }

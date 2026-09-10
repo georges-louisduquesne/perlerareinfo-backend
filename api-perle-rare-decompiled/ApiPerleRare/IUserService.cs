@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ApiPerleRare.Models;
 
 namespace ApiPerleRare;
@@ -9,6 +10,9 @@ public interface IUserService
 	bool SwitchDispo(int refConseiller, string remoteIpAddress);
 
 	ConseillersPersonnels GetConseiller(string login);
+
+	/// <summary>Prefetch missing conseillers in one query (same cache as GetConseiller).</summary>
+	void WarmConseillers(IEnumerable<string> logins);
 
 	string GetInfo();
 }

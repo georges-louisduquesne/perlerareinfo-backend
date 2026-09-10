@@ -227,7 +227,7 @@ public class SearchService : ISearchService
 
 	private class SearchStore
 	{
-		public Dictionary<string, List<int>> IdsPerTable { get; set; } = new Dictionary<string, List<int>>();
+		public Dictionary<string, HashSet<int>> IdsPerTable { get; set; } = new Dictionary<string, HashSet<int>>();
 	}
 
 	private readonly ApplicationDbContext _dbContext;
@@ -446,7 +446,7 @@ public class SearchService : ISearchService
 		store.IdsPerTable.TryGetValue(config.TableName, out var ids);
 		if (ids == null)
 		{
-			ids = new List<int>();
+			ids = new HashSet<int>();
 			store.IdsPerTable.Add(config.TableName, ids);
 		}
 		bool again = true;

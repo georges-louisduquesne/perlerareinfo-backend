@@ -30,7 +30,7 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 	public async Task<SelectResult<ClientEvenements>> Execute(EntityQuery query, string userLogin, bool applyNegociateurFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<Evenements> evenements = _context.Evenements.Where((Evenements e) => e.EStatut == 1);
+		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking().Where((Evenements e) => e.EStatut == 1);
 		string[] types = await GetTransactionTypesExcludingOffres();
 		DateTime today = DateTime.Today;
 		evenements = evenements.Where((Evenements e) => e.EDate <= today);

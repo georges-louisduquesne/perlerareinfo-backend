@@ -196,6 +196,10 @@ public class UserService : IUserService
 
 	public ConseillersPersonnels GetConseiller(string login)
 	{
+		if (string.IsNullOrEmpty(login))
+		{
+			return null;
+		}
 		if (!_conseillers.Contains(login))
 		{
 			lock (_conseillers)
@@ -203,14 +207,55 @@ public class UserService : IUserService
 				if (!_conseillers.Contains(login))
 				{
 					ConseillersPersonnels c = _context.ConseillersPersonnels.AsNoTracking().SingleOrDefault((ConseillersPersonnels conseillersPersonnels) => conseillersPersonnels.CpLogin == login) ?? cp_notFound;
-					_conseillers.Add(login, c, new CacheItemPolicy
-					{
-						SlidingExpiration = TimeSpan.FromHours(1.0)
-					});
+					_conseillers.Add(login, c, CachePolicy());
 				}
 			}
 		}
 		return _conseillers[login] as ConseillersPersonnels;
+	}
+
+	public void WarmConseillers(IEnumerable<string> logins)
+	{
+		if (logins == null)
+		{
+			return;
+		}
+		List<string> missing = new List<string>();
+		foreach (string login in logins)
+		{
+			if (!string.IsNullOrEmpty(login) && !_conseillers.Contains(login))
+			{
+				missing.Add(login);
+			}
+		}
+		if (missing.Count == 0)
+		{
+			return;
+		}
+		List<ConseillersPersonnels> found = _context.ConseillersPersonnels.AsNoTracking()
+			.Where((ConseillersPersonnels c) => missing.Contains(c.CpLogin))
+			.ToList();
+		Dictionary<string, ConseillersPersonnels> byLogin = found.ToDictionary((ConseillersPersonnels c) => c.CpLogin);
+		lock (_conseillers)
+		{
+			foreach (string login in missing)
+			{
+				if (_conseillers.Contains(login))
+				{
+					continue;
+				}
+				ConseillersPersonnels c = byLogin.TryGetValue(login, out ConseillersPersonnels hit) ? hit : cp_notFound;
+				_conseillers.Add(login, c, CachePolicy());
+			}
+		}
+	}
+
+	private static CacheItemPolicy CachePolicy()
+	{
+		return new CacheItemPolicy
+		{
+			SlidingExpiration = TimeSpan.FromHours(1.0)
+		};
 	}
 
 	public string GetInfo()

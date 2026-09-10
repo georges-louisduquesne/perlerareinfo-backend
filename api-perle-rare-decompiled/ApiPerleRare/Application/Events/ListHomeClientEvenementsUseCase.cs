@@ -26,7 +26,7 @@ public sealed class ListHomeClientEvenementsUseCase : IListHomeClientEvenementsU
 	public async Task<SelectResult<ClientEvenements>> Execute(HomeEventKind kind, EntityQuery query, string userLogin, bool applyNegociateurFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<Evenements> evenements = _context.Evenements;
+		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking();
 		evenements = evenements.Where((Evenements q) => q.EStatut == 1);
 		string[] clientTypes = await GetEvenementTypes(kind);
 		DateTime today = DateTime.Today;

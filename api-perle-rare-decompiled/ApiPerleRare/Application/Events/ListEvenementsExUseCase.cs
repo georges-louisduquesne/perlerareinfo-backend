@@ -26,7 +26,7 @@ public sealed class ListEvenementsExUseCase : IListEvenementsExUseCase
 	public async Task<List<EvenementsEx>> Execute(EntityQuery query, string option, string userLogin, bool applyNegociateurFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<EvenementsEx> evenements = _context.Evenements.Select((Evenements e) => new EvenementsEx
+		IQueryable<EvenementsEx> evenements = _context.Evenements.AsNoTracking().Select((Evenements e) => new EvenementsEx
 		{
 			ERefAnnAgc = e.ERefAnnAgc,
 			ECr = e.ECr,

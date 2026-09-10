@@ -28,6 +28,7 @@ Règles :
 - Un controller ne contient plus le mapping métier : il délègue à un use case.
 - Les DTO HTTP ne bougent pas (formes JSON / routes gelées).
 - Les use cases dépendent de **ports** (`IApplicationDbContext`, `IFileStorage`, `IExchangeService`, `ILocalhostMailService`, `IYanportService`, `ISearchService`) — pas de `System.IO` / SMTP / Yanport HTTP dans le controller.
+- Perf (contrat inchangé) : Accueil batch SQL annonces ; `WarmConseillers` ; `AsNoTracking` listes ; FixEncoding fast-path ; Search ids en `HashSet`.
 - Nouveau module = use case + port + tests, **sans** changer l’URL.
 
 CRUD mince (Put/Post/Delete Get-by-id) peut rester sur `ApplicationDbContext` dans le controller tant que le front n’est pas impacté ; les listes métier sont dans Application/.

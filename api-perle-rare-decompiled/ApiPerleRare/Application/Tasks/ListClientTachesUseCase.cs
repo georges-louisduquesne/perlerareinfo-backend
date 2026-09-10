@@ -24,7 +24,7 @@ public sealed class ListClientTachesUseCase : IListClientTachesUseCase
 	public async System.Threading.Tasks.Task<SelectResult<ProspectTaches>> Execute(EntityQuery query, string userLogin, bool applyQuiFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<Taches> taches = _context.Taches;
+		IQueryable<Taches> taches = _context.Taches.AsNoTracking();
 		taches = taches.Where((Taches t) => t.TEtat == "");
 		DateTime today = DateTime.Today;
 		taches = taches.Where((Taches t) => t.TDateRealisation <= today);

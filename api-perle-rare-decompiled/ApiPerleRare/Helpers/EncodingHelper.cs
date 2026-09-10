@@ -106,9 +106,14 @@ public class EncodingHelper
 
 	public static string FixEncoding(string s)
 	{
-		if (s == null)
+		if (s == null || s.Length == 0)
 		{
-			return null;
+			return s;
+		}
+		// Fast path: most CRM strings are already correct UTF-8.
+		if (s.IndexOfAny(_firstLetters) < 0)
+		{
+			return s;
 		}
 		int pos = 0;
 		while (true)

@@ -17,6 +17,19 @@ public sealed class TachesExEnricher
 
 	public T CompleteTachesExes<T>(T taches) where T : IEnumerable<ITachesEx>
 	{
+		HashSet<string> logins = new HashSet<string>(StringComparer.Ordinal);
+		foreach (ITachesEx t in taches)
+		{
+			if (!string.IsNullOrEmpty(t.TQui))
+			{
+				logins.Add(t.TQui);
+			}
+			if (!string.IsNullOrEmpty(t.CNegociateur))
+			{
+				logins.Add(t.CNegociateur);
+			}
+		}
+		_userService.WarmConseillers(logins);
 		foreach (ITachesEx t in taches)
 		{
 			if (!string.IsNullOrEmpty(t.TQui))

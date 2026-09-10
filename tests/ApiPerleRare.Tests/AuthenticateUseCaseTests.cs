@@ -72,6 +72,10 @@ public class AuthenticateUseCaseTests
 
 		public ConseillersPersonnels GetConseiller(string login) => null;
 
+		public void WarmConseillers(System.Collections.Generic.IEnumerable<string> logins)
+		{
+		}
+
 		public string GetInfo() => "";
 	}
 }

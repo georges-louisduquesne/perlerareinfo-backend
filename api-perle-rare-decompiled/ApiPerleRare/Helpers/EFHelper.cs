@@ -142,6 +142,8 @@ public class EFHelper<TEFModel> where TEFModel : class
 
 	public static async Task<SelectResult<TEFModel>> Select(IQueryable<TEFModel> query, string where, string orderby = null, int take = 0, int skip = 0, string select = null, Func<IQueryable<TEFModel>, IQueryable<TEFModel>> finalize = null)
 	{
+		// Read-only lists: never track entities (DTO projections are unaffected).
+		query = query.AsNoTracking();
 		SelectResult<TEFModel> selectResult = new SelectResult<TEFModel>();
 		SelectResult<TEFModel> selectResult2 = selectResult;
 		selectResult2.Items = await Apply(query, where, orderby, take, skip, select, finalize).ToArrayAsync();
