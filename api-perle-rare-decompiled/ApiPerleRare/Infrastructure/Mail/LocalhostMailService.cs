@@ -1,6 +1,6 @@
 using System.Net.Mail;
 
-namespace ApiPerleRare.Services;
+namespace ApiPerleRare.Infrastructure.Mail;
 
 public class LocalhostMailService : ILocalhostMailService
 {

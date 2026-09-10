@@ -1,10 +1,11 @@
 using System.Collections.Generic;
+using ApiPerleRare.Application.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ApiPerleRare.Models;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : DbContext, IApplicationDbContext
 {
 	public virtual DbSet<AdminVersions> AdminVersions { get; set; }
 

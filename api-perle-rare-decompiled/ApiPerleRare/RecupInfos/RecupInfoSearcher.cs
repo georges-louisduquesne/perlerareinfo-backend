@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Abstractions;
 using ApiPerleRare.Models;
 using ApiPerleRare.Properties;
 using Microsoft.Extensions.Caching.Memory;
@@ -33,7 +34,7 @@ public class RecupInfoSearcher
 
 	public static bool Debug { get; set; }
 
-	public static AbstractRecupInfoResponse Search(ApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache)
+	public static AbstractRecupInfoResponse Search(IApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache)
 	{
 		try
 		{
@@ -176,7 +177,7 @@ public class RecupInfoSearcher
 		}
 	}
 
-	private static async Task FillAnnoncesAsync(ApplicationDbContext context, DbConnection connection, Filter filter, IExchangeService exchangeService, string where, AbstractRecupInfoResponse response, Dictionary<FilterName, string> fieldFilters)
+	private static async Task FillAnnoncesAsync(IApplicationDbContext context, DbConnection connection, Filter filter, IExchangeService exchangeService, string where, AbstractRecupInfoResponse response, Dictionary<FilterName, string> fieldFilters)
 	{
 		DateTime start = DateTime.Now;
 		Dictionary<string, string> importParams = GetImportParams();
@@ -263,7 +264,7 @@ public class RecupInfoSearcher
 		});
 	}
 
-	private static void FillAnnonces(ApplicationDbContext context, DbConnection connection, Filter filter, IExchangeService exchangeService, string where, AbstractRecupInfoResponse response, Dictionary<FilterName, string> fieldFilters)
+	private static void FillAnnonces(IApplicationDbContext context, DbConnection connection, Filter filter, IExchangeService exchangeService, string where, AbstractRecupInfoResponse response, Dictionary<FilterName, string> fieldFilters)
 	{
 		DateTime start = DateTime.Now;
 		Dictionary<string, string> importParams = GetImportParams();

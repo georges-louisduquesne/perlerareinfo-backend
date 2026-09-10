@@ -7,6 +7,7 @@ using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using ApiPerleRare.Application.Abstractions;
 
 namespace ApiPerleRare.Application.Events;
 
@@ -16,11 +17,11 @@ namespace ApiPerleRare.Application.Events;
 /// </summary>
 public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursUseCase
 {
-	private readonly ApplicationDbContext _context;
+	private readonly IApplicationDbContext _context;
 
 	private readonly IMemoryCache _cache;
 
-	public ListEncaissementsEnCoursUseCase(ApplicationDbContext context, IMemoryCache memoryCache)
+	public ListEncaissementsEnCoursUseCase(IApplicationDbContext context, IMemoryCache memoryCache)
 	{
 		_context = context;
 		_cache = memoryCache;

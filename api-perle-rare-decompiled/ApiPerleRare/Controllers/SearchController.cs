@@ -1,6 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.Web;
+using ApiPerleRare.Application.Search;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -12,42 +11,17 @@ namespace ApiPerleRare.Controllers;
 [ApiController]
 public class SearchController : ControllerBase
 {
-	private readonly ISearchService _searchService;
+	private readonly ISearchUseCase _search;
 
-	public SearchController(ISearchService searchService)
+	public SearchController(ISearchUseCase search)
 	{
-		_searchService = searchService;
+		_search = search;
 	}
 
 	[HttpGet("{filter}/{nb:int=15}")]
 	[Authorize]
 	public IEnumerable<SelectResult> Search(string filter, int nb = 15)
 	{
-		if (string.IsNullOrWhiteSpace(filter))
-		{
-			return new SelectResult[0];
-		}
-		try
-		{
-			string sqlFilter = filter.Replace("%", "\\%");
-			return _searchService.Search(new SearchQuery
-			{
-				Filter = filter,
-				SqlFilter = sqlFilter,
-				HtmlFilter = HttpUtility.HtmlEncode(filter),
-				Max = nb
-			});
-		}
-		catch (Exception ex)
-		{
-			return new SelectResult[1]
-			{
-				new SelectResult
-				{
-					Category = "Erreur",
-					Description = ex.ToString()
-				}
-			};
-		}
+		return _search.Execute(filter, nb);
 	}
 }

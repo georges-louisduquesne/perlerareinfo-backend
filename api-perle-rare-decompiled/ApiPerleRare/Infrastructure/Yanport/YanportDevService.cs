@@ -4,7 +4,7 @@ using System.Text.Json;
 using ApiPerleRare.YanportModels;
 using Microsoft.Extensions.Configuration;
 
-namespace ApiPerleRare.Services;
+namespace ApiPerleRare.Infrastructure.Yanport;
 
 public class YanportDevService : IYanportService
 {

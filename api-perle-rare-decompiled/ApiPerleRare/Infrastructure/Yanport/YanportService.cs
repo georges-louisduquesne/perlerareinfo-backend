@@ -3,7 +3,7 @@ using System.IO;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 
-namespace ApiPerleRare.Services;
+namespace ApiPerleRare.Infrastructure.Yanport;
 
 public class YanportService : IYanportService
 {

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using ApiPerleRare.Application.Catalog;
+using ApiPerleRare.Application.Tasks;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -21,68 +22,44 @@ public class TachesController : ControllerBase
 
 	private readonly IUserSessionService _userSessionService;
 
-	private readonly IUserService _userService;
+	private readonly IListTachesExUseCase _listTachesEx;
 
-	public TachesController(ApplicationDbContext context, IUserSessionService userSessionService, IUserService userService)
+	private readonly ICountTachesUseCase _countTaches;
+
+	private readonly IListProspectTachesUseCase _prospectTaches;
+
+	private readonly IListClientTachesUseCase _clientTaches;
+
+	private readonly ICountActiveTachesUseCase _countActiveTaches;
+
+	public TachesController(
+		ApplicationDbContext context,
+		IUserSessionService userSessionService,
+		IListTachesExUseCase listTachesEx,
+		ICountTachesUseCase countTaches,
+		IListProspectTachesUseCase prospectTaches,
+		IListClientTachesUseCase clientTaches,
+		ICountActiveTachesUseCase countActiveTaches)
 	{
 		_context = context;
 		_userSessionService = userSessionService;
-		_userService = userService;
-	}
-
-	private IQueryable<TachesEx> GetTachesExQuery()
-	{
-		return _context.Taches.Select((Taches t) => new TachesEx
-		{
-			TRefAnnonce = t.TRefAnnonce,
-			TCom = t.TCom,
-			TDateCreation = t.TDateCreation,
-			TDateRealisation = t.TDateRealisation,
-			TEtat = t.TEtat,
-			TLien = t.TLien,
-			TPropertyId = t.TPropertyId,
-			TQui = t.TQui,
-			TRef = t.TRef,
-			TRefContact = t.TRefContact,
-			TRefContactNavigation = t.TRefContactNavigation,
-			TType = t.TType,
-			CNegociateur = t.TRefContactNavigation.CNegociateur
-		});
-	}
-
-	private T CompleteTachesExes<T>(T taches) where T : IEnumerable<ITachesEx>
-	{
-		foreach (ITachesEx t in taches)
-		{
-			if (!string.IsNullOrEmpty(t.TQui))
-			{
-				t.TQui_PS = _userService.GetConseiller(t.TQui)?.CpPhotoSignature;
-			}
-			if (!string.IsNullOrEmpty(t.CNegociateur))
-			{
-				t.CNegociateur_PS = _userService.GetConseiller(t.CNegociateur)?.CpPhotoSignature;
-			}
-		}
-		return taches;
-	}
-
-	private SelectResult<T> CompleteTachesExes<T>(SelectResult<T> taches) where T : ITachesEx
-	{
-		CompleteTachesExes(((IEnumerable<T>)taches.Items).Select((Func<T, ITachesEx>)((T v) => v)));
-		return taches;
+		_listTachesEx = listTachesEx;
+		_countTaches = countTaches;
+		_prospectTaches = prospectTaches;
+		_clientTaches = clientTaches;
+		_countActiveTaches = countActiveTaches;
 	}
 
 	[HttpGet]
-	public async Task<ActionResult<IEnumerable<TachesEx>>> GetTaches([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0, [FromQuery] string option = null)
+	public async System.Threading.Tasks.Task<ActionResult<IEnumerable<TachesEx>>> GetTaches([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0, [FromQuery] string option = null)
 	{
 		try
 		{
-			IQueryable<TachesEx> query = GetTachesExQuery();
-			query = ApplyDefaultFilter(query, option);
-			query = EFHelper<TachesEx>.Apply(query, where, orderby, take, skip, select);
-			List<TachesEx> list = await query.ToListAsync();
-			list.FixEncoding();
-			return CompleteTachesExes(list);
+			return await _listTachesEx.Execute(
+				ToQuery(select, where, orderby, skip, take),
+				option,
+				_userSessionService.Filter ? this.GetUserLogin() : null,
+				_userSessionService.Filter);
 		}
 		catch (Exception ex)
 		{
@@ -93,14 +70,15 @@ public class TachesController : ControllerBase
 
 	[HttpGet]
 	[Route("Count")]
-	public async Task<ActionResult<int>> GetTachesCount([FromQuery] string where = null, [FromQuery] string option = null)
+	public async System.Threading.Tasks.Task<ActionResult<int>> GetTachesCount([FromQuery] string where = null, [FromQuery] string option = null)
 	{
 		try
 		{
-			IQueryable<TachesEx> query = GetTachesExQuery();
-			query = ApplyDefaultFilter(query, option);
-			query = EFHelper<TachesEx>.Apply(query, where);
-			return await query.CountAsync();
+			return await _countTaches.Execute(
+				where,
+				option,
+				_userSessionService.Filter ? this.GetUserLogin() : null,
+				_userSessionService.Filter);
 		}
 		catch (Exception ex)
 		{
@@ -109,48 +87,16 @@ public class TachesController : ControllerBase
 		}
 	}
 
-	private IQueryable<TachesEx> ApplyDefaultFilter(IQueryable<TachesEx> query, string option)
-	{
-		if (option == "prospects")
-		{
-			if (_userSessionService.Filter)
-			{
-				string user = this.GetUserLogin();
-				query = query.Where((TachesEx t) => t.TQui == user);
-			}
-			query = query.Where((TachesEx t) => t.TRefContactNavigation.CStatut == "PROSPECT ACTIF" || t.TRefContactNavigation.CStatut == "PROSPECT MORT");
-		}
-		return query;
-	}
-
 	[HttpGet]
 	[Route("Prospects")]
-	public async Task<ActionResult<SelectResult<ProspectTaches>>> GetProspectTaches([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
+	public async System.Threading.Tasks.Task<ActionResult<SelectResult<ProspectTaches>>> GetProspectTaches([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
 	{
 		try
 		{
-			IQueryable<Taches> query = _context.Taches;
-			query = query.Where((Taches t) => t.TEtat == "");
-			DateTime tomorrow = DateTime.Today.AddDays(1.0);
-			query = query.Where((Taches t) => t.TDateRealisation < tomorrow);
-			query = query.Where((Taches t) => t.TRefContactNavigation.CStatut == "PROSPECT ACTIF" || t.TRefContactNavigation.CStatut == "PROSPECT MORT");
-			if (_userSessionService.Filter)
-			{
-				string userLogin = this.GetUserLogin();
-				query = query.Where((Taches t) => t.TQui == userLogin);
-			}
-			IQueryable<ProspectTaches> tachesQuery = query.Select((Taches t) => new ProspectTaches
-			{
-				TRef = t.TRef,
-				TDateRealisation = t.TDateRealisation,
-				CNomFamille = t.TRefContactNavigation.CNomFamille,
-				TType = t.TType,
-				TCom = t.TCom,
-				TRefContact = t.TRefContact,
-				TQui = t.TQui,
-				CNegociateur = t.TRefContactNavigation.CNegociateur
-			});
-			return CompleteTachesExes(await EFHelper<ProspectTaches>.Select(tachesQuery, where, orderby, take, skip, select));
+			return await _prospectTaches.Execute(
+				ToQuery(select, where, orderby, skip, take),
+				_userSessionService.Filter ? this.GetUserLogin() : null,
+				_userSessionService.Filter);
 		}
 		catch (Exception ex)
 		{
@@ -161,32 +107,14 @@ public class TachesController : ControllerBase
 
 	[HttpGet]
 	[Route("Clients")]
-	public async Task<ActionResult<SelectResult<ProspectTaches>>> GetClientsTaches([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
+	public async System.Threading.Tasks.Task<ActionResult<SelectResult<ProspectTaches>>> GetClientsTaches([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
 	{
 		try
 		{
-			IQueryable<Taches> query = _context.Taches;
-			query = query.Where((Taches t) => t.TEtat == "");
-			DateTime today = DateTime.Today;
-			query = query.Where((Taches t) => t.TDateRealisation <= today);
-			query = query.Where((Taches t) => t.TRefContactNavigation.CStatut == "CLIENT ACTIF" || t.TRefContactNavigation.CStatut == "CLIENT MORT");
-			if (_userSessionService.Filter)
-			{
-				string userLogin = this.GetUserLogin();
-				query = query.Where((Taches t) => t.TQui == userLogin);
-			}
-			IQueryable<ProspectTaches> tachesQuery = query.Select((Taches t) => new ProspectTaches
-			{
-				TRef = t.TRef,
-				TDateRealisation = t.TDateRealisation,
-				CNomFamille = t.TRefContactNavigation.CNomFamille,
-				TType = t.TType,
-				TCom = t.TCom,
-				TRefContact = t.TRefContact,
-				TQui = t.TQui,
-				CNegociateur = t.TRefContactNavigation.CNegociateur
-			});
-			return CompleteTachesExes(await EFHelper<ProspectTaches>.Select(tachesQuery, where, orderby, take, skip, select));
+			return await _clientTaches.Execute(
+				ToQuery(select, where, orderby, skip, take),
+				_userSessionService.Filter ? this.GetUserLogin() : null,
+				_userSessionService.Filter);
 		}
 		catch (Exception ex)
 		{
@@ -198,14 +126,13 @@ public class TachesController : ControllerBase
 	[Authorize]
 	[HttpGet]
 	[Route("ActiveCount")]
-	public async Task<ActionResult<int>> GetActiveTachesCount()
+	public async System.Threading.Tasks.Task<ActionResult<int>> GetActiveTachesCount()
 	{
-		string login = this.GetUserLogin();
-		return await _context.Taches.CountAsync((Taches f) => f.TQui == login && f.TEtat != "fait" && f.TDateRealisation <= DateTime.Now);
+		return await _countActiveTaches.Execute(this.GetUserLogin());
 	}
 
 	[HttpGet("{id}")]
-	public async Task<ActionResult<Taches>> GetTaches(uint id)
+	public async System.Threading.Tasks.Task<ActionResult<Taches>> GetTaches(uint id)
 	{
 		Taches taches = await _context.Taches.FindAsync(id);
 		if (taches == null)
@@ -216,7 +143,7 @@ public class TachesController : ControllerBase
 	}
 
 	[HttpPut("{id}")]
-	public async Task<IActionResult> PutTaches(uint id, Taches taches)
+	public async System.Threading.Tasks.Task<IActionResult> PutTaches(uint id, Taches taches)
 	{
 		if (id != taches.TRef)
 		{
@@ -239,7 +166,7 @@ public class TachesController : ControllerBase
 	}
 
 	[HttpPost]
-	public async Task<ActionResult<Taches>> PostTaches(Taches taches)
+	public async System.Threading.Tasks.Task<ActionResult<Taches>> PostTaches(Taches taches)
 	{
 		_context.Taches.Add(taches);
 		await _context.SaveChangesAsync();
@@ -250,7 +177,7 @@ public class TachesController : ControllerBase
 	}
 
 	[HttpDelete("{id}")]
-	public async Task<ActionResult<Taches>> DeleteTaches(uint id)
+	public async System.Threading.Tasks.Task<ActionResult<Taches>> DeleteTaches(uint id)
 	{
 		Taches taches = await _context.Taches.FindAsync(id);
 		if (taches == null)
@@ -265,5 +192,17 @@ public class TachesController : ControllerBase
 	private bool TachesExists(uint id)
 	{
 		return _context.Taches.Any((Taches e) => e.TRef == id);
+	}
+
+	private static EntityQuery ToQuery(string select, string where, string orderby, int skip, int take)
+	{
+		return new EntityQuery
+		{
+			Select = select,
+			Where = where,
+			OrderBy = orderby,
+			Skip = skip,
+			Take = take
+		};
 	}
 }

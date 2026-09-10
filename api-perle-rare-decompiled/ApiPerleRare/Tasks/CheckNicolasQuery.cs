@@ -1,3 +1,4 @@
+using ApiPerleRare.Application.Annonces;
 using ApiPerleRare.Controllers;
 using ApiPerleRare.Models;
 using ApiPerleRare.Properties;
@@ -11,17 +12,20 @@ public class CheckNicolasQuery : AbstractTask
 {
 	private readonly ApplicationDbContext _dbContext;
 
+	private readonly IExchangeService _exchangeService;
+
 	public override string Description => "Test Nicolas Query";
 
-	public CheckNicolasQuery(ApplicationDbContext dbContext)
+	public CheckNicolasQuery(ApplicationDbContext dbContext, IExchangeService exchangeService = null)
 	{
 		_dbContext = dbContext;
+		_exchangeService = exchangeService;
 	}
 
 	public override void Run()
 	{
-		AnnoncesGlobalesController agc = new AnnoncesGlobalesController(_dbContext, null, new MemoryCache(new MemoryCacheOptions()));
+		IRecupInfosAnnoncesUseCase recup = new RecupInfosAnnoncesUseCase(_dbContext, _exchangeService);
 		AnnoncesGlobalesController.FilterDef filterDef = JsonConvert.DeserializeObject<AnnoncesGlobalesController.FilterDef>(Resources.NicolasQuery);
-		ActionResult<AnnoncesGlobalesController.InfoAnnonces> res = agc.RecupInfosAnnonces(filterDef).Result;
+		AnnoncesGlobalesController.InfoAnnonces res = recup.Execute(filterDef).Result;
 	}
 }

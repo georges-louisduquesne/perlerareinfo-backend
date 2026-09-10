@@ -1,14 +1,15 @@
 using System.Threading.Tasks;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
+using ApiPerleRare.Application.Abstractions;
 
 namespace ApiPerleRare.Application.Catalog;
 
 public sealed class QueryEntitiesUseCase<TEntity> : IQueryEntitiesUseCase<TEntity> where TEntity : class
 {
-	private readonly ApplicationDbContext _context;
+	private readonly IApplicationDbContext _context;
 
-	public QueryEntitiesUseCase(ApplicationDbContext context)
+	public QueryEntitiesUseCase(IApplicationDbContext context)
 	{
 		_context = context;
 	}
