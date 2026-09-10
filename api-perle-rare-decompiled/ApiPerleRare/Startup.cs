@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using ApiPerleRare.Application.Abstractions;
@@ -25,6 +26,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Rewrite;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +57,21 @@ public class Startup
 	public void ConfigureServices(IServiceCollection services)
 	{
 		string connectionString = Configuration.GetConnectionString("PerleRareDB");
+		services.AddResponseCompression(delegate(ResponseCompressionOptions options)
+		{
+			options.EnableForHttps = true;
+			options.Providers.Add<BrotliCompressionProvider>();
+			options.Providers.Add<GzipCompressionProvider>();
+			options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new string[1] { "application/json" });
+		});
+		services.Configure<BrotliCompressionProviderOptions>(delegate(BrotliCompressionProviderOptions options)
+		{
+			options.Level = System.IO.Compression.CompressionLevel.Fastest;
+		});
+		services.Configure<GzipCompressionProviderOptions>(delegate(GzipCompressionProviderOptions options)
+		{
+			options.Level = System.IO.Compression.CompressionLevel.Fastest;
+		});
 		services.AddDbContext<ApplicationDbContext>(delegate(DbContextOptionsBuilder opt)
 		{
 			var serverVersion = IsLocalSafe
@@ -223,6 +240,7 @@ public class Startup
 
 	public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 	{
+		app.UseResponseCompression();
 		bool exposeDocs = env.IsDevelopment() || IsLocalSafe;
 		if (exposeDocs)
 		{

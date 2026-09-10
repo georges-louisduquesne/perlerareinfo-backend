@@ -101,7 +101,7 @@ public class ContactsRecherche
 
 	public DateOnly? CDate { get; set; }
 
-	public DateOnly CDateFin { get; set; }
+	public DateOnly? CDateFin { get; set; }
 
 	public string COrigine { get; set; }
 

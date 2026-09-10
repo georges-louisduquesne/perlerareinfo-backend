@@ -28,15 +28,49 @@ public sealed class ListContactsRechercheExUseCase : IListContactsRechercheExUse
 		ContactsRecherchePhpConfig.EnsureRegistered();
 	}
 
-	public async Task<List<ContactsRechercheEx>> Execute(string select, string where, string orderby, int skip, int take, bool applyFilter, string userLogin)
+	public Task<List<ContactsRechercheEx>> Execute(string select, string where, string orderby, int skip, int take, bool applyFilter, string userLogin)
+	{
+		return Execute(select, where, orderby, skip, take, applyFilter, userLogin, leanForAccueil: false);
+	}
+
+	public async Task<List<ContactsRechercheEx>> Execute(string select, string where, string orderby, int skip, int take, bool applyFilter, string userLogin, bool leanForAccueil)
 	{
 		ContactsRecherchePhpConfig.EnsureRegistered();
 		IQueryable<ContactsRecherche> query = _context.ContactsRecherche.AsNoTracking();
 		query = ApplyDefaultFilter(query, applyFilter, userLogin);
-		query = EFHelper<ContactsRecherche>.Apply(query, where, orderby, take, skip, select);
+		query = EFHelper<ContactsRecherche>.Apply(query, where, orderby, take, skip, leanForAccueil ? null : select);
+		if (leanForAccueil)
+		{
+			// Home Accueil only needs identity / roles / flags — skip huge TEXT + PHP blobs on the wire.
+			query = query.Select((ContactsRecherche c) => new ContactsRecherche
+			{
+				CRefContact = c.CRefContact,
+				CPrenom = c.CPrenom,
+				CNomFamille = c.CNomFamille,
+				CDateCreation = c.CDateCreation,
+				CDate = c.CDate,
+				CDateFin = c.CDateFin,
+				CApporteur = c.CApporteur,
+				C2emeApporteur = c.C2emeApporteur,
+				CNegociateur = c.CNegociateur,
+				C2emeNegociateur = c.C2emeNegociateur,
+				CNomFamilleConseiller = c.CNomFamilleConseiller,
+				C2emeConseiller = c.C2emeConseiller,
+				CTypeRecherche = c.CTypeRecherche,
+				CStatut = c.CStatut,
+				CMttHono = c.CMttHono
+			});
+		}
 		List<ContactsRecherche> res = await query.ToListAsync();
-		res.FixEncoding();
-		EFHelper<ContactsRecherche>.ConvertPhpSerializedToJson(res);
+		if (leanForAccueil)
+		{
+			FixAccueilNameEncoding(res);
+		}
+		else
+		{
+			res.FixEncoding();
+			EFHelper<ContactsRecherche>.ConvertPhpSerializedToJson(res);
+		}
 		List<ContactsRechercheEx> res2 = res.Select((ContactsRecherche v) => EFHelper<ContactsRecherche>.Copy<ContactsRechercheEx>(v)).ToList();
 		WarmConseillers(res2);
 		foreach (ContactsRechercheEx r in res2)
@@ -85,6 +119,19 @@ public sealed class ListContactsRechercheExUseCase : IListContactsRechercheExUse
 			});
 		}
 		return res2;
+	}
+
+	private static void FixAccueilNameEncoding(List<ContactsRecherche> rows)
+	{
+		foreach (ContactsRecherche r in rows)
+		{
+			r.CPrenom = EncodingHelper.FixEncoding(r.CPrenom);
+			r.CNomFamille = EncodingHelper.FixEncoding(r.CNomFamille);
+			r.CTypeRecherche = EncodingHelper.FixEncoding(r.CTypeRecherche);
+			r.CApporteur = EncodingHelper.FixEncoding(r.CApporteur);
+			r.CNegociateur = EncodingHelper.FixEncoding(r.CNegociateur);
+			r.CNomFamilleConseiller = EncodingHelper.FixEncoding(r.CNomFamilleConseiller);
+		}
 	}
 
 	private void WarmConseillers(List<ContactsRechercheEx> rows)

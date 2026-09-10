@@ -25,7 +25,7 @@ public sealed class ListContactsRechercheAccueilUseCase : IListContactsRecherche
 
 	public async Task<List<ContactsRechercheAccueil>> Execute(string where, string orderby, int skip, int take, int withAnnonces, int withTaches, bool applyFilter, string userLogin)
 	{
-		ContactsRechercheEx[] res = (await _listEx.Execute(null, where, orderby, skip, take, applyFilter, userLogin)).ToArray();
+		ContactsRechercheEx[] res = (await _listEx.Execute(null, where, orderby, skip, take, applyFilter, userLogin, leanForAccueil: true)).ToArray();
 		List<ContactsRechercheAccueil> resa = new List<ContactsRechercheAccueil>(res.Length);
 		Dictionary<uint, ContactsRechercheAccueil> byId = new Dictionary<uint, ContactsRechercheAccueil>(res.Length);
 		foreach (ContactsRechercheEx cr in res)
