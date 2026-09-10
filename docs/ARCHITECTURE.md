@@ -9,6 +9,7 @@ Application/              → cas d’usage SOLID (un dossier = une capacité)
   Authentication/         → login, SwitchDispo, SwitchFilter
   Files/                  → upload / download (contrat isSuccess / errors / fullPath)
   Catalog/                → requêtes listes EF (EntityQuery)
+  Events/                 → EncaissementsEnCours (home tab 9)
 Infrastructure/
   Files/LocalFileStorage  → disque (port IFileStorage)
 Services/ + Models/       → infra / EF historiques (ports progressivement)

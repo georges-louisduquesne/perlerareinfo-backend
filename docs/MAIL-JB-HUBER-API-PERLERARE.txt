@@ -1,0 +1,21 @@
+Objet : Re : sources — besoin du projet ApiPerleRare (pas PerleRare.sln)
+
+Bonjour Jean-Baptiste,
+
+Merci pour l’archive `huberje-perle-rare` : on l’a bien reçue et ouverte.
+
+C’est la solution .NET Framework `PerleRare.sln` (Console, DbAccess, Tasks, PerleRareWebServices ashx pour mails / PDF, Yanport sample, etc.). Très utile pour le contexte batch / formules / génération de documents.
+
+En revanche, ce n’est pas le projet de l’API CRM actuelle `https://api.perle-rare.info` — celle que le front Angular appelle (`User/authenticate`, `ContactsRecherches`, `Biens`, `Exchange`, etc.), typiquement nommée **ApiPerleRare** (ASP.NET Core, `Startup.cs`, controllers `/api/...`).
+
+Pourrais-tu regarder encore une fois sur ta machine / Bitbucket / anciennes archives s’il reste :
+
+- le dépôt ou dossier **ApiPerleRare** (solution Visual Studio + sources `.cs`) ;
+- éventuellement **PerleRare.WebServices2** (cité dans le `.gitignore` du zip, mais absent de l’archive) ;
+- ou le projet source utilisé pour publier vers `/var/www/api.perle-rare.info`.
+
+Même une version un peu ancienne nous aiderait beaucoup (on a déjà le binaire live et un décompilé).
+
+Merci d’avance,
+
+Florimond Jacquet

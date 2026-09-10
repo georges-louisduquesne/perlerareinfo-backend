@@ -4,6 +4,8 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Catalog;
+using ApiPerleRare.Application.Events;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -101,6 +103,8 @@ public class EvenementsController : ControllerBase
 
 	private readonly IUserSessionService _userSessionService;
 
+	private readonly IListEncaissementsEnCoursUseCase _encaissementsEnCours;
+
 	private static string[] _prospectionTypes;
 
 	private static DateTime _prospectionTypesDate;
@@ -109,11 +113,16 @@ public class EvenementsController : ControllerBase
 
 	private static DateTime _clientLastTypesDate;
 
-	public EvenementsController(ApplicationDbContext context, IUserSessionService userSessionService, IMemoryCache memoryCache)
+	public EvenementsController(
+		ApplicationDbContext context,
+		IUserSessionService userSessionService,
+		IMemoryCache memoryCache,
+		IListEncaissementsEnCoursUseCase encaissementsEnCours)
 	{
 		_cache = memoryCache;
 		_context = context;
 		_userSessionService = userSessionService;
+		_encaissementsEnCours = encaissementsEnCours;
 	}
 
 	[HttpGet]
@@ -207,6 +216,35 @@ public class EvenementsController : ControllerBase
 	public async Task<ActionResult<SelectResult<ClientEvenements>>> GetTransactionsEvenements([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
 	{
 		return await GetEvenements(EventType.Transactions, select, where, orderby, skip, take);
+	}
+
+	[HttpGet]
+	[Route("EncaissementsEnCours")]
+	public async Task<ActionResult<SelectResult<ClientEvenements>>> GetEncaissementsEnCoursEvenements(
+		[FromQuery] string select = null,
+		[FromQuery] string where = null,
+		[FromQuery] string orderby = null,
+		[FromQuery] int skip = 0,
+		[FromQuery] int take = 0)
+	{
+		try
+		{
+			return await _encaissementsEnCours.Execute(
+				new EntityQuery
+				{
+					Select = select,
+					Where = where,
+					OrderBy = orderby,
+					Skip = skip,
+					Take = take
+				},
+				_userSessionService.Filter ? this.GetUserLogin() : null,
+				_userSessionService.Filter);
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(ex.ToString());
+		}
 	}
 
 	private async Task<ActionResult<SelectResult<ClientEvenements>>> GetEvenements(EventType type, [FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)

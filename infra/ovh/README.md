@@ -66,6 +66,18 @@ infra/ovh/
 └── ssh/config
 ```
 
+## API démo (isolée, pas la prod)
+
+URL : `https://dev.perle-rare.info/api-demo/`  
+Fichiers : `/home/administrateur/api-client-demo` · port `127.0.0.1:5080`  
+Le front `/demo/` **n’est pas** branché sur cette API.
+
+```bash
+bash scripts/deploy-api-demo.sh
+```
+
+Runbook : [`docs/RUNBOOK-API-DEMO.md`](../../docs/RUNBOOK-API-DEMO.md)
+
 ## Règle d’or
 
-Aucun write, restart, rsync sortant, ni hook git. Ce dépôt sert à travailler **en local**.
+Ne pas écrire dans `/var/www/api.perle-rare.info` ni redémarrer `api.perle-rare.info.service` sans ordre explicite. La démo a son propre unit et son propre dossier sur `/home`.

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using ApiPerleRare.Application.Authentication;
 using ApiPerleRare.Application.Catalog;
+using ApiPerleRare.Application.Events;
 using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Infrastructure.Files;
@@ -139,6 +140,7 @@ public class Startup
 			});
 		});
 		services.AddHttpContextAccessor();
+		services.AddMemoryCache();
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IAuthenticateUseCase, AuthenticateUseCase>();
 		services.AddScoped<ISwitchDispoUseCase, SwitchDispoUseCase>();
@@ -147,6 +149,7 @@ public class Startup
 		services.AddScoped<IUploadFileUseCase, UploadFileUseCase>();
 		services.AddScoped<IDownloadFileUseCase, DownloadFileUseCase>();
 		services.AddScoped(typeof(IQueryEntitiesUseCase<>), typeof(QueryEntitiesUseCase<>));
+		services.AddScoped<IListEncaissementsEnCoursUseCase, ListEncaissementsEnCoursUseCase>();
 		services.AddScoped<ITestService, TestService>();
 		services.AddScoped<ISearchService, SearchService>();
 		services.AddScoped<IAuditService, AuditService>();
@@ -182,13 +185,14 @@ public class Startup
 		bool exposeDocs = env.IsDevelopment() || IsLocalSafe;
 		if (exposeDocs)
 		{
+			string demoPrefix = (Environment.GetEnvironmentVariable("PR_DEMO_PATH_PREFIX") ?? "").TrimEnd('/');
 			app.UseSwagger();
 			app.UseSwaggerUI(delegate(SwaggerUIOptions c)
 			{
-				c.SwaggerEndpoint("/swagger/v1/swagger.json", "Perle-rare.info API V1");
+				c.SwaggerEndpoint(demoPrefix + "/swagger/v1/swagger.json", "Perle-rare.info API V1");
 			});
 			RewriteOptions option = new RewriteOptions();
-			option.AddRedirect("^$", "swagger");
+			option.AddRedirect("^$", string.IsNullOrEmpty(demoPrefix) ? "swagger" : demoPrefix.TrimStart('/') + "/swagger");
 			app.UseRewriter(option);
 		}
 		if (env.IsDevelopment())

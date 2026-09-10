@@ -25,6 +25,12 @@ infra/ovh/cursor-client/windows-kit/credentials.env
 # Publish binaries + appsettings with secrets (local reference only)
 /api-perle-rare-publish/
 /api-perle-rare-live/
+/artifacts/
+
+# Official JB Huber dump (contains App.config / Web.config / Yanport token) — never commit
+/sources-jb-huber/
+/docs/official-sources/
+/docs/huberje-perle-rare-*.zip
 **/appsettings.json
 **/appsettings.Development.json
 **/appsettings.Production.json

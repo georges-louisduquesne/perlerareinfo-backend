@@ -17,13 +17,13 @@ Légende : `pending` · `in_progress` · `local_done` · `blocked` (créneau cli
 | 5 | TLS sortant (plus de trust-all) | local_done | Callbacks retirés Exchange + old site |
 | 6 | Filtres SQL paramétrés / échappés | local_done | Quote/ident allowlist ; syntaxe filtres inchangée |
 | 7 | Rotation identifiants | blocked | Créneau 1–2 h client |
-| 8 | Recette CRM démo | pending | Après palier local |
+| 8 | Recette CRM démo | in_progress | API démo isolée `https://dev.perle-rare.info/api-demo/` (front `/demo/` non branché) |
 
 ## Semaine 2 — Socle
 
 | # | Livrable | Statut | Notes contrat |
 |---|----------|--------|----------------|
-| 9 | Dépôt source maintenable | in_progress | Auth + File + catalogue listes extraits (`Application/`) |
+| 9 | Dépôt source maintenable | in_progress | Auth + File + catalogue + EncaissementsEnCours / ConseillersPersonnelsEvenements |
 | 10 | Secrets hors git, build reproductible | local_done | `.gitignore` appsettings réels |
 | 11 | .NET 8 LTS | local_done | Target `net8.0` local |
 | 12 | Hash mots de passe (bascule douce) | pending | `User/authenticate` inchangé |

@@ -1,0 +1,24 @@
+Objet : ApiPerleRare — demande des sources du back-office
+
+Bonjour Jean-Baptiste,
+
+J’espère que tu vas bien.
+
+Nous reprenons la maintenance de l’API métier du CRM Perle Rare (`api.perle-rare.info`, projet ApiPerleRare). Sur le serveur, nous avons le binaire déployé et le dépôt git de publish, mais pas le projet source Visual Studio / C# d’origine.
+
+Pour éviter de travailler uniquement à partir du livrable compilé, pourrais-tu nous transmettre, si tu les as encore, les éléments suivants ?
+
+- la solution Visual Studio (`.sln`) et les projets `.csproj` ;
+- l’ensemble des fichiers `.cs` (controllers, services, modèles) ;
+- l’historique git du dépôt source, s’il existe encore (archive `.git` ou lien vers le remote) ;
+- un `appsettings.example.json` ou équivalent **sans** mots de passe (les identifiants de prod, on ne te les redemande pas) ;
+- toute doc de build / déploiement que tu aurais (README, notes de publish).
+
+Si le tout tient dans une archive zip, ou un dépôt que tu peux partager, c’est parfait. Même une copie locale d’une ancienne machine de dev (`PORT0623001` / user `jbhuber`) nous serait très utile.
+
+Nous n’avons pas besoin de modifier la production dans l’immédiat : l’objectif est d’avoir une base source fidèle pour la suite.
+
+Merci d’avance, et n’hésite pas si tu as des questions.
+
+Cordialement,
+Florimond Jacquet
