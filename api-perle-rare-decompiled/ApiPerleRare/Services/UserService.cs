@@ -4,13 +4,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Runtime.Caching;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using ApiPerleRare.Entities;
 using ApiPerleRare.Exceptions;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -47,20 +45,35 @@ public class UserService : IUserService
 		{
 			return null;
 		}
-		if (password != user.CpMotDePasse)
+		if (!PasswordAuth.TryAuthenticate(password, user.CpMotDePasse, out string upgradedHash))
 		{
 			return null;
 		}
+		bool needsHashRewrite = upgradedHash != null;
+		if (needsHashRewrite)
+		{
+			user.CpMotDePasse = upgradedHash;
+		}
+
 		_userSessionService.ClearCache();
 		string date = DateTime.Now.ToString("ddMM");
-		if (user.CpAutoLogin == null || !user.CpAutoLogin.StartsWith(date))
+		bool needsAutoLogin = user.CpAutoLogin == null || !user.CpAutoLogin.StartsWith(date);
+		if (needsAutoLogin)
 		{
 			user.CpAutoLogin = date + new Random().Next();
 			if (user.CpAutoLogin.Length > 15)
 			{
 				user.CpAutoLogin = user.CpAutoLogin.Substring(0, 15);
 			}
-			_context.SaveChanges();
+		}
+		if (needsHashRewrite || needsAutoLogin)
+		{
+			// Demo / local: MariaDB is SELECT-only — persist hash + autologin only on writable APIs.
+			bool readOnlyDemo = string.Equals(Environment.GetEnvironmentVariable("PR_LOCAL_SAFE"), "1", StringComparison.Ordinal);
+			if (!readOnlyDemo)
+			{
+				_context.SaveChanges();
+			}
 		}
 		List<Claim> claims = new List<Claim>();
 		claims.Add(new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", user.CpRefConseiller.ToString()));
@@ -73,15 +86,17 @@ public class UserService : IUserService
 		{
 			claims.Add(new Claim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "Negociateur"));
 		}
+		// 48 h — decided with client; activating in prod still implies reconnect when secret/TTL ship together.
+		const int tokenLifetimeMinutes = 2880;
 		JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler
 		{
-			TokenLifetimeInMinutes = 10080
+			TokenLifetimeInMinutes = tokenLifetimeMinutes
 		};
 		byte[] key = Encoding.ASCII.GetBytes(_appSettings.Secret);
 		SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
 		{
 			Subject = new ClaimsIdentity(claims),
-			Expires = DateTime.UtcNow.AddDays(7.0),
+			Expires = DateTime.UtcNow.AddMinutes(tokenLifetimeMinutes),
 			SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256")
 		};
 		SecurityToken secToken = tokenHandler.CreateToken(tokenDescriptor);
@@ -135,53 +150,6 @@ public class UserService : IUserService
 			_context.ConseillersPersonnels.Remove(user);
 			_context.SaveChanges();
 		}
-	}
-
-	private static void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
-	{
-		if (password == null)
-		{
-			throw new ArgumentNullException("password");
-		}
-		if (string.IsNullOrWhiteSpace(password))
-		{
-			throw new ArgumentException("Value cannot be empty or whitespace only string.", "password");
-		}
-		passwordSalt = new byte[16];
-		using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
-		{
-			rng.GetBytes(passwordSalt);
-		}
-		passwordHash = KeyDerivation.Pbkdf2(password, passwordSalt, KeyDerivationPrf.HMACSHA1, 10000, 32);
-	}
-
-	private static bool VerifyPasswordHash(string password, byte[] storedHash, byte[] storedSalt)
-	{
-		if (password == null)
-		{
-			throw new ArgumentNullException("password");
-		}
-		if (string.IsNullOrWhiteSpace(password))
-		{
-			throw new ArgumentException("Value cannot be empty or whitespace only string.", "password");
-		}
-		if (storedHash.Length != 32)
-		{
-			throw new ArgumentException("Invalid length of password hash (64 bytes expected).", "passwordHash");
-		}
-		if (storedSalt.Length != 16)
-		{
-			throw new ArgumentException("Invalid length of password salt (128 bytes expected).", "passwordHash");
-		}
-		byte[] computedHash = KeyDerivation.Pbkdf2(password, storedSalt, KeyDerivationPrf.HMACSHA1, 10000, 32);
-		for (int i = 0; i < computedHash.Length; i++)
-		{
-			if (computedHash[i] != storedHash[i])
-			{
-				return false;
-			}
-		}
-		return true;
 	}
 
 	public bool SwitchDispo(int refConseiller, string remoteIpAddress)

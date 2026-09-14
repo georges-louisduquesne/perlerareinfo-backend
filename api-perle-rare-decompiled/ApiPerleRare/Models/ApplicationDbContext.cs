@@ -434,7 +434,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpMelPerso).IsRequired().HasMaxLength(100)
 				.HasColumnName("CP_MelPerso");
 			entity.Property((ConseillersPersonnels e) => e.CpMelSignature).HasMaxLength(10000).HasColumnName("CP_MelSignature");
-			entity.Property((ConseillersPersonnels e) => e.CpMotDePasse).HasMaxLength(15).HasColumnName("CP_MotDePasse");
+			// Widened for soft-hash PBKDF2 strings (~90 chars). Apply docs/sql/widen-cp-mot-de-passe.sql before prod deploy.
+			entity.Property((ConseillersPersonnels e) => e.CpMotDePasse).HasMaxLength(255).HasColumnName("CP_MotDePasse");
 			entity.Property((ConseillersPersonnels e) => e.CpNegociateur).HasColumnName("CP_Negociateur");
 			entity.Property((ConseillersPersonnels e) => e.CpNomFamille).HasMaxLength(50).HasColumnName("CP_NomFamille");
 			entity.Property((ConseillersPersonnels e) => e.CpNumrsac).HasMaxLength(20).HasColumnName("CP_Numrsac");

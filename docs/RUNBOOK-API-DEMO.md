@@ -5,7 +5,7 @@
 **Processus :** `127.0.0.1:5080` · unit `api-demo.perle-rare.info.service`  
 **Fichiers :** `/home/administrateur/api-client-demo` (disque `/home`, pas `/`)
 
-Le front démo `https://dev.perle-rare.info/demo/` **n’est pas branché** sur cette API. Il continue d’appeler `https://api.perle-rare.info`.
+Le front démo `https://dev.perle-rare.info/demo/` appelle **cette** API (`environment.demo.ts` → `/api-demo/api/`). Restore front : `/home/administrateur/www-client-demo.bak-prod-api`.
 
 ## Ce qui est isolé
 
@@ -47,9 +47,11 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 
 Les écritures métier (POST/PUT, SwitchDispo) échoueront côté SQL : compte SELECT only. C’est voulu.
 
+Soft-hash mdp : **skip** `SaveChanges` si `PR_LOCAL_SAFE=1` (démo lecture seule). Sur une API writable, le hash s’écrit à la 1re connexion. Voir [`docs/sql/README-COMPTE-WRITE.md`](./sql/README-COMPTE-WRITE.md) + [`docs/sql/widen-cp-mot-de-passe.sql`](./sql/widen-cp-mot-de-passe.sql).
+
 ## Ne pas faire
 
 - `systemctl restart api.perle-rare.info`
 - rsync vers `/var/www/api.perle-rare.info`
-- pointer le front `/demo/` vers `/api-demo/`
+- pointer `/demo/` vers la **prod** API sans restore (le bak `www-client-demo.bak-prod-api` existe pour ça)
 - installer un runtime .NET sur `/` (disque à 86 %)

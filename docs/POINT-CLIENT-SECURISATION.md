@@ -60,13 +60,15 @@ Proposition : TTL plus court (ex. 8–24 h) + même login CRM.
 - [ ] TTL acceptable (ex. fin de journée / 24 h / 7 j inchangé pour l’instant)
 - [ ] OK pour déconnexion forcée au moment du déploiement (lié à la rotation secret)
 
-### C. **Hash des mots de passe** (plan #12 — pas urgent le jour J, mais à caler)
+### C. **Hash des mots de passe** (plan #12 — code local prêt)
 
 Bascule **douce** : à la prochaine connexion réussie, le clair est remplacé par un hash. Les comptes non reconnectés restent en clair jusqu’à leur 1re connexion.
 
+**Prérequis DB (sûr, non destructif) :** élargir `CP_MotDePasse` `VARCHAR(15)` → `VARCHAR(255)` via [`docs/sql/widen-cp-mot-de-passe.sql`](sql/widen-cp-mot-de-passe.sql) **avant** le deploy soft-hash writable. Compte MySQL avec `ALTER` (pas `cursor_client`).
+
 **Demander :**
-- [ ] OK pour activer après (ou pendant) le créneau secrets
-- [ ] Communication interne éventuelle (« reconnectez-vous une fois »)
+- [ ] OK pour appliquer l’ALTER + activer soft-hash sur API writable (prod ou créneau)
+- [ ] Communication interne éventuelle (« reconnectez-vous une fois » seulement si JWT/secret aussi)
 
 ### D. **Bascule production API** (cutover)
 
@@ -157,6 +159,6 @@ Même API rapide + VPS = souvent 1–3 s depuis un Mac distant.
 | API **prod** (ne pas casser) | `https://api.perle-rare.info` |
 | API **démo** (tests) | `https://dev.perle-rare.info/api-demo/` |
 | Swagger démo | `https://dev.perle-rare.info/api-demo/swagger/index.html` |
-| Front démo (encore sur API prod) | `https://dev.perle-rare.info/demo/` |
+| Front démo (API migrée, lecture seule) | `https://dev.perle-rare.info/demo/` |
 
 Suivi interne : `docs/PLAN-MIGRATION.md` · audit : `docs/AUDIT-API-BACKEND-2026-08.md`.
