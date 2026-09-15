@@ -34,6 +34,12 @@ public class RecupInfoSearcher
 
 	public static bool Debug { get; set; }
 
+	/// <summary>
+	/// Original RecupInfos2: AG_DateFin IS NULL. PropertyFilterDef.IsMatch rejects any PDateFin.
+	/// Yanport open ads use 0000-00-00 (not SQL NULL); a real DateFin means the ad has ended.
+	/// </summary>
+	public const string ActivePropertyWhere = "P_State = 1 AND (P_DateFin IS NULL OR P_DateFin < '1000-01-01')";
+
 	public static AbstractRecupInfoResponse Search(IApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache)
 	{
 		try
@@ -60,9 +66,7 @@ public class RecupInfoSearcher
 			{
 				throw new ArgumentException("Type de bien obligatoire");
 			}
-			// Recherche / RecupInfosAnnonces2 counts `property` (P_*), like PHP / GET Property (PState eq 1).
-			// Do not require P_DateFin IS NULL: Yanport rows often keep DateFin = 0000-00-00, which is not SQL NULL.
-			string where = "P_State = 1";
+			string where = ActivePropertyWhere;
 			const string countExpr = "COUNT(DISTINCT P_PropertyId) AS NbAnnonces";
 			const string dateDebutDays = "IF(P_DateDebut IS NULL OR P_DateDebut < '1000-01-01', NULL, ABS(DATEDIFF(CURRENT_DATE(), P_DateDebut)))";
 			AbstractRecupInfoResponse response = new RecupInfoResponse();
@@ -385,7 +389,7 @@ public class RecupInfoSearcher
 		{
 			return "P_CP='" + cp + "' AND (P_Quartier2 IS NULL OR P_Quartier2='')";
 		}
-		return "(P_CP='" + cp + "' AND (P_Quartier2 LIKE '%[" + q + "]%' OR P_Quartier2 LIKE '%" + q + "%'))";
+		return "P_Quartier2 LIKE '%[" + q + "]%'";
 	}
 
 	private static Dictionary<string, string> GetImportParams()

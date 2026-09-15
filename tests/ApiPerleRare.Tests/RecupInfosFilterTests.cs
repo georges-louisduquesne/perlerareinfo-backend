@@ -14,6 +14,14 @@ public class RecupInfosFilterTests
 	};
 
 	[Fact]
+	public void Active_property_where_keeps_yanport_zero_dates_and_drops_ended_ads()
+	{
+		Assert.Equal(
+			"P_State = 1 AND (P_DateFin IS NULL OR P_DateFin < '1000-01-01')",
+			RecupInfoSearcher.ActivePropertyWhere);
+	}
+
+	[Fact]
 	public void Filter_accepts_typeTransaction_string_or_array()
 	{
 		Filter fromString = JsonSerializer.Deserialize<Filter>(
