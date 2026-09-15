@@ -30,7 +30,7 @@ Légende : `pending` · `in_progress` · `local_done` · `blocked` (créneau cli
 | 13 | JWT plus courts / cadrés | local_done | Code : 48 h (`2880` min) ; **prod** = créneau (sessions) |
 | 14 | Scheduler `try/finally` + pas de gel | local_done | `_executing` toujours relâché |
 | 15 | Droits plus raisonnables | pending | Grep front avant tout 403 nouveau |
-| 16 | Plafond pagination + liveness réel | pending | Ne pas casser `take` actuel sans check front |
+| 16 | Plafond pagination + liveness réel | in_progress | Accueil `skip`/`take` utilisés par `/mes-prospects` (50/page) ; `take=0` Accueil home **inchangé** ; pas de plafond global |
 | 17 | Logs + runbook | pending | Doc seulement |
 
 ## Recette anti-régression (après chaque palier)

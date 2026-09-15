@@ -34,6 +34,7 @@ public class EFHelper<TEFModel> where TEFModel : class
 
 	public static IQueryable<TEFModel> Apply(IQueryable<TEFModel> query, string where, string orderby = null, int take = 0, int skip = 0, string select = null, Func<IQueryable<TEFModel>, IQueryable<TEFModel>> finalize = null)
 	{
+		QueryPaging.Normalize(ref skip, ref take);
 		if (!string.IsNullOrWhiteSpace(where))
 		{
 			IValue val = ApiPerleRare.Predicates.Parser.Parse(where);

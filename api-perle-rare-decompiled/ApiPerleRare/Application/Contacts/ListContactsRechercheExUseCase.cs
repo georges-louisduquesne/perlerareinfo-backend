@@ -36,6 +36,11 @@ public sealed class ListContactsRechercheExUseCase : IListContactsRechercheExUse
 	public async Task<List<ContactsRechercheEx>> Execute(string select, string where, string orderby, int skip, int take, bool applyFilter, string userLogin, bool leanForAccueil)
 	{
 		ContactsRecherchePhpConfig.EnsureRegistered();
+		QueryPaging.Normalize(ref skip, ref take);
+		if (skip > 0)
+		{
+			orderby = QueryPaging.EnsureOrderBy(orderby, "CRefContact");
+		}
 		IQueryable<ContactsRecherche> query = _context.ContactsRecherche.AsNoTracking();
 		query = ApplyDefaultFilter(query, applyFilter, userLogin);
 		query = EFHelper<ContactsRecherche>.Apply(query, where, orderby, take, skip, leanForAccueil ? null : select);
