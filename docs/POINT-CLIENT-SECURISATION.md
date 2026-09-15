@@ -3,7 +3,7 @@
 **Date du point :** à renseigner  
 **Contexte :** API migrée en local + démo isolée ; **production non touchée** tant qu’un créneau n’est pas validé.  
 **Démo à jour :** `https://dev.perle-rare.info/api-demo/` (Swagger : `…/api-demo/swagger/index.html`)  
-**Front Angular :** inchangé (contrat API gelé).
+**Front Angular :** contrat `User/authenticate` gelé. Route **nouvelle** `GET /api/User/refresh` (démo) pour session 48 h glissante.
 
 ---
 
@@ -51,14 +51,15 @@
 - [ ] Personne joignable pour valider « CRM reconnecte OK »
 - [ ] Plan de retour arrière accepté (garder l’ancien secret JWT 15–30 min si besoin)
 
-### B. **JWT plus courts** (bloquant — plan #13)
+### B. **JWT 48 h glissant** (plan #13 — décidé)
 
-Aujourd’hui : jetons très longs (~7 jours).  
-Proposition : TTL plus court (ex. 8–24 h) + même login CRM.
+TTL **48 h**. Ce n’est pas « mot de passe tous les deux jours » : tant que le CRM est ouvert (ou rouvert avant 48 h), le jeton se **renouvelle tout seul** (`GET /api/User/refresh`). Reconnexion mot de passe seulement après 48 h **d’inactivité**.
+
+Prod : activer avec le cutover (invalide les sessions en cours, lié à la rotation secret).
 
 **Demander :**
-- [ ] TTL acceptable (ex. fin de journée / 24 h / 7 j inchangé pour l’instant)
-- [ ] OK pour déconnexion forcée au moment du déploiement (lié à la rotation secret)
+- [x] TTL 48 h glissant (validé réunion)
+- [ ] OK pour déconnexion forcée **au moment du déploiement** (lié à la rotation secret)
 
 ### C. **Hash des mots de passe** (plan #12 — code local prêt)
 

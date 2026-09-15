@@ -27,7 +27,7 @@ Légende : `pending` · `in_progress` · `local_done` · `blocked` (créneau cli
 | 10 | Secrets hors git, build reproductible | local_done | `.gitignore` appsettings réels |
 | 11 | .NET 8 LTS | local_done | Target `net8.0` local |
 | 12 | Hash mots de passe (bascule douce) | local_done | Code + démo déployés ; **ALTER** `CP_MotDePasse` VARCHAR(255) **fait** (2026-09-14) ; écriture hash = API writable (pas `cursor_client`) |
-| 13 | JWT plus courts / cadrés | local_done | Code : 48 h (`2880` min) ; **prod** = créneau (sessions) |
+| 13 | JWT plus courts / cadrés | local_done | Code : 48 h (`2880` min) **glissant** (`GET /api/User/refresh` tant que le jeton est valide) ; **prod** = créneau (sessions) |
 | 14 | Scheduler `try/finally` + pas de gel | local_done | `_executing` toujours relâché |
 | 15 | Droits plus raisonnables | pending | Grep front avant tout 403 nouveau |
 | 16 | Plafond pagination + liveness réel | in_progress | Accueil `skip`/`take` utilisés par `/mes-prospects` (50/page) ; `take=0` Accueil home **inchangé** ; pas de plafond global |

@@ -43,6 +43,10 @@ TOKEN=$(curl -sS -H 'Content-Type: application/json' \
 
 curl -sS -H "Authorization: Bearer $TOKEN" \
   'https://dev.perle-rare.info/api-demo/api/TypesTaches?take=5'
+
+# renouvellement session (même JSON que authenticate, nouveau token)
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  'https://dev.perle-rare.info/api-demo/api/User/refresh'
 ```
 
 Les écritures métier (POST/PUT, SwitchDispo) échoueront côté SQL : compte SELECT only. C’est voulu.
