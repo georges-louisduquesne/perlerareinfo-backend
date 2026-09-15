@@ -20,6 +20,13 @@ internal sealed class FakeQueryEntitiesUseCase<TEntity> : IQueryEntitiesUseCase<
 			tache.TtContactStatut = "PROSPECT ACTIF";
 			tache.TtTypeTransaction = "A";
 		}
+		if (item is Property property)
+		{
+			property.PPropertyId = "prop-1";
+			property.PCp = "94120";
+			property.PTypeTransaction = "A";
+			property.PState = 1;
+		}
 		return Task.FromResult(new SelectResult<TEntity>
 		{
 			Total = 1,

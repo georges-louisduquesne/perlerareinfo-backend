@@ -99,6 +99,7 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 	[InlineData("/api/Health/Migrate")]
 	[InlineData("/api/PropertyContacts")]
 	[InlineData("/api/TypesTaches")]
+	[InlineData("/api/Property")]
 	[InlineData("/api/TypesMails")]
 	[InlineData("/api/ContactsRecherches/Accueil")]
 	[InlineData("/api/Taches")]

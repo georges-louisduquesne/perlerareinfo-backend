@@ -36,6 +36,7 @@ public class CutoverSmokeTests : IClassFixture<ApiFactory>
 
 		await AssertCatalog(client, "/api/TypesTaches?take=5");
 		await AssertCatalog(client, "/api/TypesMails?take=5");
+		await AssertCatalog(client, "/api/Property?take=1");
 
 		HttpResponseMessage accueil = await client.GetAsync("/api/ContactsRecherches/Accueil?take=2&skip=0");
 		Assert.Equal(HttpStatusCode.OK, accueil.StatusCode);
