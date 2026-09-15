@@ -56,8 +56,9 @@ public class RecupInfoSearcher
 			{
 				throw new ArgumentException("Type de bien obligatoire");
 			}
-			// Recherche / RecupInfosAnnonces2 counts `property` (P_*), like PHP. `annonces_globales` is Yanport-empty on demo.
-			string where = "P_DateFin IS NULL AND P_State = 1";
+			// Recherche / RecupInfosAnnonces2 counts `property` (P_*), like PHP / GET Property (PState eq 1).
+			// Do not require P_DateFin IS NULL: Yanport rows often keep DateFin = 0000-00-00, which is not SQL NULL.
+			string where = "P_State = 1";
 			const string countExpr = "COUNT(DISTINCT P_PropertyId) AS NbAnnonces";
 			AbstractRecupInfoResponse response = new RecupInfoResponse();
 			response.Token = token;
