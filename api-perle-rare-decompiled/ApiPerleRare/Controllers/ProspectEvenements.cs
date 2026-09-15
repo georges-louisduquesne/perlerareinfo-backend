@@ -10,6 +10,8 @@ public class ProspectEvenements
 
 	public DateTime? EDateCreation { get; set; }
 
+	public string CStatut { get; set; }
+
 	public string ETypeEvenement { get; set; }
 
 	public string CNomFamille { get; set; }

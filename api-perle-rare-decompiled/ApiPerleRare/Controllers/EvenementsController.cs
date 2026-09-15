@@ -254,6 +254,10 @@ public class EvenementsController : ControllerBase
 	{
 		try
 		{
+			if (!evenements.EDateCreation.HasValue)
+			{
+				evenements.EDateCreation = DateTime.Now;
+			}
 			_context.Evenements.Add(evenements);
 			await _context.SaveChangesAsync();
 			return CreatedAtAction("GetEvenements", new

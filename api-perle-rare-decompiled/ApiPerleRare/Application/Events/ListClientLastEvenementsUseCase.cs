@@ -51,6 +51,7 @@ public sealed class ListClientLastEvenementsUseCase : IListClientLastEvenementsU
 			ERefEvenement = e.ERefEvenement,
 			EDate = e.EDate,
 			EDateCreation = e.EDateCreation,
+			CStatut = e.ERefContactNavigation.CStatut,
 			ETypeEvenement = e.ETypeEvenement,
 			CNomFamille = e.ERefContactNavigation.CNomFamille,
 			CNomFamilleConseiller = e.ERefContactNavigation.CNomFamilleConseiller,
