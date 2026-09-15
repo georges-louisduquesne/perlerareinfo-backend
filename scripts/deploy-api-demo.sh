@@ -78,6 +78,8 @@ PY
 echo "==> Publish self-contained linux-x64 (no .NET 8 install on VPS)"
 export PATH="${HOME}/.dotnet:${PATH}"
 export DOTNET_ROOT="${HOME}/.dotnet"
+# Stale DLLs in this folder (e.g. JwtBearer 7.x) survive `dotnet publish -o` and crash Kestrel on start.
+rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR"
 dotnet publish "$REPO_ROOT/api-perle-rare-decompiled/ApiPerleRare.csproj" \
 	-c Release -r linux-x64 --self-contained true \
