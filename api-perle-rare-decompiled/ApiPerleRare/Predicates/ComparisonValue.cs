@@ -61,22 +61,7 @@ public class ComparisonValue : IPredicateValue, IValue
 		{
 			re = Expression.Call(null, typeof(Convert).GetMethod("ToString", new Type[1] { re.Type }), re);
 		}
-		if (le.Type == typeof(DateTime) && re is ConstantExpression ce)
-		{
-			if (ce.Value is string s)
-			{
-				re = Expression.Constant(DateTime.ParseExact(s, "dd/MM/yyyy", CultureInfo.InvariantCulture));
-			}
-			else if (!(ce.Value is DateTime))
-			{
-				throw new NotImplementedException("A convertir en datetime (" + ce.Type.FullName + ")");
-			}
-		}
-		else if (le.Type != re.Type && re is ConstantExpression ce2)
-		{
-			Type ult = Nullable.GetUnderlyingType(le.Type);
-			re = ((ult != null && ce2.Value.GetType() == ult) ? Expression.Constant(ce2.Value, le.Type) : ((ce2.Value is int i && le.Type == typeof(uint?)) ? Expression.Constant((uint)i, le.Type) : ((!(ce2.Value is int i2) || !(le.Type == typeof(sbyte?))) ? Expression.Constant(Convert.ChangeType(ce2.Value, le.Type)) : Expression.Constant((sbyte)i2, le.Type))));
-		}
+		re = CoerceRight(le, re);
 		return Operator switch
 		{
 			ComparisonOperator.Equal => Expression.Equal(le, re), 
@@ -88,6 +73,50 @@ public class ComparisonValue : IPredicateValue, IValue
 			ComparisonOperator.Like => Expression.Call(typeof(DbFunctionsExtensions), "Like", Type.EmptyTypes, Expression.Constant(EF.Functions), le, re), 
 			_ => throw new NotImplementedException(), 
 		};
+	}
+
+	private static Expression CoerceRight(Expression le, Expression re)
+	{
+		if (le.Type == re.Type || re is not ConstantExpression ce)
+		{
+			return re;
+		}
+		if (ce.Value == null)
+		{
+			return Expression.Constant(null, le.Type);
+		}
+		Type target = Nullable.GetUnderlyingType(le.Type) ?? le.Type;
+		object value = ce.Value;
+		if (target == typeof(DateTime))
+		{
+			if (value is DateTime dt)
+			{
+				return Expression.Constant(dt, le.Type);
+			}
+			if (value is string s && TryParseDateTime(s, out DateTime parsed))
+			{
+				return Expression.Constant(parsed, le.Type);
+			}
+			throw new NotImplementedException("A convertir en datetime (" + ce.Type.FullName + ")");
+		}
+		try
+		{
+			object converted = Convert.ChangeType(value, target, CultureInfo.InvariantCulture);
+			return Expression.Constant(converted, le.Type);
+		}
+		catch (Exception ex)
+		{
+			throw new InvalidCastException("Impossible de convertir " + value.GetType().FullName + " vers " + le.Type.FullName, ex);
+		}
+	}
+
+	private static bool TryParseDateTime(string s, out DateTime parsed)
+	{
+		if (DateTime.TryParseExact(s, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+		{
+			return true;
+		}
+		return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out parsed);
 	}
 
 	public string GetSQL(Func<string[], string> getSqlNameFromPropName)

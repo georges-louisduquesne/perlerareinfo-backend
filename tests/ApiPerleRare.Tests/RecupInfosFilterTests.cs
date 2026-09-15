@@ -14,13 +14,11 @@ public class RecupInfosFilterTests
 	};
 
 	[Fact]
-	public void Active_property_where_keeps_yanport_zero_dates_and_drops_ended_ads()
+	public void RecupInfos_volumes_use_annonces_globales_like_prod()
 	{
-		Assert.Equal(
-			"P_State = 1 AND (P_DateFin IS NULL OR P_DateFin < '1000-01-01')",
-			RecupInfoSearcher.ActivePropertyWhere);
-		Assert.Equal("P_PrixEvol = -1", RecupInfoSearcher.BaissePrixWhere);
-		Assert.Equal("(P_PrixEvol IS NULL OR P_PrixEvol <> -1)", RecupInfoSearcher.NotBaissePrixWhere);
+		Assert.Equal("AG_DateFin IS NULL", RecupInfoSearcher.ActiveAnnoncesWhere);
+		Assert.Contains("H_RefAnnonce = AG_Ref", RecupInfoSearcher.BaissePrixHistorique);
+		Assert.Contains("DATE_SUB(CURDATE(), INTERVAL 2 MONTH)", RecupInfoSearcher.BaissePrixHistorique);
 	}
 
 	[Fact]

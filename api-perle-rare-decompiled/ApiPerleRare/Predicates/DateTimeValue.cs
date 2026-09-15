@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq.Expressions;
 
 namespace ApiPerleRare.Predicates;
@@ -19,7 +20,7 @@ public class DateTimeValue : IValue
 
 	public Expression Eval(ParameterExpression row)
 	{
-		return Expression.Constant(DateTime.Parse(_value));
+		return Expression.Constant(DateTime.Parse(_value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
 	}
 
 	public string GetSQL(Func<string[], string> getSqlNameFromPropName)

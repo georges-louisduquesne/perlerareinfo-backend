@@ -430,6 +430,7 @@ internal class Scanner
 																									if (ch >= '0' && ch <= '9')
 																									{
 																										FoundToken(51);
+																										ExtendDateTimeToken();
 																									}
 																								}
 																							}
@@ -2749,6 +2750,7 @@ internal class Scanner
 																							if (ch >= '0' && ch <= '9')
 																							{
 																								FoundToken(51);
+																								ExtendDateTimeToken();
 																							}
 																						}
 																					}
@@ -3070,6 +3072,7 @@ internal class Scanner
 																										if (ch >= '0' && ch <= '9')
 																										{
 																											FoundToken(51);
+																											ExtendDateTimeToken();
 																										}
 																									}
 																								}
@@ -3838,6 +3841,39 @@ internal class Scanner
 			FoundToken(36);
 		}
 		CommitFoundToken();
+	}
+
+	private void ExtendDateTimeToken()
+	{
+		if (TokenType != DATETIME)
+		{
+			return;
+		}
+		int pos = _foundTokenEnd;
+		if (pos < _bufferSize && _buffer[pos] == '.')
+		{
+			int frac = pos + 1;
+			if (frac < _bufferSize && _buffer[frac] >= '0' && _buffer[frac] <= '9')
+			{
+				frac++;
+				while (frac < _bufferSize && _buffer[frac] >= '0' && _buffer[frac] <= '9')
+				{
+					frac++;
+				}
+				pos = frac;
+			}
+		}
+		if (pos < _bufferSize && (_buffer[pos] == 'Z' || _buffer[pos] == 'z'))
+		{
+			pos++;
+		}
+		if (pos > _foundTokenEnd)
+		{
+			int extra = pos - _foundTokenEnd;
+			_bufferPosition = pos;
+			_currentCharPosX += extra;
+			FoundToken(DATETIME);
+		}
 	}
 
 	private void FoundToken(int tokenType)

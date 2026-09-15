@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace ApiPerleRare.Predicates;
 
@@ -28,11 +30,24 @@ internal class Parser
 		return (IValue)_values[0].Value;
 	}
 
+	private static readonly Regex ODataDateTimeLiteral = new Regex(
+		@"\bdatetime(?:offset)?'([^']*)'",
+		RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
 	public static IValue Parse(string text)
 	{
-		Scanner scanner = new Scanner(text);
+		Scanner scanner = new Scanner(UnwrapODataDateTimeLiterals(text));
 		Parser parser = new Parser(scanner);
 		return parser.Parse();
+	}
+
+	internal static string UnwrapODataDateTimeLiterals(string text)
+	{
+		if (string.IsNullOrEmpty(text) || text.IndexOf("datetime", StringComparison.OrdinalIgnoreCase) < 0)
+		{
+			return text;
+		}
+		return ODataDateTimeLiteral.Replace(text, "$1");
 	}
 
 	private void Eval0()

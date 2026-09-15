@@ -59,7 +59,7 @@ public class EFHelper<TEFModel> where TEFModel : class
 				{
 					continue;
 				}
-				PropertyInfo mi = _props.FirstOrDefault((PropertyInfo p) => string.Compare(p.Name, f, ignoreCase: true) == 0);
+				PropertyInfo mi = PropertyValue.Resolve(typeof(TEFModel), f);
 				if (mi == null)
 				{
 					continue;
@@ -85,7 +85,10 @@ public class EFHelper<TEFModel> where TEFModel : class
 				string[] fieldNames = ob.FieldNames;
 				foreach (string fn in fieldNames)
 				{
-					exp3 = ((exp3 != null) ? Expression.Property(exp3, fn) : Expression.Property(param3, fn));
+					Type owner = exp3 != null ? exp3.Type : typeof(TEFModel);
+					PropertyInfo pi = PropertyValue.Resolve(owner, fn)
+						?? throw new ArgumentException("'" + fn + "' is not a member of type '" + owner + "'");
+					exp3 = Expression.Property(exp3 ?? (Expression)param3, pi);
 				}
 				if (exp3.Type == typeof(string))
 				{
