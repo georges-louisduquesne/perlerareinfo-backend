@@ -48,7 +48,11 @@ public class RecupInfoSearcher
 			{
 				token = 0L;
 			}
-			if (filter.TypeTransaction == TypeTransaction.None)
+			TypeTransaction[] txns = (filter.TypeTransaction ?? Array.Empty<TypeTransaction>())
+				.Where((TypeTransaction t) => t != TypeTransaction.None)
+				.Distinct()
+				.ToArray();
+			if (txns.Length == 0)
 			{
 				throw new ArgumentException("Type de transaction obligatoire");
 			}
@@ -60,12 +64,13 @@ public class RecupInfoSearcher
 			// Do not require P_DateFin IS NULL: Yanport rows often keep DateFin = 0000-00-00, which is not SQL NULL.
 			string where = "P_State = 1";
 			const string countExpr = "COUNT(DISTINCT P_PropertyId) AS NbAnnonces";
+			const string dateDebutDays = "IF(P_DateDebut IS NULL OR P_DateDebut < '1000-01-01', NULL, ABS(DATEDIFF(CURRENT_DATE(), P_DateDebut)))";
 			AbstractRecupInfoResponse response = new RecupInfoResponse();
 			response.Token = token;
 			response.ContactRef = filter.ContactRef;
 			response.Infos = filter.Infos;
 			Dictionary<FilterName, string> fieldFilters = new Dictionary<FilterName, string>();
-			fieldFilters.Add(FilterName.TypeTransaction, $"P_TypeTransaction='{filter.TypeTransaction}'");
+			fieldFilters.Add(FilterName.TypeTransaction, string.Join(" OR ", txns.Select((TypeTransaction t) => $"P_TypeTransaction='{t}'")));
 			fieldFilters.Add(FilterName.TypeBien, string.Join(" OR ", filter.TypeBien.Select((TypeBien tb) => "P_Type='" + tb.GetStringValue() + "'")));
 			if ((filter.CP != null && filter.CP.Length != 0) || (filter.Quartiers != null && filter.Quartiers.Length != 0))
 			{
@@ -117,11 +122,11 @@ public class RecupInfoSearcher
 			}
 			if (filter.BudgetSurfaceMax > 0)
 			{
-				fieldFilters.Add(FilterName.BudgetSurface, $"FLOOR(P_Prix / P_Surface) BETWEEN {filter.BudgetSurfaceMin} AND {filter.BudgetSurfaceMax}");
+				fieldFilters.Add(FilterName.BudgetSurface, $"FLOOR(P_Prix / NULLIF(P_Surface, 0)) BETWEEN {filter.BudgetSurfaceMin} AND {filter.BudgetSurfaceMax}");
 			}
 			if (filter.AncienneteMax > 0)
 			{
-				fieldFilters.Add(FilterName.Anciennete, $"ABS(DATEDIFF(CURRENT_DATE(), `P_DateDebut`) ) BETWEEN {filter.AncienneteMin} AND {filter.AncienneteMax}");
+				fieldFilters.Add(FilterName.Anciennete, $"{dateDebutDays} BETWEEN {filter.AncienneteMin} AND {filter.AncienneteMax}");
 			}
 			if (filter.Tags != null && filter.Tags.Length != 0)
 			{
@@ -151,20 +156,33 @@ public class RecupInfoSearcher
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "NbChambres", "SELECT IFNULL(P_NbChambres, 'NC') AS P_NbChambres, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.NbChambres) + " GROUP BY P_NbChambres"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Surface", "SELECT IFNULL(FLOOR(P_Surface / 5) * 5, 'NC'), " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.Surface) + " GROUP BY IFNULL(FLOOR(P_Surface / 5) * 5, 'NC')"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Prix", "SELECT IFNULL(FLOOR(P_Prix/1000) * 1000, 'NC') AS floor, " + countExpr + "  FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.Budget) + " GROUP BY IFNULL(FLOOR(P_Prix/1000) * 1000, 'NC')"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "PrixSurface", "SELECT IFNULL(FLOOR( FLOOR(P_Prix / P_Surface) / 1) * 1, 'NC') AS floor, " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BudgetSurface) + " GROUP BY floor"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "PrixSurface", "SELECT IFNULL(FLOOR( FLOOR(P_Prix / NULLIF(P_Surface, 0)) / 1) * 1, 'NC') AS floor, " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BudgetSurface) + " GROUP BY floor"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Etage", "SELECT IFNULL(P_Etage, 'NC') AS P_Etage, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Etage) + " \r\nGROUP BY IFNULL(P_Etage, 'NC')"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstDernierEtage", "SELECT P_EstDernierEtage, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.DernierEtage) + " \r\nGROUP BY P_EstDernierEtage", 0, 1, isBoolean: true));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstExclusif", "SELECT P_EstExclusif, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Exclusif) + " GROUP BY P_EstExclusif", 0, 1, isBoolean: true));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '0', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND (P_PrixEvol IS NULL OR P_PrixEvol <> 1)"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '1', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND P_PrixEvol = 1"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT IFNULL(ABS(DATEDIFF(CURRENT_DATE(), `P_DateDebut`)), '') AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT IFNULL(" + dateDebutDays + ", '') AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Tag", "SELECT P_ListeTags, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Tags) + " GROUP BY P_ListeTags"));
 			Task.WaitAll(queryTasks.ToArray());
-			response.AdjustQuartiers();
+			try
+			{
+				response.AdjustQuartiers();
+			}
+			catch
+			{
+				// Keep TypeTransaction / TypeBien totals even if a Yanport quartier name is not [id].
+			}
 			response.SumIntValues("NbPieces", 6);
 			response.SumIntValues("NbChambres", 6);
 			response.SumIntValues("Etage", 4);
-			response.AdjustTags();
+			try
+			{
+				response.AdjustTags();
+			}
+			catch
+			{
+			}
 			return response;
 		}
 		catch (Exception ex)
@@ -352,14 +370,22 @@ public class RecupInfoSearcher
 
 	private static string MakeQuartierFilter(string cpAndQ)
 	{
+		if (string.IsNullOrEmpty(cpAndQ))
+		{
+			return "1=0";
+		}
 		int i = cpAndQ.IndexOf('>');
-		string cp = cpAndQ.Substring(0, i);
-		string q = cpAndQ.Substring(i + 1);
-		if (q == "NC")
+		if (i <= 0)
+		{
+			return "P_CP='" + cpAndQ.Replace("'", "") + "'";
+		}
+		string cp = cpAndQ.Substring(0, i).Replace("'", "");
+		string q = cpAndQ.Substring(i + 1).Replace("'", "");
+		if (q == "NC" || q.Length == 0)
 		{
 			return "P_CP='" + cp + "' AND (P_Quartier2 IS NULL OR P_Quartier2='')";
 		}
-		return "P_Quartier2 LIKE '%[" + q + "]%'";
+		return "(P_CP='" + cp + "' AND (P_Quartier2 LIKE '%[" + q + "]%' OR P_Quartier2 LIKE '%" + q + "%'))";
 	}
 
 	private static Dictionary<string, string> GetImportParams()

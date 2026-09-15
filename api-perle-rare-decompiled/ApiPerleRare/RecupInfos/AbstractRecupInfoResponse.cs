@@ -62,20 +62,28 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 			}
 			return;
 		}
-		TCount[] counts = await memoryCache.GetOrCreateAsync(sql, delegate(ICacheEntry ce)
+		try
 		{
-			ce.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1.0);
-			return GetCountsAsync(c, field, sql, valueFieldIndex, countFieldIndex, isBoolean);
-		});
-		if (counts.Any((TCount val) => val == null))
-		{
-			throw new Exception("Avec valeur null dans la liste...");
+			TCount[] counts = await memoryCache.GetOrCreateAsync(sql, delegate(ICacheEntry ce)
+			{
+				ce.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1.0);
+				return GetCountsAsync(c, field, sql, valueFieldIndex, countFieldIndex, isBoolean);
+			});
+			if (counts == null)
+			{
+				return;
+			}
+			counts = counts.Where((TCount val) => val != null).ToArray();
+			lock (Counts)
+			{
+				Counts.AddRange(counts);
+			}
+			Log(field, $"Add to Counts : {counts.Length}");
 		}
-		lock (Counts)
+		catch (Exception ex)
 		{
-			Counts.AddRange(counts);
+			Log(field, "facet skipped: " + ex.Message);
 		}
-		Log(field, $"Add to Counts : {counts.Length}");
 	}
 
 	public override void Add(MySqlConnection c, IMemoryCache memoryCache, string field, string sql, int valueFieldIndex = 0, int countFieldIndex = 1, bool isBoolean = false)
@@ -97,25 +105,60 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 			}
 			return;
 		}
-		TCount[] counts = memoryCache.GetOrCreate(sql, delegate(ICacheEntry ce)
+		try
 		{
-			ce.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1.0);
-			return GetCounts(c, field, sql, valueFieldIndex, countFieldIndex, isBoolean);
-		});
-		if (counts.Any((TCount val) => val == null))
-		{
-			throw new Exception("Avec valeur null dans la liste...");
+			TCount[] counts = memoryCache.GetOrCreate(sql, delegate(ICacheEntry ce)
+			{
+				ce.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1.0);
+				return GetCounts(c, field, sql, valueFieldIndex, countFieldIndex, isBoolean);
+			});
+			if (counts == null)
+			{
+				return;
+			}
+			counts = counts.Where((TCount val) => val != null).ToArray();
+			lock (Counts)
+			{
+				Counts.AddRange(counts);
+			}
+			Log(field, $"Add to Counts : {counts.Length}");
 		}
-		lock (Counts)
+		catch (Exception ex)
 		{
-			Counts.AddRange(counts);
+			Log(field, "facet skipped: " + ex.Message);
 		}
-		Log(field, $"Add to Counts : {counts.Length}");
 	}
 
 	protected virtual string AdjustSql(string sql)
 	{
 		return sql;
+	}
+
+	private static string ReadFacetValue(MySqlDataReader reader, bool isBoolean)
+	{
+		if (reader.IsDBNull(0))
+		{
+			return isBoolean ? "0" : "NC";
+		}
+		object raw = reader.GetValue(0);
+		if (isBoolean)
+		{
+			if (raw is bool flag)
+			{
+				return flag ? "1" : "0";
+			}
+			try
+			{
+				return Convert.ToInt64(raw) != 0 ? "1" : "0";
+			}
+			catch
+			{
+				string flagText = Convert.ToString(raw) ?? "";
+				return flagText == "1" || flagText.Equals("true", StringComparison.OrdinalIgnoreCase) ? "1" : "0";
+			}
+		}
+		string text = Convert.ToString(raw);
+		return string.IsNullOrEmpty(text) ? "NC" : text;
 	}
 
 	public TCount[] GetCounts(MySqlConnection c, string field, string sql, int valueFieldIndex = 0, int countFieldIndex = 1, bool isBoolean = false)
@@ -134,7 +177,7 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 				using MySqlDataReader reader = cmd.ExecuteReader();
 				while (reader.Read())
 				{
-					AddInfoFromDataReader(list, reader, field, isBoolean ? (reader.GetBoolean(0) ? "1" : "0") : reader.GetString(0));
+					AddInfoFromDataReader(list, reader, field, ReadFacetValue(reader, isBoolean));
 				}
 			}
 			TimeSpan duration = DateTime.Now - start;
@@ -171,7 +214,7 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 				using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
 				while (await reader.ReadAsync())
 				{
-					AddInfoFromDataReader(list, reader, field, isBoolean ? (reader.GetBoolean(0) ? "1" : "0") : reader.GetString(0));
+					AddInfoFromDataReader(list, reader, field, ReadFacetValue(reader, isBoolean));
 				}
 			}
 			TimeSpan duration = DateTime.Now - start;
@@ -251,7 +294,7 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 				Match m = rgx_tag.Match(t.Value);
 				if (!m.Success)
 				{
-					throw new Exception("On devrait avoir un tag au lieu de '" + t.Value + "'");
+					continue;
 				}
 				foreach (Capture c in m.Groups["id"].Captures)
 				{
@@ -283,26 +326,28 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 		{
 			foreach (TCount t in Counts)
 			{
-				if (t.Field != "Quartiers")
+				if (t.Field != "Quartiers" || string.IsNullOrEmpty(t.Value))
 				{
 					continue;
 				}
 				int i = t.Value.IndexOf('>');
+				if (i <= 0)
+				{
+					continue;
+				}
 				string cp = t.Value.Substring(0, i);
 				string quartier = t.Value.Substring(i + 1);
 				string[] qs;
-				if (quartier == "NC")
+				if (quartier == "NC" || string.IsNullOrEmpty(quartier))
 				{
 					qs = new string[1] { "NC" };
 				}
 				else
 				{
 					Match m = rgx_tag.Match(quartier);
-					if (!m.Success)
-					{
-						throw new Exception("On devrait avoir un tag au lieu de '" + t.Value + "'");
-					}
-					qs = m.Groups["id"].Captures.Select((Capture capture) => capture.Value).ToArray();
+					qs = m.Success
+						? m.Groups["id"].Captures.Select((Capture capture) => capture.Value).ToArray()
+						: new string[1] { quartier };
 				}
 				string[] array = qs;
 				foreach (string q in array)
@@ -311,6 +356,7 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 					if (!nb.TryGetValue(key, out var count))
 					{
 						count = Clone(t);
+						count.Value = key;
 						nb.Add(key, count);
 					}
 					else

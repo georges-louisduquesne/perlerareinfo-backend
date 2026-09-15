@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace ApiPerleRare.RecupInfos;
 
 public class Filter
 {
-	public TypeTransaction TypeTransaction { get; set; }
+	[JsonConverter(typeof(TypeTransactionListJsonConverter))]
+	public TypeTransaction[] TypeTransaction { get; set; }
 
 	public TypeBien[] TypeBien { get; set; }
 
