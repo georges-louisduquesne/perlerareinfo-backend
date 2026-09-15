@@ -814,6 +814,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((Evenements e) => e.ECr).IsRequired().HasMaxLength(255)
 				.HasColumnName("E_CR");
 			entity.Property((Evenements e) => e.EDate).HasColumnType("datetime").HasColumnName("E_Date");
+			entity.Property((Evenements e) => e.EDateCreation).HasColumnType("datetime").HasColumnName("E_DateCreation");
 			entity.Property((Evenements e) => e.EMail).HasMaxLength(255).HasComment("N'est utilisé que par les types 'MAIL OUT/IN' (ridicule car la colonne E_CR aurait très bien joué le rôle)")
 				.HasColumnName("E_Mail");
 			entity.Property((Evenements e) => e.ENomContact).IsRequired().HasMaxLength(30)

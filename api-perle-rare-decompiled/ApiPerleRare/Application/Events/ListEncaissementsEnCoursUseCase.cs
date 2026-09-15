@@ -56,6 +56,7 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 		{
 			ERefEvenement = e.ERefEvenement,
 			EDate = e.EDate,
+			EDateCreation = e.EDateCreation,
 			ETypeEvenement = e.ETypeEvenement,
 			CNomFamille = e.ERefContactNavigation.CNomFamille,
 			CNomFamilleConseiller = e.ERefContactNavigation.CNomFamilleConseiller,

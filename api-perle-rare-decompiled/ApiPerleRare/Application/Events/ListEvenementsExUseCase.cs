@@ -31,6 +31,7 @@ public sealed class ListEvenementsExUseCase : IListEvenementsExUseCase
 			ERefAnnAgc = e.ERefAnnAgc,
 			ECr = e.ECr,
 			EDate = e.EDate,
+			EDateCreation = e.EDateCreation,
 			EMail = e.EMail,
 			ENomContact = e.ENomContact,
 			EPropertyId = e.EPropertyId,

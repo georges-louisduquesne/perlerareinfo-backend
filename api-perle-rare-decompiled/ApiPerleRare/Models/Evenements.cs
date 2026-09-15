@@ -30,6 +30,8 @@ public class Evenements
 
 	public DateTime EDate { get; set; }
 
+	public DateTime? EDateCreation { get; set; }
+
 	public string ECr { get; set; }
 
 	public string EMail { get; set; }

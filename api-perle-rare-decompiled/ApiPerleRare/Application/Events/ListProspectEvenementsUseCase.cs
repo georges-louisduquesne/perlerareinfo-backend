@@ -50,6 +50,7 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 		{
 			ERefEvenement = e.ERefEvenement,
 			EDate = e.EDate,
+			EDateCreation = e.EDateCreation,
 			ETypeEvenement = e.ETypeEvenement,
 			CNomFamille = e.ERefContactNavigation.CNomFamille,
 			ETexte = e.ETexte,
