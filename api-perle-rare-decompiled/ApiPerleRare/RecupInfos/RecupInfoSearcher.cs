@@ -56,14 +56,16 @@ public class RecupInfoSearcher
 			{
 				throw new ArgumentException("Type de bien obligatoire");
 			}
-			string where = "AG_DateFin IS NULL";
+			// Recherche / RecupInfosAnnonces2 counts `property` (P_*), like PHP. `annonces_globales` is Yanport-empty on demo.
+			string where = "P_DateFin IS NULL AND P_State = 1";
+			const string countExpr = "COUNT(DISTINCT P_PropertyId) AS NbAnnonces";
 			AbstractRecupInfoResponse response = new RecupInfoResponse();
 			response.Token = token;
 			response.ContactRef = filter.ContactRef;
 			response.Infos = filter.Infos;
 			Dictionary<FilterName, string> fieldFilters = new Dictionary<FilterName, string>();
-			fieldFilters.Add(FilterName.TypeTransaction, $"AG_TypeTransaction='{filter.TypeTransaction}'");
-			fieldFilters.Add(FilterName.TypeBien, string.Join(" OR ", filter.TypeBien.Select((TypeBien tb) => "AG_Type='" + tb.GetStringValue() + "'")));
+			fieldFilters.Add(FilterName.TypeTransaction, $"P_TypeTransaction='{filter.TypeTransaction}'");
+			fieldFilters.Add(FilterName.TypeBien, string.Join(" OR ", filter.TypeBien.Select((TypeBien tb) => "P_Type='" + tb.GetStringValue() + "'")));
 			if ((filter.CP != null && filter.CP.Length != 0) || (filter.Quartiers != null && filter.Quartiers.Length != 0))
 			{
 				if (filter.CP == null)
@@ -74,92 +76,88 @@ public class RecupInfoSearcher
 				{
 					filter.Quartiers = new string[0];
 				}
-				fieldFilters.Add(FilterName.CpAndQuartiers, string.Join(" OR ", filter.CP.Select((int p) => $"AG_CP={p}").Union(filter.Quartiers.Select((string p) => MakeQuartierFilter(p)))));
+				fieldFilters.Add(FilterName.CpAndQuartiers, string.Join(" OR ", filter.CP.Select((int p) => $"P_CP='{p}'").Union(filter.Quartiers.Select((string p) => MakeQuartierFilter(p)))));
 			}
 			if (filter.NbPieces != null && filter.NbPieces.Length != 0)
 			{
-				fieldFilters.Add(FilterName.NbPieces, string.Join(" OR ", filter.NbPieces.Select((string p) => MakeIntFilter("AG_NbPieces", p))));
+				fieldFilters.Add(FilterName.NbPieces, string.Join(" OR ", filter.NbPieces.Select((string p) => MakeIntFilter("P_NbPieces", p))));
 			}
 			if (filter.NbChambres != null && filter.NbChambres.Length != 0)
 			{
-				fieldFilters.Add(FilterName.NbChambres, string.Join(" OR ", filter.NbChambres.Select((string p) => MakeIntFilter("AG_NbChambres", p))));
+				fieldFilters.Add(FilterName.NbChambres, string.Join(" OR ", filter.NbChambres.Select((string p) => MakeIntFilter("P_NbChambres", p))));
 			}
 			if (filter.Etage != null && filter.Etage.Length != 0)
 			{
-				fieldFilters.Add(FilterName.Etage, string.Join(" OR ", filter.Etage.Select((string p) => MakeIntFilter("AG_Etage", p))));
+				fieldFilters.Add(FilterName.Etage, string.Join(" OR ", filter.Etage.Select((string p) => MakeIntFilter("P_Etage", p))));
 			}
 			if (filter.EstDernierEtage.HasValue)
 			{
-				fieldFilters.Add(FilterName.DernierEtage, "AG_EstDernierEtage = " + ((filter.EstDernierEtage == true) ? 1 : 0));
+				fieldFilters.Add(FilterName.DernierEtage, "P_EstDernierEtage = " + ((filter.EstDernierEtage == true) ? 1 : 0));
 			}
 			if (filter.EstExclusif.HasValue)
 			{
-				fieldFilters.Add(FilterName.Exclusif, "AG_EstExclusif = " + ((filter.EstExclusif == true) ? 1 : 0));
+				fieldFilters.Add(FilterName.Exclusif, "P_EstExclusif = " + ((filter.EstExclusif == true) ? 1 : 0));
 			}
 			if (filter.AvecBaissePrix == true)
 			{
-				fieldFilters.Add(FilterName.BaissePrix, "AG_Prix  < (SELECT H_AncienneValeur FROM historique_annonces WHERE H_RefAnnonce = AG_Ref AND H_Date >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) ORDER BY ABS(DATEDIFF( H_Date, DATE_SUB(CURDATE(), INTERVAL 2 MONTH) )) ASC LIMIT 1)");
+				fieldFilters.Add(FilterName.BaissePrix, "P_PrixEvol = 1");
 			}
 			else if (filter.AvecBaissePrix == false)
 			{
-				fieldFilters.Add(FilterName.BaissePrix, "AG_Prix >= (SELECT H_AncienneValeur FROM historique_annonces WHERE H_RefAnnonce = AG_Ref AND H_Date >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) ORDER BY ABS(DATEDIFF( H_Date, DATE_SUB(CURDATE(), INTERVAL 2 MONTH) )) ASC LIMIT 1)");
+				fieldFilters.Add(FilterName.BaissePrix, "(P_PrixEvol IS NULL OR P_PrixEvol <> 1)");
 			}
 			if (filter.SurfaceMax > 0)
 			{
-				fieldFilters.Add(FilterName.Surface, $"AG_Surface BETWEEN {filter.SurfaceMin} AND {filter.SurfaceMax}");
+				fieldFilters.Add(FilterName.Surface, $"P_Surface BETWEEN {filter.SurfaceMin} AND {filter.SurfaceMax}");
 			}
 			if (filter.BudgetMax > 0)
 			{
-				fieldFilters.Add(FilterName.Budget, $"AG_Prix BETWEEN {filter.BudgetMin} AND {filter.BudgetMax}");
+				fieldFilters.Add(FilterName.Budget, $"P_Prix BETWEEN {filter.BudgetMin} AND {filter.BudgetMax}");
 			}
 			if (filter.BudgetSurfaceMax > 0)
 			{
-				fieldFilters.Add(FilterName.BudgetSurface, $"FLOOR(AG_Prix / AG_Surface) BETWEEN {filter.BudgetSurfaceMin} AND {filter.BudgetSurfaceMax}");
+				fieldFilters.Add(FilterName.BudgetSurface, $"FLOOR(P_Prix / P_Surface) BETWEEN {filter.BudgetSurfaceMin} AND {filter.BudgetSurfaceMax}");
 			}
 			if (filter.AncienneteMax > 0)
 			{
-				fieldFilters.Add(FilterName.Anciennete, $"ABS(DATEDIFF(CURRENT_DATE(), `AG_DateDebut`) ) BETWEEN {filter.AncienneteMin} AND {filter.AncienneteMax}");
+				fieldFilters.Add(FilterName.Anciennete, $"ABS(DATEDIFF(CURRENT_DATE(), `P_DateDebut`) ) BETWEEN {filter.AncienneteMin} AND {filter.AncienneteMax}");
 			}
 			if (filter.Tags != null && filter.Tags.Length != 0)
 			{
 				string tagWhere = string.Join(" AND ", from t in filter.Tags
 					where t > 0
-					select $"AG_ListeTags LIKE '%[{t}]%'");
+					select $"P_ListeTags LIKE '%[{t}]%'");
 				if (filter.Tags.Any((int t) => t < 0))
 				{
 					if (tagWhere.Length > 0)
 					{
 						tagWhere += " AND ";
 					}
-					tagWhere += "(AG_ListeTags IS NULL OR (";
+					tagWhere += "(P_ListeTags IS NULL OR (";
 					tagWhere += string.Join(" AND ", from t in filter.Tags
 						where t < 0
-						select $"AG_ListeTags NOT LIKE '%[{-t}]%'");
+						select $"P_ListeTags NOT LIKE '%[{-t}]%'");
 					tagWhere += "))";
 				}
 				where = where + " AND " + tagWhere;
 			}
 			List<Task> queryTasks = new List<Task>();
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "TypeTransaction", "SELECT AG_TypeTransaction, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.TypeTransaction) + "\r\nGROUP BY AG_TypeTransaction"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "TypeBien", "SELECT AG_Type, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.TypeBien) + " \r\nGROUP BY AG_Type"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Cp", "SELECT AG_CP, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces FROM annonces_globales WHERE " + MakeWhere(where, fieldFilters, default(FilterName)) + " GROUP BY AG_CP"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Quartiers", "SELECT CONCAT(AG_CP, '>', AG_Quartier2), COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM (\r\n  SELECT AG_Ref_AGC, AG_CP, IF(AG_Quartier2 IS NULL OR AG_quartier2 = '', 'NC', AG_Quartier2) AS AG_Quartier2 \r\n  FROM annonces_globales \r\n  WHERE " + MakeWhere(where, fieldFilters, default(FilterName)) + " \r\n  GROUP BY AG_Ref_AGC, AG_CP, AG_Quartier2 \r\n) a \r\nGROUP BY AG_CP, AG_Quartier2"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "NbPieces", "SELECT IFNULL(AG_NbPieces, 'NC'), COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.NbPieces) + " \r\nGROUP BY IFNULL(AG_NbPieces, 'NC')"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "NbChambres", "SELECT IFNULL(AG_NbChambres, 'NC') AS AG_NbChambres, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.NbChambres) + " GROUP BY AG_NbChambres"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Surface", "SELECT IFNULL(FLOOR(AG_Surface / 5) * 5, 'NC'), COUNT(DISTINCT AG_Ref_AGC) AS nbGroup FROM annonces_globales WHERE " + MakeWhere(where, fieldFilters, FilterName.Surface) + " GROUP BY IFNULL(FLOOR(AG_Surface / 5) * 5, 'NC')"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Prix", "SELECT IFNULL(FLOOR(AG_Prix/1000) * 1000, 'NC') AS floor, COUNT(DISTINCT AG_Ref_AGC) AS nbGroup  FROM annonces_globales WHERE " + MakeWhere(where, fieldFilters, FilterName.Budget) + " GROUP BY IFNULL(FLOOR(AG_Prix/1000) * 1000, 'NC')"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "PrixSurface", "SELECT IFNULL(FLOOR( FLOOR(AG_Prix / AG_Surface) / 1) * 1, 'NC') AS floor, COUNT(DISTINCT AG_Ref_AGC) AS nbGroup FROM annonces_globales WHERE " + MakeWhere(where, fieldFilters, FilterName.BudgetSurface) + " GROUP BY floor"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Etage", "SELECT IFNULL(AG_Etage, 'NC') AS AG_Etage, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Etage) + " \r\nGROUP BY IFNULL(AG_Etage, 'NC')"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstDernierEtage", "SELECT AG_EstDernierEtage, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.DernierEtage) + " \r\nGROUP BY AG_EstDernierEtage", 0, 1, isBoolean: true));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstExclusif", "SELECT AG_EstExclusif, COUNT(DISTINCT AG_Ref_AGC) AS NbAnnonces \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Exclusif) + " GROUP BY AG_EstExclusif", 0, 1, isBoolean: true));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '0', COUNT(DISTINCT AG_Ref_AGC) FROM annonces_globales WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND AG_Prix >= IFNULL((SELECT H_AncienneValeur FROM historique_annonces WHERE H_RefAnnonce = AG_Ref AND H_Date >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) ORDER BY ABS(DATEDIFF( H_Date, DATE_SUB(CURDATE(), INTERVAL 2 MONTH) )) ASC LIMIT 1), AG_Prix)"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '1', COUNT(DISTINCT AG_Ref_AGC) FROM annonces_globales WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND AG_Prix < (SELECT H_AncienneValeur FROM historique_annonces WHERE H_RefAnnonce = AG_Ref AND H_Date >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) ORDER BY ABS(DATEDIFF( H_Date, DATE_SUB(CURDATE(), INTERVAL 2 MONTH) )) ASC LIMIT 1) \r\n"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT IFNULL(ABS(DATEDIFF(CURRENT_DATE(), `AG_DateDebut`)), '') AS anciennT, COUNT(DISTINCT AG_Ref_AGC) \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Tag", "SELECT AG_ListeTags, COUNT(DISTINCT AG_Ref_AGC) \r\nFROM annonces_globales \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Tags) + " GROUP BY AG_ListeTags"));
-			if (filter.Apply && filter.ContactRef != 0 && AbstractRecupInfoResponse<RecupInfoCount>.SearchTokens[filter.ContactRef] == token)
-			{
-				queryTasks.Add(FillAnnoncesAsync(context, connection, filter, exchangeService, where, response, fieldFilters));
-			}
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "TypeTransaction", "SELECT P_TypeTransaction, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.TypeTransaction) + "\r\nGROUP BY P_TypeTransaction"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "TypeBien", "SELECT P_Type, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.TypeBien) + " \r\nGROUP BY P_Type"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Cp", "SELECT P_CP, " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, default(FilterName)) + " GROUP BY P_CP"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Quartiers", "SELECT CONCAT(P_CP, '>', P_Quartier2), " + countExpr + " \r\nFROM (\r\n  SELECT P_PropertyId, P_CP, IF(P_Quartier2 IS NULL OR P_Quartier2 = '', 'NC', P_Quartier2) AS P_Quartier2 \r\n  FROM property \r\n  WHERE " + MakeWhere(where, fieldFilters, default(FilterName)) + " \r\n  GROUP BY P_PropertyId, P_CP, P_Quartier2 \r\n) a \r\nGROUP BY P_CP, P_Quartier2"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "NbPieces", "SELECT IFNULL(P_NbPieces, 'NC'), " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.NbPieces) + " \r\nGROUP BY IFNULL(P_NbPieces, 'NC')"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "NbChambres", "SELECT IFNULL(P_NbChambres, 'NC') AS P_NbChambres, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.NbChambres) + " GROUP BY P_NbChambres"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Surface", "SELECT IFNULL(FLOOR(P_Surface / 5) * 5, 'NC'), " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.Surface) + " GROUP BY IFNULL(FLOOR(P_Surface / 5) * 5, 'NC')"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Prix", "SELECT IFNULL(FLOOR(P_Prix/1000) * 1000, 'NC') AS floor, " + countExpr + "  FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.Budget) + " GROUP BY IFNULL(FLOOR(P_Prix/1000) * 1000, 'NC')"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "PrixSurface", "SELECT IFNULL(FLOOR( FLOOR(P_Prix / P_Surface) / 1) * 1, 'NC') AS floor, " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BudgetSurface) + " GROUP BY floor"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Etage", "SELECT IFNULL(P_Etage, 'NC') AS P_Etage, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Etage) + " \r\nGROUP BY IFNULL(P_Etage, 'NC')"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstDernierEtage", "SELECT P_EstDernierEtage, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.DernierEtage) + " \r\nGROUP BY P_EstDernierEtage", 0, 1, isBoolean: true));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstExclusif", "SELECT P_EstExclusif, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Exclusif) + " GROUP BY P_EstExclusif", 0, 1, isBoolean: true));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '0', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND (P_PrixEvol IS NULL OR P_PrixEvol <> 1)"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '1', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND P_PrixEvol = 1"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT IFNULL(ABS(DATEDIFF(CURRENT_DATE(), `P_DateDebut`)), '') AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Tag", "SELECT P_ListeTags, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Tags) + " GROUP BY P_ListeTags"));
 			Task.WaitAll(queryTasks.ToArray());
 			response.AdjustQuartiers();
 			response.SumIntValues("NbPieces", 6);
@@ -358,9 +356,9 @@ public class RecupInfoSearcher
 		string q = cpAndQ.Substring(i + 1);
 		if (q == "NC")
 		{
-			return "AG_CP=" + cp + " AND (AG_Quartier2 IS NULL OR AG_Quartier2='')";
+			return "P_CP='" + cp + "' AND (P_Quartier2 IS NULL OR P_Quartier2='')";
 		}
-		return "AG_Quartier2 LIKE '%[" + q + "]%'";
+		return "P_Quartier2 LIKE '%[" + q + "]%'";
 	}
 
 	private static Dictionary<string, string> GetImportParams()
