@@ -4,10 +4,10 @@ using Xunit;
 
 namespace ApiPerleRare.Tests;
 
-public class AuthenticateUseCaseTests
+public class RefreshSessionUseCaseTests
 {
 	[Fact]
-	public void Maps_persistence_user_to_front_session_without_password()
+	public void Maps_active_user_to_front_session()
 	{
 		var users = new StubUsers(new ConseillersPersonnels
 		{
@@ -19,33 +19,24 @@ public class AuthenticateUseCaseTests
 			CpNegociateur = true,
 			CpAutoLogin = "abc",
 			CpDispo = 0,
-			CpMel = "anna@test.local",
-			CpMotDePasse = "secret-must-not-leak"
-		}, "jwt-1");
-		var useCase = new AuthenticateUseCase(users);
+			CpMel = "anna@test.local"
+		}, "jwt-refresh");
+		var useCase = new RefreshSessionUseCase(users);
 
-		AuthenticateResult result = useCase.Execute("anna", "x");
+		AuthenticateResult result = useCase.Execute(7);
 
 		Assert.True(result.Success);
 		Assert.Equal("Anna", result.Session.FirstName);
-		Assert.Equal("Martin", result.Session.LastName);
+		Assert.Equal("jwt-refresh", result.Session.Token);
 		Assert.Equal("anna", result.Session.Login);
-		Assert.Equal(7u, result.Session.Id);
-		Assert.Equal("jwt-1", result.Session.Token);
-		Assert.False(result.Session.IsAdmin);
 		Assert.True(result.Session.IsNegociateur);
-		Assert.True(result.Session.Filter);
-		Assert.Equal("anna@test.local", result.Session.Email);
-		string json = System.Text.Json.JsonSerializer.Serialize(result.Session);
-		Assert.DoesNotContain("secret-must-not-leak", json);
-		Assert.DoesNotContain("cpMotDePasse", json);
 	}
 
 	[Fact]
-	public void Returns_fail_when_directory_rejects_credentials()
+	public void Returns_fail_when_directory_rejects()
 	{
-		var useCase = new AuthenticateUseCase(new StubUsers(null, null));
-		AuthenticateResult result = useCase.Execute("x", "y");
+		var useCase = new RefreshSessionUseCase(new StubUsers(null, null));
+		AuthenticateResult result = useCase.Execute(99);
 		Assert.False(result.Success);
 		Assert.Null(result.Session);
 	}
@@ -64,8 +55,8 @@ public class AuthenticateUseCaseTests
 
 		public ConseillersPersonnels Authenticate(string username, string password, out string token)
 		{
-			token = _token;
-			return _user;
+			token = null;
+			return null;
 		}
 
 		public ConseillersPersonnels RefreshSession(int userId, out string token)

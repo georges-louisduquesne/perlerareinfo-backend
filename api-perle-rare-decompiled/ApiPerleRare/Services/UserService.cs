@@ -1,17 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Runtime.Caching;
-using System.Security.Claims;
-using System.Text;
 using ApiPerleRare.Entities;
 using ApiPerleRare.Exceptions;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace ApiPerleRare.Services;
 
@@ -75,32 +71,25 @@ public class UserService : IUserService
 				_context.SaveChanges();
 			}
 		}
-		List<Claim> claims = new List<Claim>();
-		claims.Add(new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", user.CpRefConseiller.ToString()));
-		claims.Add(new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", user.CpLogin));
-		if (user.CpAdmin)
+		token = JwtTokenFactory.Issue(user, _appSettings.Secret);
+		return user;
+	}
+
+	public ConseillersPersonnels RefreshSession(int userId, out string token)
+	{
+		token = null;
+		if (userId <= 0)
 		{
-			claims.Add(new Claim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "Admin"));
+			return null;
 		}
-		if (user.CpNegociateur)
+		uint id = (uint)userId;
+		ConseillersPersonnels user = _context.ConseillersPersonnels.AsNoTracking()
+			.SingleOrDefault((ConseillersPersonnels x) => x.CpRefConseiller == id && (int?)x.CpActif == (int?)1);
+		if (user == null)
 		{
-			claims.Add(new Claim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", "Negociateur"));
+			return null;
 		}
-		// 48 h — decided with client; activating in prod still implies reconnect when secret/TTL ship together.
-		const int tokenLifetimeMinutes = 2880;
-		JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler
-		{
-			TokenLifetimeInMinutes = tokenLifetimeMinutes
-		};
-		byte[] key = Encoding.ASCII.GetBytes(_appSettings.Secret);
-		SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
-		{
-			Subject = new ClaimsIdentity(claims),
-			Expires = DateTime.UtcNow.AddMinutes(tokenLifetimeMinutes),
-			SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256")
-		};
-		SecurityToken secToken = tokenHandler.CreateToken(tokenDescriptor);
-		token = tokenHandler.WriteToken(secToken);
+		token = JwtTokenFactory.Issue(user, _appSettings.Secret);
 		return user;
 	}
 

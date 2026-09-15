@@ -10,24 +10,37 @@ internal class FakeUserService : IUserService
 		if (username == "demo" && password == "demo")
 		{
 			token = "fake-front-token";
-			return new ConseillersPersonnels
-			{
-				CpRefConseiller = 42,
-				CpPrenom = "Jean",
-				CpNomFamille = "Test",
-				CpLogin = "demo",
-				CpAdmin = true,
-				CpNegociateur = false,
-				CpAutoLogin = "0601001",
-				CpDispo = 1,
-				CpMel = "jean@test.local"
-			};
+			return DemoUser();
+		}
+		token = null;
+		return null;
+	}
+
+	public ConseillersPersonnels RefreshSession(int userId, out string token)
+	{
+		if (userId == 42)
+		{
+			token = "fake-refresh-token";
+			return DemoUser();
 		}
 		token = null;
 		return null;
 	}
 
 	public bool SwitchDispo(int refConseiller, string remoteIpAddress) => false;
+
+	private static ConseillersPersonnels DemoUser() => new()
+	{
+		CpRefConseiller = 42,
+		CpPrenom = "Jean",
+		CpNomFamille = "Test",
+		CpLogin = "demo",
+		CpAdmin = true,
+		CpNegociateur = false,
+		CpAutoLogin = "0601001",
+		CpDispo = 1,
+		CpMel = "jean@test.local"
+	};
 
 	public ConseillersPersonnels GetConseiller(string login) => null;
 

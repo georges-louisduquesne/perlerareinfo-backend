@@ -169,6 +169,7 @@ public class Startup
 		services.AddMemoryCache();
 		services.AddScoped<IUserService, UserService>();
 		services.AddScoped<IAuthenticateUseCase, AuthenticateUseCase>();
+		services.AddScoped<IRefreshSessionUseCase, RefreshSessionUseCase>();
 		services.AddScoped<ISwitchDispoUseCase, SwitchDispoUseCase>();
 		services.AddScoped<ISwitchFilterUseCase, SwitchFilterUseCase>();
 		services.AddSingleton<IFileStorage, LocalFileStorage>();

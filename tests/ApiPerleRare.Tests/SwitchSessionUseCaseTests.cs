@@ -44,6 +44,12 @@ public class SwitchSessionUseCaseTests
 			return null;
 		}
 
+		public ConseillersPersonnels RefreshSession(int userId, out string token)
+		{
+			token = null;
+			return null;
+		}
+
 		public bool SwitchDispo(int refConseiller, string remoteIpAddress)
 		{
 			LastRef = refConseiller;

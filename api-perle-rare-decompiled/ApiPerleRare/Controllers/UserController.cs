@@ -13,16 +13,20 @@ public class UserController : ControllerBase
 {
 	private readonly IAuthenticateUseCase _authenticate;
 
+	private readonly IRefreshSessionUseCase _refresh;
+
 	private readonly ISwitchDispoUseCase _switchDispo;
 
 	private readonly ISwitchFilterUseCase _switchFilter;
 
 	public UserController(
 		IAuthenticateUseCase authenticate,
+		IRefreshSessionUseCase refresh,
 		ISwitchDispoUseCase switchDispo,
 		ISwitchFilterUseCase switchFilter)
 	{
 		_authenticate = authenticate;
+		_refresh = refresh;
 		_switchDispo = switchDispo;
 		_switchFilter = switchFilter;
 	}
@@ -38,6 +42,21 @@ public class UserController : ControllerBase
 			{
 				message = "Login or password is incorrect"
 			});
+		}
+		return Ok(result.Session);
+	}
+
+	/// <summary>
+	/// Sliding 48 h: same session JSON as authenticate, new token. Additive route (front opt-in).
+	/// </summary>
+	[Authorize]
+	[HttpGet("refresh")]
+	public IActionResult Refresh()
+	{
+		AuthenticateResult result = _refresh.Execute(this.GetUserId());
+		if (!result.Success)
+		{
+			return Unauthorized();
 		}
 		return Ok(result.Session);
 	}

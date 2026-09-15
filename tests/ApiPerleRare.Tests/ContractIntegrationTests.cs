@@ -47,8 +47,30 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 		Assert.Equal("jean@test.local", root.GetProperty("email").GetString());
 	}
 
+	[Fact]
+	public async Task Refresh_rejects_anonymous_and_renews_session_json()
+	{
+		using HttpClient client = _factory.CreateClient();
+		HttpResponseMessage anon = await client.GetAsync("/api/User/refresh");
+		Assert.Equal(HttpStatusCode.Unauthorized, anon.StatusCode);
+
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwt.Create());
+		HttpResponseMessage ok = await client.GetAsync("/api/User/refresh");
+		Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+		using var doc = JsonDocument.Parse(await ok.Content.ReadAsStringAsync());
+		JsonElement root = doc.RootElement;
+		Assert.Equal("Jean", root.GetProperty("firstName").GetString());
+		Assert.Equal("Test", root.GetProperty("lastName").GetString());
+		Assert.Equal("demo", root.GetProperty("login").GetString());
+		Assert.Equal(42, root.GetProperty("id").GetInt32());
+		Assert.Equal("fake-refresh-token", root.GetProperty("token").GetString());
+		Assert.True(root.GetProperty("isAdmin").GetBoolean());
+		Assert.Equal("jean@test.local", root.GetProperty("email").GetString());
+	}
+
 	[Theory]
 	[InlineData("/api/Test/info")]
+	[InlineData("/api/User/refresh")]
 	[InlineData("/api/Health/Migrate")]
 	[InlineData("/api/PropertyContacts")]
 	[InlineData("/api/TypesTaches")]
