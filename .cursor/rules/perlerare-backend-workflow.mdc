@@ -52,8 +52,8 @@ Inventaire front (non exhaustif, source de vérité = le code Angular) :
 
 ## Git / VPS / SQL
 
-Voir **perlerare-client-workflow** : pull avant de coder ; commit **et** push après un palier ; démo / prod / ALTER uniquement sur ordre explicite. Secrets hors git.
+Voir **perlerare-client-workflow** : toujours `main` ; jamais de branche ; pull avant de coder ; après palier demander puis commit + **push `origin main`** ; démo / prod / ALTER uniquement sur ordre explicite. Secrets hors git.
 
 ## Phrase type (contrat)
 
-> Contrat API inchangé (front non modifié). Git : voir règle client (commit + push). Prod / VPS non touchés sauf ordre explicite.
+> Contrat API inchangé (front non modifié). Git : `main` seulement, commit + push après OK. Prod / VPS non touchés sauf ordre explicite.
