@@ -1,12 +1,13 @@
 ---
-description: Workflow backend — contrat API figé, zéro régression front, jamais de prod
+description: Workflow backend — contrat API figé, zéro régression front
 alwaysApply: true
 ---
 
-# Perle Rare — workflow agent backend
+# Perle Rare — contrat API (drop-in CRM)
 
-Plan : `docs/PLAN-MIGRATION.md` (proposition 10 j + audit août 2026).  
-Front Angular (`pearlrare-front`) : **aucun changement**. L’API migrée doit rester un drop-in.
+Git, push, démo / prod / SQL / VPS : `.cursor/rules/perlerare-client-workflow.mdc`.
+
+Plan : `docs/PLAN-MIGRATION.md`. Front Angular : **aucun changement de contrat**. L’API migrée reste un drop-in.
 
 ## Contrat API — gelé
 
@@ -49,30 +50,10 @@ Inventaire front (non exhaustif, source de vérité = le code Angular) :
 - JWT plus court : uniquement après créneau client (invalide les sessions). Pas en silence.
 - Recette locale après chaque palier : `curl` authenticate + 2–3 GET métier avec token, Swagger local, build `dotnet build`.
 
-## Git
+## Git / VPS / SQL
 
-1. Rappeler commit / push après un palier.
-2. Ne pas commit / push sans demande.
-3. Pas de `--force` sur `main` ; pas de skip hooks.
-4. Ne jamais committer `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`, `api-perle-rare-publish/`.
+Voir **perlerare-client-workflow** : pull avant de coder ; commit **et** push après un palier ; démo / prod / ALTER uniquement sur ordre explicite. Secrets hors git.
 
-## Production — interdit par défaut
+## Phrase type (contrat)
 
-| Cible | Action |
-|-------|--------|
-| API prod `https://api.perle-rare.info` et `/var/www/api.perle-rare.info` | Interdit sauf « déploie l’API en prod » |
-| Front prod | Interdit (autre dépôt) |
-| MariaDB | `cursor_client` = **SELECT only** |
-| SSH VPS | Lecture seule. Aucun write / restart / hook git |
-
-Rotation des secrets (plan §7) : **créneau client obligatoire**, jamais tout seul.
-
-## VPS
-
-- `142.4.216.57` port **2477**, user `administrateur`, clé `git.key`
-- Docs : `infra/ovh/README.md`
-- Live ≠ git publish (DLL live plus récente). Ne pas assumer que le décompilé = prod.
-
-## Phrase type
-
-> Changements prêts en local. Contrat API inchangé (front non modifié). Tu veux que je **commit** ? (prod et VPS non touchés)
+> Contrat API inchangé (front non modifié). Git : voir règle client (commit + push). Prod / VPS non touchés sauf ordre explicite.

@@ -1,0 +1,65 @@
+---
+description: Workflow client — Git à jour, push systématique, prudence API / DB / VPS
+alwaysApply: true
+---
+
+# Perle Rare — workflow agent (dépôt backend)
+
+Public visé : Cursor **chez le client**. Contrat API figé = `.cursor/rules/perlerare-backend-workflow.mdc`.
+
+## 1. Avant de travailler (obligatoire)
+
+Ne pas modifier de code tant que le dépôt n’est pas aligné :
+
+```bash
+git fetch origin
+git status
+git rev-parse --abbrev-ref HEAD
+```
+
+- Branche en retard sur `origin` → `git pull --ff-only` (pas de merge inventé).
+- Branche **divergée** ou `pull` qui refuse → **STOP**, demander.
+- Working tree sale sans rapport avec la demande → **STOP**, demander.
+- Rappeler : `main` à jour, pas de travail isolé uniquement en local.
+
+## 2. Après un palier — commit **et** push
+
+Après un fix / feature / doc versionnée :
+
+1. `dotnet test` + `dotnet build` (ou dire ce qui n’a pas tourné).
+2. **Commit** (message clair, secrets hors git).
+3. **Push** sur la branche courante (`git push -u origin HEAD` si besoin).
+
+Ne pas laisser le travail seulement sur le poste.
+Si l’utilisateur a demandé le changement, proposer *« je commit et je push »* en fin de tâche ; ne pas partir sans push sauf **refus explicite**.
+« commit » sans « push » → commit puis **rappeler le push**.
+Jamais `--force` sur `main` / `master` ; jamais skip hooks.
+
+**Ne jamais committer :** `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`, `api-perle-rare-publish/`, mots de passe.
+
+## 3. Prudence produit
+
+- Pas de refonte hors demande. Correctifs ciblés.
+- JSON / routes / query string : **contrat gelé** (règle workflow backend). Route **nouvelle** OK si l’ancienne reste.
+- Hash mdp = bascule **douce**. JWT 48 h glissant : pas de TTL silencieux en prod.
+- Yanport / mails : **un seul** process writable (`PR_LOCAL_SAFE` off). Jamais démo + prod jobs sur la même DB.
+
+## 4. API, base, VPS — seulement sur ordre explicite
+
+Par défaut : **local + git**. Pas de SSH, pas d’ALTER, pas de restart.
+
+| Cible | Quand | Comment |
+|---|---|---|
+| Démo API | « déploie la démo API » | `bash scripts/deploy-api-demo.sh` uniquement (`api-client-demo`, port 5080). Vérifier empreinte **prod** inchangée |
+| Démo CRM | autre dépôt front | ne pas rsync le front depuis ce repo |
+| **API prod** `api.perle-rare.info` `/var/www/api.perle-rare.info` | phrase exacte **« déploie l’API en prod »** | empreinte DLL+PID **avant/après** ; rollback prêt ; **une** instance Kestrel jobs |
+| MariaDB | SELECT via `cursor_client` par défaut | `ALTER` / `UPDATE` / seed : ordre **écrit** + backup + script dans `docs/sql/` ; **jamais** `DROP`/`TRUNCATE` sans phrase |
+| Secrets JWT / DB / Yanport / Exchange | créneau client | jamais tout seul ; déconnecte les sessions |
+
+- SSH : `142.4.216.57` port **2477**, user `administrateur`, clé `git.key` (hors git). Docs : `infra/ovh/README.md`.
+- Live ≠ git : ne pas croire que le décompilé = binaire prod.
+- Après deploy démo : **prod non touchée**. Après prod : checklist login + home + 1 fiche ; Swagger/Test fermés.
+
+## Phrase type
+
+> Dépôt à jour, changements **commit + push**. Prod / VPS / SQL **non touchés**. Tu veux la **démo API**, ou un **déploiement prod** (ordre explicite) ?
