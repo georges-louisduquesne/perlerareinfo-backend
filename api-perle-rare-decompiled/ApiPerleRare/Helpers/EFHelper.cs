@@ -55,8 +55,20 @@ public class EFHelper<TEFModel> where TEFModel : class
 			foreach (string field in array)
 			{
 				string f = field.Trim();
-				PropertyInfo mi = _props.Single((PropertyInfo p) => string.Compare(p.Name, field, ignoreCase: true) == 0);
+				if (string.IsNullOrEmpty(f))
+				{
+					continue;
+				}
+				PropertyInfo mi = _props.FirstOrDefault((PropertyInfo p) => string.Compare(p.Name, f, ignoreCase: true) == 0);
+				if (mi == null)
+				{
+					continue;
+				}
 				mbs.Add(Expression.Bind(mi, Expression.Property(param2, mi.Name)));
+			}
+			if (mbs.Count == 0)
+			{
+				return query;
 			}
 			MemberInitExpression exp2 = Expression.MemberInit(ne, mbs.ToArray());
 			query = query.Select(Expression.Lambda<Func<TEFModel, TEFModel>>(exp2, new ParameterExpression[1] { param2 }));
