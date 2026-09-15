@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 
 namespace ApiPerleRare.Tests;
@@ -9,7 +10,7 @@ internal class FakeUserService : IUserService
 	{
 		if (username == "demo" && password == "demo")
 		{
-			token = "fake-front-token";
+			token = JwtTokenFactory.Issue(DemoUser(), ApiFactory.JwtSecret);
 			return DemoUser();
 		}
 		token = null;
@@ -20,7 +21,7 @@ internal class FakeUserService : IUserService
 	{
 		if (userId == 42)
 		{
-			token = "fake-refresh-token";
+			token = JwtTokenFactory.Issue(DemoUser(), ApiFactory.JwtSecret);
 			return DemoUser();
 		}
 		token = null;

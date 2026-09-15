@@ -29,4 +29,22 @@ internal static class TestJwt
 		});
 		return new JwtSecurityTokenHandler().WriteToken(token);
 	}
+
+	public static string Expired()
+	{
+		var claims = new List<Claim>
+		{
+			new("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", "42"),
+			new("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "demo")
+		};
+		var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(ApiFactory.JwtSecret));
+		var token = new JwtSecurityTokenHandler().CreateToken(new SecurityTokenDescriptor
+		{
+			Subject = new ClaimsIdentity(claims),
+			NotBefore = DateTime.UtcNow.AddHours(-3),
+			Expires = DateTime.UtcNow.AddHours(-1),
+			SigningCredentials = new SigningCredentials(key, "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256")
+		});
+		return new JwtSecurityTokenHandler().WriteToken(token);
+	}
 }

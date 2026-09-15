@@ -1,9 +1,12 @@
+using System;
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ApiPerleRare.Helpers;
 using Xunit;
 
 namespace ApiPerleRare.Tests;
@@ -38,7 +41,11 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 		Assert.Equal("Test", root.GetProperty("lastName").GetString());
 		Assert.Equal("demo", root.GetProperty("login").GetString());
 		Assert.Equal(42, root.GetProperty("id").GetInt32());
-		Assert.Equal("fake-front-token", root.GetProperty("token").GetString());
+		string token = root.GetProperty("token").GetString();
+		JwtSecurityToken jwt = ReadJwt(token);
+		Assert.InRange((jwt.ValidTo - DateTime.UtcNow).TotalMinutes, JwtTokenFactory.LifetimeMinutes - 2, JwtTokenFactory.LifetimeMinutes + 2);
+		Assert.Contains(jwt.Claims, c => c.Value == "42");
+		Assert.Contains(jwt.Claims, c => c.Value == "demo");
 		Assert.True(root.GetProperty("isAdmin").GetBoolean());
 		Assert.False(root.GetProperty("isNegociateur").GetBoolean());
 		Assert.Equal("0601001", root.GetProperty("autoLogin").GetString());
@@ -63,9 +70,27 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 		Assert.Equal("Test", root.GetProperty("lastName").GetString());
 		Assert.Equal("demo", root.GetProperty("login").GetString());
 		Assert.Equal(42, root.GetProperty("id").GetInt32());
-		Assert.Equal("fake-refresh-token", root.GetProperty("token").GetString());
+		string token = root.GetProperty("token").GetString();
+		JwtSecurityToken jwt = ReadJwt(token);
+		Assert.InRange((jwt.ValidTo - DateTime.UtcNow).TotalMinutes, JwtTokenFactory.LifetimeMinutes - 2, JwtTokenFactory.LifetimeMinutes + 2);
+		Assert.Contains(jwt.Claims, c => c.Value == "demo");
 		Assert.True(root.GetProperty("isAdmin").GetBoolean());
 		Assert.Equal("jean@test.local", root.GetProperty("email").GetString());
+	}
+
+	[Fact]
+	public async Task Refresh_rejects_expired_bearer()
+	{
+		using HttpClient client = _factory.CreateClient();
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwt.Expired());
+		HttpResponseMessage res = await client.GetAsync("/api/User/refresh");
+		Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+	}
+
+	private static JwtSecurityToken ReadJwt(string token)
+	{
+		Assert.False(string.IsNullOrWhiteSpace(token));
+		return new JwtSecurityTokenHandler().ReadJwtToken(token);
 	}
 
 	[Theory]
@@ -74,6 +99,9 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 	[InlineData("/api/Health/Migrate")]
 	[InlineData("/api/PropertyContacts")]
 	[InlineData("/api/TypesTaches")]
+	[InlineData("/api/TypesMails")]
+	[InlineData("/api/ContactsRecherches/Accueil")]
+	[InlineData("/api/Taches")]
 	[InlineData("/api/Evenements/EncaissementsEnCours")]
 	[InlineData("/api/ConseillersPersonnelsEvenements")]
 	public async Task Front_unused_or_authed_routes_reject_anonymous(string path)
@@ -104,5 +132,36 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 		Assert.False(doc.RootElement.GetProperty("isSuccess").GetBoolean());
 		Assert.True(doc.RootElement.TryGetProperty("errors", out _));
 		Assert.False(System.IO.File.Exists(System.IO.Path.Combine(_factory.UploadRoot, "..", "secret.txt")));
+	}
+
+	[Fact]
+	public async Task File_download_returns_base64_with_real_jwt()
+	{
+		string relative = "docs/cutover-smoke.txt";
+		string payload = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("ok"));
+		using HttpClient client = _factory.CreateClient();
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await LoginToken(client));
+
+		HttpResponseMessage upload = await client.PostAsJsonAsync("/api/File/Upload", new { fileName = relative, fileContent = payload });
+		Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+		using (var uploadDoc = JsonDocument.Parse(await upload.Content.ReadAsStringAsync()))
+		{
+			Assert.True(uploadDoc.RootElement.GetProperty("isSuccess").GetBoolean());
+		}
+
+		HttpResponseMessage res = await client.PostAsJsonAsync("/api/File/Download", new { fileName = relative });
+		Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+		using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+		Assert.True(doc.RootElement.GetProperty("isSuccess").GetBoolean());
+		Assert.Equal(payload, doc.RootElement.GetProperty("fileContent").GetString());
+		Assert.False(doc.RootElement.TryGetProperty("fullPath", out JsonElement path) && path.ValueKind == JsonValueKind.String && path.GetString().Contains(_factory.UploadRoot));
+	}
+
+	internal static async Task<string> LoginToken(HttpClient client)
+	{
+		HttpResponseMessage ok = await client.PostAsJsonAsync("/api/User/authenticate", new { login = "demo", password = "demo" });
+		ok.EnsureSuccessStatusCode();
+		using var doc = JsonDocument.Parse(await ok.Content.ReadAsStringAsync());
+		return doc.RootElement.GetProperty("token").GetString();
 	}
 }

@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using ApiPerleRare;
+using ApiPerleRare.Application.Catalog;
+using ApiPerleRare.Application.Contacts;
+using ApiPerleRare.Application.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -39,6 +42,18 @@ public class ApiFactory : WebApplicationFactory<Program>
 		{
 			services.RemoveAll<IUserService>();
 			services.AddSingleton<IUserService, FakeUserService>();
+			services.RemoveAll<IUserSessionService>();
+			services.AddSingleton<IUserSessionService, FakeUserSessionService>();
+			services.RemoveAll(typeof(IQueryEntitiesUseCase<>));
+			services.AddSingleton(typeof(IQueryEntitiesUseCase<>), typeof(FakeQueryEntitiesUseCase<>));
+			services.RemoveAll<IListContactsRechercheExUseCase>();
+			services.AddSingleton<IListContactsRechercheExUseCase, FakeListContactsRechercheExUseCase>();
+			services.RemoveAll<IListContactsRechercheAccueilUseCase>();
+			services.AddSingleton<IListContactsRechercheAccueilUseCase, FakeListContactsRechercheAccueilUseCase>();
+			services.RemoveAll<ICountContactsRechercheUseCase>();
+			services.AddSingleton<ICountContactsRechercheUseCase, FakeCountContactsRechercheUseCase>();
+			services.RemoveAll<IListTachesExUseCase>();
+			services.AddSingleton<IListTachesExUseCase, FakeListTachesExUseCase>();
 		});
 	}
 }
