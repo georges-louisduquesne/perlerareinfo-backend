@@ -39,7 +39,11 @@ public class PropertyFilterDef
 
 	public bool IsMatch(Property property)
 	{
-		if (property.PDateFin.HasValue)
+		if (property.PState != 1)
+		{
+			return false;
+		}
+		if (property.PDateFin.HasValue && property.PDateFin.Value.Year >= 1000)
 		{
 			return false;
 		}

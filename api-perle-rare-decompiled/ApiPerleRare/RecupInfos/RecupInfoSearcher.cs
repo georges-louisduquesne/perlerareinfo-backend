@@ -40,6 +40,13 @@ public class RecupInfoSearcher
 	/// </summary>
 	public const string ActivePropertyWhere = "P_State = 1 AND (P_DateFin IS NULL OR P_DateFin < '1000-01-01')";
 
+	/// <summary>
+	/// Yanport P_PrixEvol: -1 = baisse, 1 = hausse. RecupInfos facet values stay '0'/'1' like the original Angular.
+	/// </summary>
+	public const string BaissePrixWhere = "P_PrixEvol = -1";
+
+	public const string NotBaissePrixWhere = "(P_PrixEvol IS NULL OR P_PrixEvol <> -1)";
+
 	public static AbstractRecupInfoResponse Search(IApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache)
 	{
 		try
@@ -110,11 +117,11 @@ public class RecupInfoSearcher
 			}
 			if (filter.AvecBaissePrix == true)
 			{
-				fieldFilters.Add(FilterName.BaissePrix, "P_PrixEvol = 1");
+				fieldFilters.Add(FilterName.BaissePrix, BaissePrixWhere);
 			}
 			else if (filter.AvecBaissePrix == false)
 			{
-				fieldFilters.Add(FilterName.BaissePrix, "(P_PrixEvol IS NULL OR P_PrixEvol <> 1)");
+				fieldFilters.Add(FilterName.BaissePrix, NotBaissePrixWhere);
 			}
 			if (filter.SurfaceMax > 0)
 			{
@@ -164,8 +171,8 @@ public class RecupInfoSearcher
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Etage", "SELECT IFNULL(P_Etage, 'NC') AS P_Etage, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Etage) + " \r\nGROUP BY IFNULL(P_Etage, 'NC')"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstDernierEtage", "SELECT P_EstDernierEtage, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.DernierEtage) + " \r\nGROUP BY P_EstDernierEtage", 0, 1, isBoolean: true));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstExclusif", "SELECT P_EstExclusif, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Exclusif) + " GROUP BY P_EstExclusif", 0, 1, isBoolean: true));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '0', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND (P_PrixEvol IS NULL OR P_PrixEvol <> 1)"));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '1', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND P_PrixEvol = 1"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '0', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND " + NotBaissePrixWhere));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '1', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND " + BaissePrixWhere));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT IFNULL(" + dateDebutDays + ", '') AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Tag", "SELECT P_ListeTags, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Tags) + " GROUP BY P_ListeTags"));
 			Task.WaitAll(queryTasks.ToArray());

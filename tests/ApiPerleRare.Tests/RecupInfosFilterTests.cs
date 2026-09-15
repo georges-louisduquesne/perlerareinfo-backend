@@ -19,6 +19,8 @@ public class RecupInfosFilterTests
 		Assert.Equal(
 			"P_State = 1 AND (P_DateFin IS NULL OR P_DateFin < '1000-01-01')",
 			RecupInfoSearcher.ActivePropertyWhere);
+		Assert.Equal("P_PrixEvol = -1", RecupInfoSearcher.BaissePrixWhere);
+		Assert.Equal("(P_PrixEvol IS NULL OR P_PrixEvol <> -1)", RecupInfoSearcher.NotBaissePrixWhere);
 	}
 
 	[Fact]

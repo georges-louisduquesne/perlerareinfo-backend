@@ -87,6 +87,6 @@ public class GenericBooleanPropertyFilter : AbstractPropertyFilter
 		{
 			return null;
 		}
-		return prixEvol == 1;
+		return prixEvol == -1;
 	}
 }
