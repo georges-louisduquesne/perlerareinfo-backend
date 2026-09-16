@@ -13,8 +13,8 @@ namespace ApiPerleRare.Application.Events;
 
 /// <summary>
 /// Home tab « transactions réalisées en attente d'encaissement ».
-/// TRANSACTION types (hors offres), event date already reached, contact still without HON/PS invoice
-/// (NULL or 0 — see <see cref="EncaissementsEnCoursFilter"/>).
+/// TRANSACTION types (hors offres), event date already reached, client still actif
+/// with honoraires set — latest event per contact (see <see cref="EncaissementsEnCoursFilter"/>).
 /// </summary>
 public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursUseCase
 {
@@ -40,9 +40,9 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 			evenements = evenements.Where((Evenements e) => types.Contains(e.ETypeEvenement));
 		}
 		evenements = evenements.Where((Evenements e) =>
-			(e.ERefContactNavigation.CStatut == "CLIENT ACTIF" || e.ERefContactNavigation.CStatut == "CLIENT MORT")
-			&& (e.ERefContactNavigation.CFactureHon == null || e.ERefContactNavigation.CFactureHon == 0)
-			&& (e.ERefContactNavigation.CFacturePs == null || e.ERefContactNavigation.CFacturePs == 0));
+			e.ERefContactNavigation.CStatut == EncaissementsEnCoursFilter.ActiveClientStatus
+			&& e.ERefContactNavigation.CMttHono != null
+			&& e.ERefContactNavigation.CMttHono != 0m);
 		if (applyNegociateurFilter && !string.IsNullOrEmpty(userLogin))
 		{
 			evenements = evenements.Where((Evenements e) =>
@@ -53,6 +53,21 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 				|| e.ERefContactNavigation.CApporteur == userLogin
 				|| e.ERefContactNavigation.C2emeApporteur == userLogin);
 		}
+		int[] latestIds = (await evenements
+			.Select(e => new { e.ERefContact, e.EDate, e.ERefEvenement })
+			.ToListAsync())
+			.GroupBy(e => e.ERefContact)
+			.Select(g => g.OrderByDescending(e => e.EDate).ThenByDescending(e => e.ERefEvenement).First().ERefEvenement)
+			.ToArray();
+		if (latestIds.Length == 0)
+		{
+			return new SelectResult<ClientEvenements>
+			{
+				Total = 0,
+				Items = Array.Empty<ClientEvenements>()
+			};
+		}
+		evenements = evenements.Where((Evenements e) => latestIds.Contains(e.ERefEvenement));
 		IQueryable<ClientEvenements> projection = evenements.Select((Evenements e) => new ClientEvenements
 		{
 			ERefEvenement = e.ERefEvenement,

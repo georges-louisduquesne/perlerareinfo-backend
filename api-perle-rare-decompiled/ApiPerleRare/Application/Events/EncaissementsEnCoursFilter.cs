@@ -1,18 +1,21 @@
 namespace ApiPerleRare.Application.Events;
 
 /// <summary>
-/// Home « en attente d'encaissement »: no HON/PS invoice issued yet.
-/// Live CRM stores empty invoice refs as 0 as well as NULL.
+/// Home « transactions réalisées en attente d'encaissement ».
+/// Live CRM shows the latest past compromis/acte for an active client with honoraires,
+/// whether or not a HON invoice number is already assigned.
 /// </summary>
 public static class EncaissementsEnCoursFilter
 {
-	public static bool IsWaitingForPayment(int? factureHon, int? facturePs)
+	public const string ActiveClientStatus = "CLIENT ACTIF";
+
+	public static bool HasHonorairesToCollect(decimal? mttHono)
 	{
-		return IsUnissued(factureHon) && IsUnissued(facturePs);
+		return mttHono.HasValue && mttHono.Value != 0m;
 	}
 
-	public static bool IsUnissued(int? invoiceRef)
+	public static bool IsActiveClient(string statut)
 	{
-		return !invoiceRef.HasValue || invoiceRef.Value == 0;
+		return statut == ActiveClientStatus;
 	}
 }

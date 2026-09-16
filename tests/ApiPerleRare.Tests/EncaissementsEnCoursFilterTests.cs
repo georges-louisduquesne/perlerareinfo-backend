@@ -6,16 +6,23 @@ namespace ApiPerleRare.Tests;
 public class EncaissementsEnCoursFilterTests
 {
 	[Theory]
-	[InlineData(null, null, true)]
-	[InlineData(0, 0, true)]
-	[InlineData(null, 0, true)]
-	[InlineData(0, null, true)]
-	[InlineData(12, null, false)]
-	[InlineData(null, 4, false)]
-	[InlineData(12, 4, false)]
-	[InlineData(1, 0, false)]
-	public void Waiting_for_payment_treats_zero_as_unissued(int? hon, int? ps, bool expected)
+	[InlineData(null, false)]
+	[InlineData(0, false)]
+	[InlineData(26950, true)]
+	[InlineData(-1, true)]
+	public void Honoraires_to_collect_ignore_empty_amounts(int? hono, bool expected)
 	{
-		Assert.Equal(expected, EncaissementsEnCoursFilter.IsWaitingForPayment(hon, ps));
+		decimal? value = hono.HasValue ? hono.Value : null;
+		Assert.Equal(expected, EncaissementsEnCoursFilter.HasHonorairesToCollect(value));
+	}
+
+	[Theory]
+	[InlineData("CLIENT ACTIF", true)]
+	[InlineData("CLIENT MORT", false)]
+	[InlineData("PROSPECT ACTIF", false)]
+	[InlineData(null, false)]
+	public void Only_active_clients_wait_for_collection(string statut, bool expected)
+	{
+		Assert.Equal(expected, EncaissementsEnCoursFilter.IsActiveClient(statut));
 	}
 }
