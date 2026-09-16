@@ -7,7 +7,7 @@ alwaysApply: true
 
 Git, push, démo / prod / SQL / VPS : `.cursor/rules/perlerare-client-workflow.mdc`.
 
-Plan : `docs/PLAN-MIGRATION.md`. Front Angular : **aucun changement de contrat**. L’API migrée reste un drop-in.
+Plan : `docs/PLAN-MIGRATION.md`. Accueil + fiche contact (routes, filtres, JSON) : `docs/CONTRAT-API-PROD-HOME-CONTACT.md`. Front Angular : **aucun changement de contrat**. L’API migrée reste un drop-in.
 
 ## Contrat API — gelé
 
@@ -34,7 +34,7 @@ Avant **toute** modification de controller / DTO / JSON :
 
 1. Grep `pearlrare-front/src` (surtout `communications.service.ts`) pour la route et les champs.
 2. Si le front lit le champ → le garder (même vide / masqué, pas supprimé).
-3. Si doute → **ne pas changer** la forme ; noter dans `docs/PLAN-MIGRATION.md`.
+3. Si doute → **ne pas changer** la forme ; noter dans `docs/CONTRAT-API-PROD-HOME-CONTACT.md` (Accueil / contact) ou `docs/PLAN-MIGRATION.md`.
 
 Inventaire front (non exhaustif, source de vérité = le code Angular) :
 

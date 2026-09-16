@@ -2,12 +2,14 @@ namespace ApiPerleRare.Application.Events;
 
 /// <summary>
 /// Home « transactions réalisées en attente d'encaissement ».
-/// Live CRM shows the latest past compromis/acte for an active client with honoraires,
-/// whether or not a HON invoice number is already assigned.
+/// Live CRM shows the latest past acte authentique for an active client with honoraires.
+/// Compromis-only files stay on the « transactions en cours » tab.
 /// </summary>
 public static class EncaissementsEnCoursFilter
 {
 	public const string ActiveClientStatus = "CLIENT ACTIF";
+
+	public const string RealizedEventType = "RV ACTE AUTHENT.";
 
 	public static bool HasHonorairesToCollect(decimal? mttHono)
 	{
@@ -17,5 +19,10 @@ public static class EncaissementsEnCoursFilter
 	public static bool IsActiveClient(string statut)
 	{
 		return statut == ActiveClientStatus;
+	}
+
+	public static bool IsRealizedTransaction(string typeEvenement)
+	{
+		return typeEvenement == RealizedEventType;
 	}
 }

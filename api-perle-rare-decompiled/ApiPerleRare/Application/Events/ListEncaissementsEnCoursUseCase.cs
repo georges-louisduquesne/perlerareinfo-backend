@@ -6,39 +6,31 @@ using ApiPerleRare.Controllers;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using ApiPerleRare.Application.Abstractions;
 
 namespace ApiPerleRare.Application.Events;
 
 /// <summary>
 /// Home tab « transactions réalisées en attente d'encaissement ».
-/// TRANSACTION types (hors offres), event date already reached, client still actif
-/// with honoraires set — latest event per contact (see <see cref="EncaissementsEnCoursFilter"/>).
+/// Latest past <c>RV ACTE AUTHENT.</c> for an active client with honoraires
+/// (see <see cref="EncaissementsEnCoursFilter"/>). Compromis stay on tab 7.
 /// </summary>
 public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursUseCase
 {
 	private readonly IApplicationDbContext _context;
 
-	private readonly IMemoryCache _cache;
-
-	public ListEncaissementsEnCoursUseCase(IApplicationDbContext context, IMemoryCache memoryCache)
+	public ListEncaissementsEnCoursUseCase(IApplicationDbContext context)
 	{
 		_context = context;
-		_cache = memoryCache;
 	}
 
 	public async Task<SelectResult<ClientEvenements>> Execute(EntityQuery query, string userLogin, bool applyNegociateurFilter)
 	{
 		query ??= new EntityQuery();
 		IQueryable<Evenements> evenements = _context.Evenements.AsNoTracking().Where((Evenements e) => e.EStatut == 1);
-		string[] types = await GetTransactionTypesExcludingOffres();
 		DateTime today = DateTime.Today;
-		evenements = evenements.Where((Evenements e) => e.EDate <= today);
-		if (types.Length != 0)
-		{
-			evenements = evenements.Where((Evenements e) => types.Contains(e.ETypeEvenement));
-		}
+		evenements = evenements.Where((Evenements e) =>
+			e.EDate <= today && e.ETypeEvenement == EncaissementsEnCoursFilter.RealizedEventType);
 		evenements = evenements.Where((Evenements e) =>
 			e.ERefContactNavigation.CStatut == EncaissementsEnCoursFilter.ActiveClientStatus
 			&& e.ERefContactNavigation.CMttHono != null
@@ -86,20 +78,5 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null)
 		});
 		return await EFHelper<ClientEvenements>.Select(projection, query.Where, query.OrderBy, query.Take, query.Skip, query.Select);
-	}
-
-	private Task<string[]> GetTransactionTypesExcludingOffres()
-	{
-		return _cache.GetOrCreateAsync("EventType.Encaissements", delegate(ICacheEntry entry)
-		{
-			entry.SetAbsoluteExpiration(TimeSpan.FromHours(1.0));
-			return _context.TypesEvenements
-				.Where((TypesEvenements te) =>
-					te.TeGenreEvenement == "TRANSACTION"
-					&& te.TeCategorieEvenement != "OFFRE"
-					&& te.TeCategorieEvenement != "REP. OFFRE")
-				.Select((TypesEvenements te) => te.TeTypeEvenement)
-				.ToArrayAsync();
-		});
 	}
 }

@@ -25,4 +25,14 @@ public class EncaissementsEnCoursFilterTests
 	{
 		Assert.Equal(expected, EncaissementsEnCoursFilter.IsActiveClient(statut));
 	}
+
+	[Theory]
+	[InlineData("RV ACTE AUTHENT.", true)]
+	[InlineData("RV COMPROMIS", false)]
+	[InlineData("OFFRE", false)]
+	[InlineData(null, false)]
+	public void Realized_transaction_is_acte_authentique_only(string type, bool expected)
+	{
+		Assert.Equal(expected, EncaissementsEnCoursFilter.IsRealizedTransaction(type));
+	}
 }
