@@ -12,8 +12,9 @@ using ApiPerleRare.Application.Abstractions;
 namespace ApiPerleRare.Application.Events;
 
 /// <summary>
-/// Mirrors live <c>GetEncaissementsEnCoursEvenements</c>: TRANSACTION types (hors offres),
-/// event already realized, contact still without invoice numbers.
+/// Home tab « transactions réalisées en attente d'encaissement ».
+/// TRANSACTION types (hors offres), event date already reached, contact still without HON/PS invoice
+/// (NULL or 0 — see <see cref="EncaissementsEnCoursFilter"/>).
 /// </summary>
 public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursUseCase
 {
@@ -40,8 +41,8 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 		}
 		evenements = evenements.Where((Evenements e) =>
 			(e.ERefContactNavigation.CStatut == "CLIENT ACTIF" || e.ERefContactNavigation.CStatut == "CLIENT MORT")
-			&& e.ERefContactNavigation.CFactureHon == null
-			&& e.ERefContactNavigation.CFacturePs == null);
+			&& (e.ERefContactNavigation.CFactureHon == null || e.ERefContactNavigation.CFactureHon == 0)
+			&& (e.ERefContactNavigation.CFacturePs == null || e.ERefContactNavigation.CFacturePs == 0));
 		if (applyNegociateurFilter && !string.IsNullOrEmpty(userLogin))
 		{
 			evenements = evenements.Where((Evenements e) =>
