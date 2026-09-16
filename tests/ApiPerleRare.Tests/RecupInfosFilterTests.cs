@@ -14,6 +14,14 @@ public class RecupInfosFilterTests
 	};
 
 	[Fact]
+	public void Surface_min_only_keeps_open_max_as_greater_or_equal()
+	{
+		Assert.Equal("P_Surface >= 90", RecupInfoSearcher.MakeSurfaceFilter(90, 0));
+		Assert.Equal("P_Surface BETWEEN 90 AND 500", RecupInfoSearcher.MakeSurfaceFilter(90, 500));
+		Assert.Null(RecupInfoSearcher.MakeSurfaceFilter(0, 0));
+	}
+
+	[Fact]
 	public void RecupInfos_volumes_count_active_yanport_property_rows()
 	{
 		Assert.Equal(

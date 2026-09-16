@@ -123,9 +123,10 @@ public class RecupInfoSearcher
 			{
 				fieldFilters.Add(FilterName.BaissePrix, NotBaissePrixWhere);
 			}
-			if (filter.SurfaceMax > 0)
+			string surfaceWhere = MakeSurfaceFilter(filter.SurfaceMin, filter.SurfaceMax);
+			if (surfaceWhere != null)
 			{
-				fieldFilters.Add(FilterName.Surface, $"P_Surface BETWEEN {filter.SurfaceMin} AND {filter.SurfaceMax}");
+				fieldFilters.Add(FilterName.Surface, surfaceWhere);
 			}
 			if (filter.BudgetMax > 0)
 			{
@@ -445,6 +446,23 @@ public class RecupInfoSearcher
 			}
 		}
 		return w;
+	}
+
+	/// <summary>
+	/// CRM stores an open max as 0 (Odile: min 90, max 0). Original RecupInfos only applied
+	/// BETWEEN when max &gt; 0, so the 90 m² floor was dropped and Tous biens jumped 95 → 125.
+	/// </summary>
+	public static string MakeSurfaceFilter(int min, int max)
+	{
+		if (max > 0)
+		{
+			return $"P_Surface BETWEEN {min} AND {max}";
+		}
+		if (min > 0)
+		{
+			return $"P_Surface >= {min}";
+		}
+		return null;
 	}
 
 	private static string MakeIntFilter(string field, string value)
