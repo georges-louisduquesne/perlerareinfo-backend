@@ -31,12 +31,33 @@ public static class Extensions
 
 	public static string GetLogin(this ClaimsPrincipal user)
 	{
-		return user.Claims.First((Claim c) => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+		return user?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+			?? user?.FindFirst("sub")?.Value
+			?? user?.FindFirst("nameid")?.Value
+			?? user?.Identity?.Name;
 	}
 
 	public static int GetId(this ClaimsPrincipal user)
 	{
-		return int.Parse(user.Identity.Name);
+		if (user == null)
+		{
+			return 0;
+		}
+		string[] candidates =
+		{
+			user.Identity?.Name,
+			user.FindFirst("unique_name")?.Value,
+			user.FindFirst(ClaimTypes.Name)?.Value,
+			user.FindFirst("name")?.Value
+		};
+		foreach (string raw in candidates)
+		{
+			if (int.TryParse(raw, out int id) && id > 0)
+			{
+				return id;
+			}
+		}
+		return 0;
 	}
 
 	public static string GetUserLogin(this ControllerBase controller)

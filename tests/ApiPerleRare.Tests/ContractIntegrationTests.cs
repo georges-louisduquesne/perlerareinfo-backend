@@ -79,6 +79,25 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 	}
 
 	[Fact]
+	public async Task Authenticate_token_roundtrips_User_refresh()
+	{
+		using HttpClient client = _factory.CreateClient();
+		HttpResponseMessage login = await client.PostAsJsonAsync("/api/User/authenticate", new { login = "demo", password = "demo" });
+		Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+		using var loginDoc = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
+		string token = loginDoc.RootElement.GetProperty("token").GetString();
+		Assert.False(string.IsNullOrWhiteSpace(token));
+
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+		HttpResponseMessage refresh = await client.GetAsync("/api/User/refresh");
+		Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+		using var refreshDoc = JsonDocument.Parse(await refresh.Content.ReadAsStringAsync());
+		Assert.Equal("demo", refreshDoc.RootElement.GetProperty("login").GetString());
+		Assert.Equal(42, refreshDoc.RootElement.GetProperty("id").GetInt32());
+		Assert.False(string.IsNullOrWhiteSpace(refreshDoc.RootElement.GetProperty("token").GetString()));
+	}
+
+	[Fact]
 	public async Task Refresh_rejects_expired_bearer()
 	{
 		using HttpClient client = _factory.CreateClient();
