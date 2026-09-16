@@ -47,6 +47,13 @@ public class RecupInfoSearcher
 
 	public const string NotBaissePrixWhere = "(P_PrixEvol IS NULL OR P_PrixEvol <> -1)";
 
+	/// <summary>
+	/// Missing / 0000-00-00 DateDebut counts as 0 days, like AnciennetePropertyFilter
+	/// (no PDateDebut → include) and the CRM <c>Number('') === 0</c> bucket.
+	/// </summary>
+	public const string DateDebutDaysExpr =
+		"IF(P_DateDebut IS NULL OR P_DateDebut < '1000-01-01', 0, ABS(DATEDIFF(CURRENT_DATE(), P_DateDebut)))";
+
 	public static AbstractRecupInfoResponse Search(IApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache)
 	{
 		try
@@ -75,7 +82,7 @@ public class RecupInfoSearcher
 			}
 			string where = ActivePropertyWhere;
 			const string countExpr = "COUNT(DISTINCT P_PropertyId) AS NbAnnonces";
-			const string dateDebutDays = "IF(P_DateDebut IS NULL OR P_DateDebut < '1000-01-01', NULL, ABS(DATEDIFF(CURRENT_DATE(), P_DateDebut)))";
+			const string dateDebutDays = DateDebutDaysExpr;
 			AbstractRecupInfoResponse response = new RecupInfoResponse();
 			response.Token = token;
 			response.ContactRef = filter.ContactRef;
@@ -138,7 +145,7 @@ public class RecupInfoSearcher
 			}
 			if (filter.AncienneteMax > 0)
 			{
-				fieldFilters.Add(FilterName.Anciennete, $"{dateDebutDays} BETWEEN {filter.AncienneteMin} AND {filter.AncienneteMax}");
+				fieldFilters.Add(FilterName.Anciennete, MakeAncienneteFilter(filter.AncienneteMin, filter.AncienneteMax));
 			}
 			if (filter.Tags != null && filter.Tags.Length != 0)
 			{
@@ -174,7 +181,7 @@ public class RecupInfoSearcher
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "EstExclusif", "SELECT P_EstExclusif, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Exclusif) + " GROUP BY P_EstExclusif", 0, 1, isBoolean: true));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '0', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND " + NotBaissePrixWhere));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "BaissePrix", "SELECT '1', " + countExpr + " FROM property WHERE " + MakeWhere(where, fieldFilters, FilterName.BaissePrix) + " AND " + BaissePrixWhere));
-			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT IFNULL(" + dateDebutDays + ", '') AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
+			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT " + dateDebutDays + " AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Tag", "SELECT P_ListeTags, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Tags) + " GROUP BY P_ListeTags"));
 			Task.WaitAll(queryTasks.ToArray());
 			try
@@ -446,6 +453,16 @@ public class RecupInfoSearcher
 			}
 		}
 		return w;
+	}
+
+	/// <summary>
+	/// Odile 0–30 days must keep ads with no DateDebut (Yanport 0000-00-00). Treating them as
+	/// SQL NULL dropped those rows from every facet that keeps ancienneté, so Ts sect. / Tout Paris
+	/// fell 176→168 and 29→23 while selected-CP 95/47 stayed put.
+	/// </summary>
+	public static string MakeAncienneteFilter(int min, int max)
+	{
+		return $"{DateDebutDaysExpr} BETWEEN {min} AND {max}";
 	}
 
 	/// <summary>

@@ -22,6 +22,15 @@ public class RecupInfosFilterTests
 	}
 
 	[Fact]
+	public void Anciennete_treats_missing_DateDebut_as_zero_days()
+	{
+		Assert.Contains(", 0, ABS(DATEDIFF", RecupInfoSearcher.DateDebutDaysExpr);
+		Assert.Equal(
+			RecupInfoSearcher.DateDebutDaysExpr + " BETWEEN 0 AND 30",
+			RecupInfoSearcher.MakeAncienneteFilter(0, 30));
+	}
+
+	[Fact]
 	public void RecupInfos_volumes_count_active_yanport_property_rows()
 	{
 		Assert.Equal(
