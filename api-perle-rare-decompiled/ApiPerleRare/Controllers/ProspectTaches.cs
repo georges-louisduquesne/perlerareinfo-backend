@@ -6,6 +6,8 @@ public class ProspectTaches : ITachesEx
 {
 	public uint TRef { get; set; }
 
+	public DateTime TDateCreation { get; set; }
+
 	public DateTime TDateRealisation { get; set; }
 
 	public string CNomFamille { get; set; }

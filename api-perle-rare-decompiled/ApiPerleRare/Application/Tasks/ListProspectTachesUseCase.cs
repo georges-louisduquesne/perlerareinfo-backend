@@ -36,6 +36,7 @@ public sealed class ListProspectTachesUseCase : IListProspectTachesUseCase
 		IQueryable<ProspectTaches> tachesQuery = taches.Select((Taches t) => new ProspectTaches
 		{
 			TRef = t.TRef,
+			TDateCreation = t.TDateCreation,
 			TDateRealisation = t.TDateRealisation,
 			CNomFamille = t.TRefContactNavigation.CNomFamille,
 			TType = t.TType,
