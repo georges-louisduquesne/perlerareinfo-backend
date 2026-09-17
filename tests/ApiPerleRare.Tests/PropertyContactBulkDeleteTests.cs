@@ -1,3 +1,4 @@
+using System;
 using Xunit;
 using ApiPerleRare.Application.Events;
 
@@ -20,10 +21,24 @@ public class PropertyContactBulkDeleteTests
 	[InlineData("")]
 	[InlineData("PC_Actif = 1")]
 	[InlineData("PC_RefContact = 12 OR 1=1")]
+	[InlineData("PC_RefContact = 12; DROP TABLE property_contact")]
+	[InlineData("PC_PropertyId = 'x'")]
+	[InlineData("1=1")]
 	[InlineData("PC_RefContact = 0")]
 	public void Rejects_anything_but_one_contact_ref(string where)
 	{
 		Assert.False(PropertyContactBulkDelete.TryParseContactRef(where, out uint contactRef));
 		Assert.Equal(0u, contactRef);
+	}
+
+	[Fact]
+	public void Sql_deletes_only_property_contact_rows_for_one_bound_contact()
+	{
+		string sql = PropertyContactBulkDelete.DeleteByContactSql;
+		Assert.Equal("DELETE FROM `property_contact` WHERE `PC_RefContact` = {0}", sql);
+		Assert.DoesNotContain("DROP", sql, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain("TRUNCATE", sql, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain(" OR ", sql, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain(";", sql);
 	}
 }

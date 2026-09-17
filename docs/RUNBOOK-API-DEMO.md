@@ -15,7 +15,7 @@ Le front démo `https://dev.perle-rare.info/demo/` appelle **cette** API (`envir
 | Port | `127.0.0.1:5000` | `127.0.0.1:5080` |
 | systemd | `api.perle-rare.info.service` | `api-demo.perle-rare.info.service` |
 | Jobs Yanport / mails | oui | **off** (`PR_LOCAL_SAFE=1`) |
-| MariaDB | user applicatif | `cursor_client` **SELECT only** |
+| MariaDB | user applicatif | `pr_api_demo` : SELECT `perle-rareinfo` + DELETE `property_contact` only |
 | Fichiers upload | site legacy | `api-client-demo/uploads` |
 | JWT | secret prod | secret local dummy |
 
@@ -49,7 +49,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
   'https://dev.perle-rare.info/api-demo/api/User/refresh'
 ```
 
-Les écritures métier (POST/PUT, SwitchDispo) échoueront côté SQL : compte SELECT only. C’est voulu.
+Les écritures métier hors `property_contact` (POST/PUT contact, SwitchDispo, RecupInfos…) échoueront côté SQL. Le `DELETE` métamoteur (`PC_RefContact` uniquement) est l’exception volontaire.
 
 Soft-hash mdp : **skip** `SaveChanges` si `PR_LOCAL_SAFE=1` (démo lecture seule). Sur une API writable, le hash s’écrit à la 1re connexion. Voir [`docs/sql/README-COMPTE-WRITE.md`](./sql/README-COMPTE-WRITE.md) + [`docs/sql/widen-cp-mot-de-passe.sql`](./sql/widen-cp-mot-de-passe.sql).
 

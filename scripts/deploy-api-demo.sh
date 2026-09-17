@@ -34,7 +34,7 @@ if [[ ! -f "$KEY_FILE" ]]; then
 	exit 1
 fi
 if [[ ! -f "$DEV_SETTINGS" ]]; then
-	echo "Missing $DEV_SETTINGS (gitignored). Needed to build SELECT-only demo settings." >&2
+	echo "Missing $DEV_SETTINGS (gitignored). Needed to build demo appsettings." >&2
 	exit 1
 fi
 test -f "$SNIPPET"
@@ -58,13 +58,39 @@ echo PREFLIGHT_OK
 REMOTE
 echo "Prod DLL sha256=$PROD_SHA pid=$PROD_PID"
 
-echo "==> Generate demo appsettings (SELECT-only DB, dummy JWT, isolated uploads)"
+echo "==> Generate demo appsettings (pr_api_demo: SELECT + DELETE property_contact only)"
+DEMO_DB_ENV="$REPO_ROOT/infra/ovh/secrets/api-demo-db.env"
+if [[ ! -f "$DEMO_DB_ENV" ]]; then
+	echo "Missing $DEMO_DB_ENV (gitignored). MYSQL_USER=pr_api_demo and MYSQL_PASSWORD required." >&2
+	exit 1
+fi
 mkdir -p "$REPO_ROOT/artifacts"
 python3 - <<PY
-import json
+import json, re, sys
 from pathlib import Path
+
+env_path = Path(r"$DEMO_DB_ENV")
+vals = {}
+for raw in env_path.read_text().splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    vals[key.strip()] = value.strip().strip('"').strip("'")
+
+user = vals.get("MYSQL_USER", "")
+password = vals.get("MYSQL_PASSWORD", "")
+if user != "pr_api_demo" or not password:
+    print("api-demo-db.env must set MYSQL_USER=pr_api_demo and MYSQL_PASSWORD", file=sys.stderr)
+    raise SystemExit(1)
+if any(ch in password for ch in ";'\""):
+    print("MYSQL_PASSWORD must not contain ; ' or \"", file=sys.stderr)
+    raise SystemExit(1)
+
 src = json.loads(Path(r"$DEV_SETTINGS").read_text())
 cs = src["ConnectionStrings"]["PerleRareDB"].replace("Server=142.4.216.57", "Server=127.0.0.1")
+cs = re.sub(r"Uid=[^;]*", "Uid=" + user, cs, count=1, flags=re.I)
+cs = re.sub(r"Pwd=[^;]*", "Pwd=" + password, cs, count=1, flags=re.I)
 src["ConnectionStrings"]["PerleRareDB"] = cs
 src["ConnectionStrings"]["Exchange"] = ""
 src["AppSettings"]["YanportToken"] = ""

@@ -190,10 +190,15 @@ public class PropertyContactsController : ControllerBase
 		{
 			return BadRequest();
 		}
-		await _context.PropertyContact
-			.Where((PropertyContact pc) => pc.PcRefContact == contactRef)
-			.ExecuteDeleteAsync();
-		return NoContent();
+		try
+		{
+			await _context.Database.ExecuteSqlRawAsync(PropertyContactBulkDelete.DeleteByContactSql, contactRef);
+			return NoContent();
+		}
+		catch
+		{
+			return StatusCode(500);
+		}
 	}
 
 	[HttpDelete("{id}")]
