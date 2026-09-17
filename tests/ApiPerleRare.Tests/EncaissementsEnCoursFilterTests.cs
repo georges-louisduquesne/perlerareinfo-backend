@@ -18,12 +18,20 @@ public class EncaissementsEnCoursFilterTests
 
 	[Theory]
 	[InlineData("CLIENT ACTIF", true)]
+	[InlineData("CLIENT ACTIF ", true)]
+	[InlineData("client actif", true)]
 	[InlineData("CLIENT MORT", false)]
 	[InlineData("PROSPECT ACTIF", false)]
 	[InlineData(null, false)]
 	public void Only_active_clients_wait_for_collection(string statut, bool expected)
 	{
 		Assert.Equal(expected, EncaissementsEnCoursFilter.IsActiveClient(statut));
+	}
+
+	[Fact]
+	public void Accueil_sql_keeps_php_like_client_actif()
+	{
+		Assert.Equal("contacts_recherche.C_Statut like 'CLIENT ACTIF'", EncaissementsEnCoursFilter.ActiveClientSql);
 	}
 
 	[Theory]

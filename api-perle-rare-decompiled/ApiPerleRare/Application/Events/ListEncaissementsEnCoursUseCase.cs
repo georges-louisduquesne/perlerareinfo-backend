@@ -31,8 +31,9 @@ public sealed class ListEncaissementsEnCoursUseCase : IListEncaissementsEnCoursU
 		DateTime today = DateTime.Today;
 		evenements = evenements.Where((Evenements e) =>
 			e.EDate <= today && e.ETypeEvenement == EncaissementsEnCoursFilter.RealizedEventType);
+		// PHP Accueil: contacts_recherche.C_Statut like 'CLIENT ACTIF' (no wildcards).
 		evenements = evenements.Where((Evenements e) =>
-			e.ERefContactNavigation.CStatut == EncaissementsEnCoursFilter.ActiveClientStatus
+			EF.Functions.Like(e.ERefContactNavigation.CStatut, EncaissementsEnCoursFilter.ActiveClientStatus)
 			&& e.ERefContactNavigation.CMttHono != null
 			&& e.ERefContactNavigation.CMttHono != 0m);
 		if (applyNegociateurFilter && !string.IsNullOrEmpty(userLogin))

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Events;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -179,6 +180,19 @@ public class PropertyContactsController : ControllerBase
 			}
 			throw;
 		}
+		return NoContent();
+	}
+
+	[HttpDelete]
+	public async Task<IActionResult> DeletePropertyContactsByContact([FromQuery] string where = null)
+	{
+		if (!PropertyContactBulkDelete.TryParseContactRef(where, out uint contactRef))
+		{
+			return BadRequest();
+		}
+		await _context.PropertyContact
+			.Where((PropertyContact pc) => pc.PcRefContact == contactRef)
+			.ExecuteDeleteAsync();
 		return NoContent();
 	}
 
