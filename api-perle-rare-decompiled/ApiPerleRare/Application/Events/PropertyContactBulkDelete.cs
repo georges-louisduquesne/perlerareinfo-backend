@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 
 namespace ApiPerleRare.Application.Events;
@@ -31,5 +32,19 @@ public static class PropertyContactBulkDelete
 			return false;
 		}
 		return uint.TryParse(match.Groups[3].Value, out contactRef) && contactRef > 0;
+	}
+
+	public static bool IsPrivilegeDenied(Exception ex)
+	{
+		for (Exception current = ex; current != null; current = current.InnerException)
+		{
+			string message = current.Message ?? "";
+			if (message.IndexOf("DELETE command denied", StringComparison.OrdinalIgnoreCase) >= 0
+				|| message.IndexOf("command denied to user", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 }

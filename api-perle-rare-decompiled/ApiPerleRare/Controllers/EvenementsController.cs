@@ -72,7 +72,12 @@ public class EvenementsController : ControllerBase
 				ToQuery(select, where, orderby, skip, take),
 				option,
 				_userSessionService.Filter ? this.GetUserLogin() : null,
-				_userSessionService.Filter);
+				_userSessionService.Filter,
+				HttpContext.RequestAborted);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
 		}
 		catch (Exception ex)
 		{

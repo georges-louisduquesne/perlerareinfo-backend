@@ -41,4 +41,14 @@ public class PropertyContactBulkDeleteTests
 		Assert.DoesNotContain(" OR ", sql, StringComparison.OrdinalIgnoreCase);
 		Assert.DoesNotContain(";", sql);
 	}
+
+	[Fact]
+	public void Detects_mysql_delete_privilege_denied()
+	{
+		Exception denied = new InvalidOperationException(
+			"inner",
+			new Exception("DELETE command denied to user 'cursor_client'@'%' for table 'property_contact'"));
+		Assert.True(PropertyContactBulkDelete.IsPrivilegeDenied(denied));
+		Assert.False(PropertyContactBulkDelete.IsPrivilegeDenied(new Exception("lock wait timeout")));
+	}
 }

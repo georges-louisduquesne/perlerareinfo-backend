@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Catalog;
 using ApiPerleRare.Controllers;
@@ -23,7 +24,7 @@ public sealed class ListEvenementsExUseCase : IListEvenementsExUseCase
 		_cache = memoryCache;
 	}
 
-	public async Task<List<EvenementsEx>> Execute(EntityQuery query, string option, string userLogin, bool applyNegociateurFilter)
+	public async Task<List<EvenementsEx>> Execute(EntityQuery query, string option, string userLogin, bool applyNegociateurFilter, CancellationToken cancellationToken = default)
 	{
 		query ??= new EntityQuery();
 		IQueryable<EvenementsEx> evenements = _context.Evenements.AsNoTracking().Select((Evenements e) => new EvenementsEx
@@ -50,7 +51,7 @@ public sealed class ListEvenementsExUseCase : IListEvenementsExUseCase
 		}).AsNoTracking();
 		evenements = await ApplyDefaultFilter(evenements, option, userLogin, applyNegociateurFilter);
 		evenements = EFHelper<EvenementsEx>.Apply(evenements, query.Where, query.OrderBy, query.Take, query.Skip, query.Select);
-		return await evenements.ToListAsync();
+		return await evenements.ToListAsync(cancellationToken);
 	}
 
 	private async Task<IQueryable<T>> ApplyDefaultFilter<T>(IQueryable<T> query, string option, string userLogin, bool applyNegociateurFilter) where T : Evenements

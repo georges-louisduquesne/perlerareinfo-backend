@@ -12,6 +12,7 @@ using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MySqlConnector;
 
 namespace ApiPerleRare.Controllers;
@@ -44,9 +45,12 @@ public class PropertyContactsController : ControllerBase
 
 	private readonly ApplicationDbContext _context;
 
-	public PropertyContactsController(ApplicationDbContext context)
+	private readonly ILogger<PropertyContactsController> _logger;
+
+	public PropertyContactsController(ApplicationDbContext context, ILogger<PropertyContactsController> logger)
 	{
 		_context = context;
+		_logger = logger;
 	}
 
 	[HttpGet]
@@ -195,8 +199,13 @@ public class PropertyContactsController : ControllerBase
 			await _context.Database.ExecuteSqlRawAsync(PropertyContactBulkDelete.DeleteByContactSql, contactRef);
 			return NoContent();
 		}
-		catch
+		catch (Exception ex)
 		{
+			_logger.LogError(ex, "Bulk delete property_contact failed for contact {ContactRef}", contactRef);
+			if (PropertyContactBulkDelete.IsPrivilegeDenied(ex))
+			{
+				return StatusCode(403);
+			}
 			return StatusCode(500);
 		}
 	}
