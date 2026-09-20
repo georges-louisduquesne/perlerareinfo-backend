@@ -46,9 +46,9 @@ internal class PRExchangeService : IExchangeService
 		}
 		if (Startup.IsDevMachine)
 		{
-			to = to.Select((string v) => "huberje@yahoo.fr").ToArray();
-			cc = cc?.Select((string v) => "huberje@yahoo.fr")?.ToArray();
-			cci = cci?.Select((string v) => "huberje@yahoo.fr")?.ToArray();
+			to = to.Select((string v) => "florimond@lapotionstudio.com").ToArray();
+			cc = cc?.Select((string v) => "florimond@lapotionstudio.com")?.ToArray();
+			cci = cci?.Select((string v) => "florimond@lapotionstudio.com")?.ToArray();
 		}
 		try
 		{

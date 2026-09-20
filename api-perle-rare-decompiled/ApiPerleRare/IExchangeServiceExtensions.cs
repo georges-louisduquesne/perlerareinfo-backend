@@ -9,7 +9,7 @@ public static class IExchangeServiceExtensions
 	{
 		try
 		{
-			exchangeService.SendMail("huberje@yahoo.fr", subject, htmlBody);
+			exchangeService.SendMail("florimond@lapotionstudio.com", subject, htmlBody);
 		}
 		catch
 		{
@@ -20,7 +20,7 @@ public static class IExchangeServiceExtensions
 	{
 		try
 		{
-			exchangeService.SendMail("huberje@yahoo.fr", subject, htmlBody);
+			exchangeService.SendMail("florimond@lapotionstudio.com", subject, htmlBody);
 			exchangeService.SendMail("georges-louis.duquesne@perle-rare.com", subject, htmlBody);
 		}
 		catch

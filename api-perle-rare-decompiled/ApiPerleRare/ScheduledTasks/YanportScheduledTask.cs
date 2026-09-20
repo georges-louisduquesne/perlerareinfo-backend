@@ -185,7 +185,7 @@ public class YanportScheduledTask : AbstractScheduledTask
 			}
 			else
 			{
-				_exchangeService.SendMail("huberje@yahoo.fr", subject, error);
+				_exchangeService.SendMail("florimond@lapotionstudio.com", subject, error);
 			}
 		}
 	}
@@ -581,7 +581,7 @@ public class YanportScheduledTask : AbstractScheduledTask
 		}
 		else
 		{
-			exchangeService.SendMail("huberje@yahoo.fr", subject, error);
+			exchangeService.SendMail("florimond@lapotionstudio.com", subject, error);
 		}
 	}
 
