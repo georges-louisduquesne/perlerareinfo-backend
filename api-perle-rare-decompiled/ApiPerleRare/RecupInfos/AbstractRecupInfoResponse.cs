@@ -23,6 +23,8 @@ public abstract class AbstractRecupInfoResponse
 
 	public string[] Infos { get; set; }
 
+	public List<string> PropertyIds { get; set; }
+
 	public List<RecupInfoPerf> Perfs { get; set; } = new List<RecupInfoPerf>();
 
 	public abstract Task AddAsync(MySqlConnection c, IMemoryCache memoryCache, string field, string sql, int valueFieldIndex = 0, int countFieldIndex = 1, bool isBoolean = false);

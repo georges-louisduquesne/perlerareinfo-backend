@@ -47,6 +47,8 @@ public class RecupInfoSearcher
 
 	public const string NotBaissePrixWhere = "(P_PrixEvol IS NULL OR P_PrixEvol <> -1)";
 
+	public const int ApplyPropertyContactsMax = 500;
+
 	/// <summary>
 	/// Missing / 0000-00-00 DateDebut counts as 0 days, like AnciennetePropertyFilter
 	/// (no PDateDebut → include) and the CRM <c>Number('') === 0</c> bucket.
@@ -147,23 +149,9 @@ public class RecupInfoSearcher
 			{
 				fieldFilters.Add(FilterName.Anciennete, MakeAncienneteFilter(filter.AncienneteMin, filter.AncienneteMax));
 			}
-			if (filter.Tags != null && filter.Tags.Length != 0)
+			string tagWhere = MakeTagsFilter(filter.Tags, filter.TagsOr, filter.TagsMode);
+			if (!string.IsNullOrEmpty(tagWhere))
 			{
-				string tagWhere = string.Join(" AND ", from t in filter.Tags
-					where t > 0
-					select $"P_ListeTags LIKE '%[{t}]%'");
-				if (filter.Tags.Any((int t) => t < 0))
-				{
-					if (tagWhere.Length > 0)
-					{
-						tagWhere += " AND ";
-					}
-					tagWhere += "(P_ListeTags IS NULL OR (";
-					tagWhere += string.Join(" AND ", from t in filter.Tags
-						where t < 0
-						select $"P_ListeTags NOT LIKE '%[{-t}]%'");
-					tagWhere += "))";
-				}
 				where = where + " AND " + tagWhere;
 			}
 			List<Task> queryTasks = new List<Task>();
@@ -201,6 +189,48 @@ public class RecupInfoSearcher
 			}
 			catch
 			{
+			}
+			if (filter.Apply && filter.ContactRef != 0)
+			{
+				string fullWhere = MakeWhere(where, fieldFilters);
+				List<string> propertyIds = new List<string>();
+				try
+				{
+					using DbCommand idCmd = connection.CreateCommand();
+					idCmd.CommandText = ApplyPropertyIdsSql(fullWhere);
+					idCmd.CommandTimeout = 120;
+					using DbDataReader idReader = idCmd.ExecuteReader();
+					while (idReader.Read())
+					{
+						if (!idReader.IsDBNull(0))
+						{
+							string id = Convert.ToString(idReader.GetValue(0));
+							if (!string.IsNullOrWhiteSpace(id))
+							{
+								propertyIds.Add(id);
+							}
+						}
+					}
+				}
+				catch (Exception applyEx)
+				{
+					response.Error = applyEx.ToString();
+				}
+				response.PropertyIds = propertyIds;
+				if (propertyIds.Count > 0)
+				{
+					try
+					{
+						using DbCommand applyCmd = connection.CreateCommand();
+						applyCmd.CommandText = ApplyPropertyContactsSql(filter.ContactRef, fullWhere);
+						applyCmd.CommandTimeout = 120;
+						applyCmd.ExecuteNonQuery();
+					}
+					catch
+					{
+						// Local SELECT-only users still get PropertyIds for the Métamoteur.
+					}
+				}
 			}
 			return response;
 		}
@@ -442,6 +472,36 @@ public class RecupInfoSearcher
 		return importParams;
 	}
 
+	public static string ApplyPropertyIdsSql(string fullWhere)
+	{
+		if (string.IsNullOrWhiteSpace(fullWhere))
+		{
+			throw new ArgumentException("where required", nameof(fullWhere));
+		}
+		return "SELECT p.`P_PropertyId` FROM `property` p WHERE " + fullWhere + " LIMIT " + ApplyPropertyContactsMax.ToString();
+	}
+
+	public static string ApplyPropertyContactsSql(uint contactRef, string fullWhere)
+	{
+		if (contactRef == 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(contactRef));
+		}
+		if (string.IsNullOrWhiteSpace(fullWhere))
+		{
+			throw new ArgumentException("where required", nameof(fullWhere));
+		}
+		return "INSERT INTO `property_contact` (`PC_PropertyId`, `PC_RefContact`, `PC_Actif`, `PC_Rate`, `PC_Com`, `PC_Vu`)\n"
+			+ "SELECT p.`P_PropertyId`, " + contactRef.ToString() + ", 1, 0, '', 0\n"
+			+ "FROM `property` p\n"
+			+ "WHERE " + fullWhere + "\n"
+			+ "AND NOT EXISTS (\n"
+			+ "  SELECT 1 FROM `property_contact` pc\n"
+			+ "  WHERE pc.`PC_PropertyId` = p.`P_PropertyId` AND pc.`PC_RefContact` = " + contactRef.ToString() + "\n"
+			+ ")\n"
+			+ "LIMIT " + ApplyPropertyContactsMax.ToString();
+	}
+
 	private static string MakeWhere(string where, Dictionary<FilterName, string> filters, params FilterName[] fns)
 	{
 		string w = where;
@@ -463,6 +523,60 @@ public class RecupInfoSearcher
 	public static string MakeAncienneteFilter(int min, int max)
 	{
 		return $"{DateDebutDaysExpr} BETWEEN {min} AND {max}";
+	}
+
+	public static bool IsTagsModeOr(string tagsMode)
+	{
+		return string.Equals(tagsMode, "or", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Positive Tags: AND. TagsOr: at least one. Negative Tags: AND NOT.
+	/// If TagsOr is empty and tagsMode is "or", all positive Tags become the OR group.
+	/// </summary>
+	public static string MakeTagsFilter(int[] tags, int[] tagsOr = null, string tagsMode = null)
+	{
+		int[] andTags = tags == null ? Array.Empty<int>() : tags.Where((int t) => t > 0).ToArray();
+		int[] orTags = tagsOr == null ? Array.Empty<int>() : tagsOr.Where((int t) => t > 0).ToArray();
+		int[] excluded = tags == null ? Array.Empty<int>() : tags.Where((int t) => t < 0).ToArray();
+		if (orTags.Length == 0 && IsTagsModeOr(tagsMode) && andTags.Length != 0)
+		{
+			orTags = andTags;
+			andTags = Array.Empty<int>();
+		}
+		if (andTags.Length == 0 && orTags.Length == 0 && excluded.Length == 0)
+		{
+			return null;
+		}
+		string tagWhere = "";
+		if (andTags.Length != 0)
+		{
+			tagWhere = string.Join(" AND ", andTags.Select((int t) => $"P_ListeTags LIKE '%[{t}]%'"));
+		}
+		if (orTags.Length != 0)
+		{
+			string orWhere = string.Join(" OR ", orTags.Select((int t) => $"P_ListeTags LIKE '%[{t}]%'"));
+			if (orTags.Length > 1)
+			{
+				orWhere = "(" + orWhere + ")";
+			}
+			if (tagWhere.Length > 0)
+			{
+				tagWhere += " AND ";
+			}
+			tagWhere += orWhere;
+		}
+		if (excluded.Length != 0)
+		{
+			if (tagWhere.Length > 0)
+			{
+				tagWhere += " AND ";
+			}
+			tagWhere += "(P_ListeTags IS NULL OR (";
+			tagWhere += string.Join(" AND ", excluded.Select((int t) => $"P_ListeTags NOT LIKE '%[{-t}]%'"));
+			tagWhere += "))";
+		}
+		return string.IsNullOrEmpty(tagWhere) ? null : tagWhere;
 	}
 
 	/// <summary>

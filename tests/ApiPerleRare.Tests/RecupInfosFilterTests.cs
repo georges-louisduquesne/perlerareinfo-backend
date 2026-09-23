@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ApiPerleRare.Helpers;
+using ApiPerleRare.Models;
 using ApiPerleRare.RecupInfos;
+using ApiPerleRare.RecupInfos.PropertyFilters;
 using Xunit;
 
 namespace ApiPerleRare.Tests;
@@ -108,5 +111,67 @@ public class RecupInfosFilterTests
 		Assert.DoesNotContain(response.Counts, c => c.Value == "piscine");
 		Assert.Contains(response.Counts, c => c.Field == "Tag" && c.Value == "[18]" && c.Nb == 2);
 		Assert.Contains(response.Counts, c => c.Field == "Tag" && c.Value == "[3]" && c.Nb == 2);
+	}
+
+	[Fact]
+	public void MakeTagsFilter_mixes_and_or_and_not()
+	{
+		int[] tags = [12, -9];
+		int[] tagsOr = [18, 3];
+		Assert.Equal(
+			"P_ListeTags LIKE '%[12]%' AND (P_ListeTags LIKE '%[18]%' OR P_ListeTags LIKE '%[3]%') AND (P_ListeTags IS NULL OR (P_ListeTags NOT LIKE '%[9]%'))",
+			RecupInfoSearcher.MakeTagsFilter(tags, tagsOr));
+		Assert.Equal(
+			"P_ListeTags LIKE '%[18]%' AND P_ListeTags LIKE '%[3]%' AND (P_ListeTags IS NULL OR (P_ListeTags NOT LIKE '%[9]%'))",
+			RecupInfoSearcher.MakeTagsFilter([18, 3, -9]));
+		Assert.Equal(
+			"(P_ListeTags LIKE '%[18]%' OR P_ListeTags LIKE '%[3]%') AND (P_ListeTags IS NULL OR (P_ListeTags NOT LIKE '%[9]%'))",
+			RecupInfoSearcher.MakeTagsFilter([18, 3, -9], null, "or"));
+		Assert.Null(RecupInfoSearcher.MakeTagsFilter(null, null, "or"));
+	}
+
+	[Fact]
+	public void Apply_inserts_missing_property_contacts_for_the_contact()
+	{
+		string sql = RecupInfoSearcher.ApplyPropertyContactsSql(47538, RecupInfoSearcher.ActivePropertyWhere);
+		Assert.Contains("INSERT INTO `property_contact`", sql);
+		Assert.Contains("PC_RefContact", sql);
+		Assert.Contains("47538", sql);
+		Assert.Contains("P_PropertyId", sql);
+		Assert.Contains("LIMIT 500", sql);
+		Assert.Contains(RecupInfoSearcher.ActivePropertyWhere, sql);
+		Assert.Contains("SELECT p.`P_PropertyId`", RecupInfoSearcher.ApplyPropertyIdsSql(RecupInfoSearcher.ActivePropertyWhere));
+	}
+
+	[Fact]
+	public void Filter_accepts_optional_tagsOr()
+	{
+		Filter mixed = JsonSerializer.Deserialize<Filter>("""{"tags":[12,-9],"tagsOr":[18,3]}""", Json);
+		Assert.Equal(new[] { 12, -9 }, mixed.Tags);
+		Assert.Equal(new[] { 18, 3 }, mixed.TagsOr);
+		Filter orMode = JsonSerializer.Deserialize<Filter>("""{"tags":[18,3],"tagsMode":"or"}""", Json);
+		Assert.Equal("or", orMode.TagsMode);
+		Assert.True(RecupInfoSearcher.IsTagsModeOr(orMode.TagsMode));
+	}
+
+	[Fact]
+	public void TagsPropertyFilter_mixes_required_anyof_and_exclude()
+	{
+		string phpAnd = PhpSerializer.FromJson("""{"18":"O","3":"O"}""");
+		TagsPropertyFilter andFilter = new TagsPropertyFilter(phpAnd);
+		Assert.Equal("Manque le tag 3", andFilter.GetNotMatchReason(new Property { PListeTags = "[18]" }));
+		Assert.Null(andFilter.GetNotMatchReason(new Property { PListeTags = "[18][3]" }));
+
+		string phpMixed = PhpSerializer.FromJson("""{"12":"O","18":"U","3":"U","9":"N"}""");
+		TagsPropertyFilter mixed = new TagsPropertyFilter(phpMixed);
+		Assert.Null(mixed.GetNotMatchReason(new Property { PListeTags = "[12][18]" }));
+		Assert.Equal("Manque le tag 12", mixed.GetNotMatchReason(new Property { PListeTags = "[18]" }));
+		Assert.Equal("Manque au moins un tag", mixed.GetNotMatchReason(new Property { PListeTags = "[12]" }));
+		Assert.Equal("Tag 9 présent et ne devrait pas", mixed.GetNotMatchReason(new Property { PListeTags = "[12][18][9]" }));
+
+		string phpOr = PhpSerializer.FromJson("""{"18":"O","3":"O","9":"N","_mode":"or"}""");
+		TagsPropertyFilter orFilter = new TagsPropertyFilter(phpOr);
+		Assert.Null(orFilter.GetNotMatchReason(new Property { PListeTags = "[18]" }));
+		Assert.Equal("Manque au moins un tag", orFilter.GetNotMatchReason(new Property { PListeTags = "[7]" }));
 	}
 }

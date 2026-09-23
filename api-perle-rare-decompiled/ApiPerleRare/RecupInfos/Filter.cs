@@ -45,6 +45,16 @@ public class Filter
 
 	public int[] Tags { get; set; }
 
+	/// <summary>
+	/// Optional OR-group of required tags (at least one). Combined with Tags AND / NOT.
+	/// </summary>
+	public int[] TagsOr { get; set; }
+
+	/// <summary>
+	/// Fallback when TagsOr is empty: "or" treats all positive Tags as the OR group.
+	/// </summary>
+	public string TagsMode { get; set; }
+
 	public bool Apply { get; set; }
 
 	public uint ContactRef { get; set; }
