@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Events;
+using ApiPerleRare.Application.PropertyContacts;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -55,7 +56,7 @@ public class PropertyContactsController : ControllerBase
 
 	[HttpGet]
 	[Route("/api/contact/{contactRef}/properties")]
-	public async Task<ActionResult<SelectResult<PropertyContactEx>>> GetProperties(long contactRef, [FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
+	public async Task<ActionResult<SelectResult<PropertyContactEx>>> GetProperties(long contactRef, [FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0, [FromQuery] bool enrichAgences = true)
 	{
 		try
 		{
@@ -73,6 +74,10 @@ public class PropertyContactsController : ControllerBase
 				{
 					i.Annonceurs = JsonSerializer.Deserialize<Annonceur[]>(i.PcProperty.PAnnonceurs);
 				}
+			}
+			if (!enrichAgences)
+			{
+				return res2;
 			}
 			long[] idIds = (from annonceur in res2.Items.SelectMany((PropertyContactEx propertyContactEx) => propertyContactEx.Annonceurs)
 				where annonceur.Id != 0
@@ -116,6 +121,31 @@ public class PropertyContactsController : ControllerBase
 	private IQueryable<PropertyContact> ApplyDefaultFilter(IQueryable<PropertyContact> query)
 	{
 		return query;
+	}
+
+	[HttpPost]
+	[Route("/api/contact/{contactRef}/properties/shared-indicators")]
+	public async Task<ActionResult<ContactSharedIndicatorsResponse>> PostSharedIndicators(
+		long contactRef,
+		[FromBody] ContactSharedIndicatorsRequest body)
+	{
+		if (contactRef <= 0)
+		{
+			return BadRequest();
+		}
+		try
+		{
+			ContactSharedIndicatorsResponse res = await ContactSharedIndicatorsQuery.LoadAsync(
+				_context,
+				(uint)contactRef,
+				body?.PropertyIds);
+			return res;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "shared-indicators failed for contact {ContactRef}", contactRef);
+			return BadRequest(ex.Message);
+		}
 	}
 
 	[HttpGet]
