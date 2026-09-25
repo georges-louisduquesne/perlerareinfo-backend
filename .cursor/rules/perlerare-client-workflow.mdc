@@ -9,7 +9,9 @@ Public visé : Cursor **chez le client**. Contrat API figé = `.cursor/rules/per
 
 ## 1. Git — uniquement `main`
 
-Avant **tout** code :
+Début de session (premier message code / déploiement / git — pas pour une simple question sans modification) :
+
+1. **Back (dépôt courant)** :
 
 ```bash
 git fetch origin
@@ -17,6 +19,14 @@ git checkout main
 git pull --ff-only origin main
 git status
 ```
+
+2. **Front (sibling)** — si `../frontend/.git` existe :
+
+```bash
+cd ../frontend && git fetch origin && git checkout main && git pull --ff-only origin main && git status
+```
+
+Avant **tout** code :
 
 - Travailler **seulement** sur `main`. Jamais `git checkout -b`, jamais une PR depuis une autre branche.
 - Branche en retard → `git pull --ff-only`. Divergence / pull qui refuse → **STOP**, demander.
@@ -32,6 +42,13 @@ Après un palier (fix / feature / doc versionnée) :
 Ne pas laisser le travail seulement en local une fois l’OK donné.
 
 **Ne jamais committer :** `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`, `api-perle-rare-publish/`, mots de passe.
+
+### Identité Git (commit / push)
+
+- **`git commit` / `git push`** sans override : auteur = config Git **locale** de celui qui valide la commande dans Cursor.
+- **Interdit** : variables `GIT_AUTHOR_*` / `GIT_COMMITTER_*`, `-c user.email=…`, `--author=…`, noms ou e-mails **figés** dans le script (ne pas copier LordFinom / florimond.jacquet44@gmail.com depuis l’historique).
+- Config absente → **STOP**, guider `git config`, ne pas inventer.
+- Pas de `Co-authored-by: Cursor` sauf demande explicite.
 
 ## 2. Prudence produit
 
