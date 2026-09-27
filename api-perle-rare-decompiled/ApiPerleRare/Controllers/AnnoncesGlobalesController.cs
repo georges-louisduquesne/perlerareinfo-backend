@@ -101,7 +101,7 @@ public class AnnoncesGlobalesController : ControllerBase
 	[HttpPost("RecupInfosAnnonces2")]
 	public ActionResult<RecupInfoResponse> RecupInfosAnnonces2(Filter filter)
 	{
-		return _recupInfos2.Execute(filter);
+		return _recupInfos2.Execute(filter, RecupInfoSearcher.CountsCancellation(filter, HttpContext.RequestAborted));
 	}
 
 	[HttpGet("ViderInfosAnnonces/{contactRef}")]

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Threading;
 using ApiPerleRare.Models;
 using ApiPerleRare.RecupInfos;
 using Microsoft.EntityFrameworkCore;
@@ -23,13 +24,13 @@ public sealed class RecupInfosAnnonces2UseCase : IRecupInfosAnnonces2UseCase
 		_memoryCache = memoryCache;
 	}
 
-	public RecupInfoResponse Execute(Filter filter)
+	public RecupInfoResponse Execute(Filter filter, CancellationToken cancellationToken = default)
 	{
 		MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
 		if (c.State != ConnectionState.Open)
 		{
 			c.Open();
 		}
-		return (RecupInfoResponse)RecupInfoSearcher.Search(_context, c, filter, _exchangeService, _memoryCache);
+		return (RecupInfoResponse)RecupInfoSearcher.Search(_context, c, filter, _exchangeService, _memoryCache, cancellationToken);
 	}
 }

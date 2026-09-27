@@ -92,12 +92,14 @@ public static class ContactSharedIndicatorsQuery
 			.Include((PropertyContact pc) => pc.PcRefContactNavigation)
 			.ToListAsync();
 
+		var visitTypes = await LoadVisitTypesAsync(context);
+
 		var events = await context.Evenements.AsNoTracking()
-			.Where((Evenements e) => e.EStatut == 1 && idSet.Contains(e.EPropertyId))
+			.Where((Evenements e) => e.EStatut == 1 && idSet.Contains(e.EPropertyId) && visitTypes.Contains(e.ETypeEvenement))
 			.ToListAsync();
 
 		var ownContactEvents = await context.Evenements.AsNoTracking()
-			.Where((Evenements e) => e.EStatut == 1 && e.ERefContact == contactRef)
+			.Where((Evenements e) => e.EStatut == 1 && e.ERefContact == contactRef && visitTypes.Contains(e.ETypeEvenement))
 			.ToListAsync();
 
 		foreach (var ev in ownContactEvents)
@@ -171,6 +173,36 @@ public static class ContactSharedIndicatorsQuery
 		}
 
 		return response;
+	}
+
+	/// <summary>Visit event types: types_evenements 5 / 6, or a category starting with « vis ».</summary>
+	public static readonly string[] DefaultVisitTypes = { "RV VISITE SEUL", "RV VISITE CLIENT" };
+
+	private static async Task<List<string>> LoadVisitTypesAsync(ApplicationDbContext context)
+	{
+		var rows = await context.TypesEvenements.AsNoTracking()
+			.Select((TypesEvenements te) => new { te.TeRefTypeEvenement, te.TeTypeEvenement, te.TeCategorieEvenement })
+			.ToListAsync();
+		return SelectVisitTypes(rows.Select((r) => (r.TeRefTypeEvenement, r.TeTypeEvenement, r.TeCategorieEvenement)));
+	}
+
+	public static List<string> SelectVisitTypes(IEnumerable<(int refType, string type, string category)> rows)
+	{
+		var set = new HashSet<string>(DefaultVisitTypes, StringComparer.OrdinalIgnoreCase);
+		foreach (var (refType, type, category) in rows ?? Enumerable.Empty<(int, string, string)>())
+		{
+			var name = (type ?? "").Trim();
+			if (name.Length == 0)
+			{
+				continue;
+			}
+			var cat = (category ?? "").Trim();
+			if (refType == 5 || refType == 6 || cat.StartsWith("vis", StringComparison.OrdinalIgnoreCase))
+			{
+				set.Add(name);
+			}
+		}
+		return set.ToList();
 	}
 
 	private static List<string> NormalizePropertyIds(IReadOnlyList<string> propertyIds)

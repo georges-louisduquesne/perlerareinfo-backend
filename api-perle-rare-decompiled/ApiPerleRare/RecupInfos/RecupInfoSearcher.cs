@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Abstractions;
 using ApiPerleRare.Models;
@@ -56,7 +57,15 @@ public class RecupInfoSearcher
 	public const string DateDebutDaysExpr =
 		"IF(P_DateDebut IS NULL OR P_DateDebut < '1000-01-01', 0, ABS(DATEDIFF(CURRENT_DATE(), P_DateDebut)))";
 
-	public static AbstractRecupInfoResponse Search(IApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache)
+	/// <summary>
+	/// Volume counts stop their SQL when the browser drops the request; Visualiser (Apply) writes PropertyContacts and must finish.
+	/// </summary>
+	public static CancellationToken CountsCancellation(Filter filter, CancellationToken requestAborted)
+	{
+		return filter != null && filter.Apply ? CancellationToken.None : requestAborted;
+	}
+
+	public static AbstractRecupInfoResponse Search(IApplicationDbContext context, MySqlConnection connection, Filter filter, IExchangeService exchangeService, IMemoryCache memoryCache, CancellationToken cancellationToken = default)
 	{
 		try
 		{
@@ -89,6 +98,7 @@ public class RecupInfoSearcher
 			response.Token = token;
 			response.ContactRef = filter.ContactRef;
 			response.Infos = filter.Infos;
+			response.CancellationToken = cancellationToken;
 			Dictionary<FilterName, string> fieldFilters = new Dictionary<FilterName, string>();
 			fieldFilters.Add(FilterName.TypeTransaction, string.Join(" OR ", txns.Select((TypeTransaction t) => $"P_TypeTransaction='{t}'")));
 			fieldFilters.Add(FilterName.TypeBien, string.Join(" OR ", filter.TypeBien.Select((TypeBien tb) => "P_Type='" + tb.GetStringValue() + "'")));
@@ -172,6 +182,10 @@ public class RecupInfoSearcher
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Anciennete", "SELECT " + dateDebutDays + " AS anciennT, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Anciennete) + " GROUP BY anciennT \r\nORDER BY anciennT ASC"));
 			queryTasks.Add(response.AddAsync(connection, memoryCache, "Tag", "SELECT P_ListeTags, " + countExpr + " \r\nFROM property \r\nWHERE " + MakeWhere(where, fieldFilters, FilterName.Tags) + " GROUP BY P_ListeTags"));
 			Task.WaitAll(queryTasks.ToArray());
+			if (cancellationToken.IsCancellationRequested)
+			{
+				return new RecupInfoResponse { Canceled = true };
+			}
 			try
 			{
 				response.AdjustQuartiers();

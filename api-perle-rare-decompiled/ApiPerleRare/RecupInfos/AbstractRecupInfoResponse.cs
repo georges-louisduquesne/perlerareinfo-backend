@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using MySqlConnector;
@@ -20,6 +21,8 @@ public abstract class AbstractRecupInfoResponse
 	internal long Token { get; set; }
 
 	internal uint ContactRef { get; set; }
+
+	internal CancellationToken CancellationToken { get; set; }
 
 	public string[] Infos { get; set; }
 
@@ -62,6 +65,11 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 				Console.WriteLine("");
 				Console.ResetColor();
 			}
+			return;
+		}
+		if (base.CancellationToken.IsCancellationRequested)
+		{
+			base.Canceled = true;
 			return;
 		}
 		try
@@ -208,13 +216,14 @@ public abstract class AbstractRecupInfoResponse<TCount> : AbstractRecupInfoRespo
 			}
 			DateTime start = DateTime.Now;
 			List<TCount> list = new List<TCount>();
+			CancellationToken ct = base.CancellationToken;
 			using (MySqlConnection c2 = c.Clone())
 			{
-				await c2.OpenAsync();
+				await c2.OpenAsync(ct);
 				using MySqlCommand cmd = c2.CreateCommand();
 				cmd.CommandText = AdjustSql(sql);
-				using MySqlDataReader reader = await cmd.ExecuteReaderAsync();
-				while (await reader.ReadAsync())
+				using MySqlDataReader reader = await cmd.ExecuteReaderAsync(ct);
+				while (await reader.ReadAsync(ct))
 				{
 					AddInfoFromDataReader(list, reader, field, ReadFacetValue(reader, isBoolean));
 				}
