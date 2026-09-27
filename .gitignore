@@ -29,8 +29,9 @@ infra/ovh/cursor-client/windows-kit/credentials.env
 
 # Official JB Huber dump (contains App.config / Web.config / Yanport token) — never commit
 /sources-jb-huber/
-/docs/official-sources/
-/docs/huberje-perle-rare-*.zip
+
+# Local notes (mail drafts, archives, runbooks copies) — entire tree; SQL scripts live in infra/ovh/sql/
+/docs/
 **/appsettings.json
 **/appsettings.Development.json
 **/appsettings.Production.json

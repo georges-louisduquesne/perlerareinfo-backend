@@ -66,7 +66,7 @@ Par défaut : **local + git**. Pas de SSH, pas d’ALTER, pas de restart.
 | Démo API | « déploie la démo API » | `bash scripts/deploy-api-demo.sh` uniquement (`api-client-demo`, port 5080). Vérifier empreinte **prod** inchangée |
 | Démo CRM | autre dépôt front | ne pas rsync le front depuis ce repo |
 | **API prod** `api.perle-rare.info` | phrase exacte **« déploie l’API en prod »** | empreinte DLL+PID **avant/après** ; rollback prêt ; **une** instance Kestrel jobs |
-| MariaDB | SELECT via `cursor_client` par défaut | `ALTER` / `UPDATE` / seed : ordre **écrit** + backup + script dans `docs/sql/` ; **jamais** `DROP`/`TRUNCATE` sans phrase |
+| MariaDB | SELECT via `cursor_client` par défaut | `ALTER` / `UPDATE` / seed : ordre **écrit** + backup + script dans `infra/ovh/sql/` ; **jamais** `DROP`/`TRUNCATE` sans phrase |
 | Secrets JWT / DB / Yanport / Exchange | créneau client | jamais tout seul ; déconnecte les sessions |
 
 - SSH : `142.4.216.57` port **2477**, user `administrateur`, clé `git.key` (hors git).
