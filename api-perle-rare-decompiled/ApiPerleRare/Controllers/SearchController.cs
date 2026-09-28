@@ -22,6 +22,6 @@ public class SearchController : ControllerBase
 	[Authorize]
 	public IEnumerable<SelectResult> Search(string filter, int nb = 15)
 	{
-		return _search.Execute(filter, nb);
+		return _search.Execute(filter, nb, HttpContext.RequestAborted);
 	}
 }

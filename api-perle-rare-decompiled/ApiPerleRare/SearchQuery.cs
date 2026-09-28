@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace ApiPerleRare;
 
 public class SearchQuery
@@ -9,4 +11,6 @@ public class SearchQuery
 	public string HtmlFilter { get; set; }
 
 	public int Max { get; set; } = 15;
+
+	public CancellationToken Cancellation { get; set; }
 }

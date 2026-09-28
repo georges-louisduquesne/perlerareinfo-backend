@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Web;
 
 namespace ApiPerleRare.Application.Search;
@@ -13,7 +14,7 @@ public sealed class SearchUseCase : ISearchUseCase
 		_searchService = searchService;
 	}
 
-	public IEnumerable<SelectResult> Execute(string filter, int max = 15)
+	public IEnumerable<SelectResult> Execute(string filter, int max = 15, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(filter))
 		{
@@ -27,8 +28,13 @@ public sealed class SearchUseCase : ISearchUseCase
 				Filter = filter,
 				SqlFilter = sqlFilter,
 				HtmlFilter = HttpUtility.HtmlEncode(filter),
-				Max = max
+				Max = max,
+				Cancellation = cancellationToken
 			});
+		}
+		catch (Exception) when (cancellationToken.IsCancellationRequested)
+		{
+			return new SelectResult[0];
 		}
 		catch (Exception ex)
 		{

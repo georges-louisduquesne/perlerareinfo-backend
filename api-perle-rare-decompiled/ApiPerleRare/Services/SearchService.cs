@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
@@ -228,6 +230,16 @@ public class SearchService : ISearchService
 	private class SearchStore
 	{
 		public Dictionary<string, HashSet<int>> IdsPerTable { get; set; } = new Dictionary<string, HashSet<int>>();
+
+		public HashSet<int> Ids(string tableName)
+		{
+			if (!IdsPerTable.TryGetValue(tableName, out HashSet<int> ids))
+			{
+				ids = new HashSet<int>();
+				IdsPerTable.Add(tableName, ids);
+			}
+			return ids;
+		}
 	}
 
 	private readonly ApplicationDbContext _dbContext;
@@ -415,7 +427,6 @@ public class SearchService : ISearchService
 				_dbContext.SaveChanges();
 			}
 			using MySqlConnection connection = (MySqlConnection)_dbContext.Database.GetDbConnection();
-			connection.Open();
 			SearchConfigRights rights = SearchConfigRights.Tous;
 			if (_userSessionService.Statut == "Associé")
 			{
@@ -426,29 +437,171 @@ public class SearchService : ISearchService
 				rights |= SearchConfigRights.Admin;
 			}
 			SearchStore searchStore = new SearchStore();
-			foreach (SearchConfig config2 in _configs)
+			CancellationToken ct = query.Cancellation;
+			List<SearchConfig> allowed = _configs.Where((SearchConfig c) => (c.Rights & rights) == c.Rights).ToList();
+			int prefetch = PrefetchSize(query.Max);
+			string login = _userSessionService.Login;
+			bool mustFilter = _userSessionService.Filter;
+			List<List<SearchConfig>> tiers = ConsecutiveTiers(allowed, (SearchConfig c) => c.SearchQueryType);
+			Task<PrefetchedRows[]>[] pending = new Task<PrefetchedRows[]>[tiers.Count];
+			Task<PrefetchedRows[]> StartTier(int t) => pending[t] ??= Task.WhenAll(tiers[t].Select((SearchConfig c) =>
+				PrefetchAsync(connection, c, query, login, mustFilter, prefetch, ct)));
+			try
 			{
-				if ((config2.Rights & rights) == config2.Rights)
+				for (int t = 0; t < tiers.Count; t++)
 				{
-					res.AddRange(Search(connection, config2, query, _userSessionService.Login, searchStore, _userSessionService.Filter, query.Max - res.Count));
+					ct.ThrowIfCancellationRequested();
+					Task<PrefetchedRows[]> current = StartTier(t);
+					if (t + 1 < tiers.Count && StartsAhead(tiers[t + 1][0].SearchQueryType))
+					{
+						StartTier(t + 1);
+					}
+					PrefetchedRows[] tierRows = current.GetAwaiter().GetResult();
+					List<SearchConfig> tier = tiers[t];
+					for (int i = 0; i < tier.Count && res.Count < query.Max; i++)
+					{
+						SearchConfig config2 = tier[i];
+						HashSet<int> ids = searchStore.Ids(config2.TableName);
+						if (!TakeFromPrefetch(tierRows[i], ids, res, query.Max - res.Count))
+						{
+							if (connection.State != System.Data.ConnectionState.Open)
+							{
+								connection.Open();
+							}
+							res.AddRange(Search(connection, config2, query, login, searchStore, mustFilter, query.Max - res.Count));
+						}
+					}
 					if (res.Count >= query.Max)
 					{
 						break;
 					}
 				}
 			}
+			finally
+			{
+				foreach (Task<PrefetchedRows[]> task in pending)
+				{
+					task?.ContinueWith((Task<PrefetchedRows[]> x) => x.Exception, TaskContinuationOptions.OnlyOnFaulted);
+				}
+			}
 		}
 		return res.Take(query.Max).ToList();
 	}
 
+	internal sealed class PrefetchedRows
+	{
+		public List<(int Id, SelectResult Row)> Rows { get; } = new List<(int Id, SelectResult Row)>();
+
+		public bool Truncated { get; set; }
+	}
+
+	/// <summary>
+	/// Enough rows to skip every id already taken this search (at most max) and still fill a sequential page.
+	/// </summary>
+	internal static int PrefetchSize(int max)
+	{
+		return Math.Max(max, PAGESIZE) + Math.Max(max, 0);
+	}
+
+	/// <summary>
+	/// Prefix/exact tiers are cheap enough to run speculatively alongside the previous tier;
+	/// "%x%" scans stay on demand.
+	/// </summary>
+	internal static bool StartsAhead(SearchQueryType type)
+	{
+		return type != SearchQueryType.Contains;
+	}
+
+	internal static List<List<T>> ConsecutiveTiers<T, TKey>(IEnumerable<T> items, Func<T, TKey> key)
+	{
+		List<List<T>> tiers = new List<List<T>>();
+		foreach (T item in items)
+		{
+			if (tiers.Count == 0 || !EqualityComparer<TKey>.Default.Equals(key(tiers[^1][0]), key(item)))
+			{
+				tiers.Add(new List<T>());
+			}
+			tiers[^1].Add(item);
+		}
+		return tiers;
+	}
+
+	/// <summary>
+	/// Same stream as the sequential NOT IN paging: rows in SQL order, skipping ids already taken.
+	/// Returns false when the prefetched prefix ran out before <paramref name="need"/> and more rows may exist.
+	/// </summary>
+	internal static bool TakeFromPrefetch(PrefetchedRows rows, HashSet<int> ids, List<SelectResult> res, int need)
+	{
+		int added = 0;
+		foreach ((int id, SelectResult row) in rows.Rows)
+		{
+			if (added >= need)
+			{
+				return true;
+			}
+			if (ids.Contains(id))
+			{
+				continue;
+			}
+			res.Add(row);
+			ids.Add(id);
+			added++;
+		}
+		return added >= need || !rows.Truncated;
+	}
+
+	private static async Task<PrefetchedRows> PrefetchAsync(MySqlConnection connection, SearchConfig config, SearchQuery query, string login, bool mustFilter, int limit, CancellationToken ct)
+	{
+		PrefetchedRows rows = new PrefetchedRows();
+		using MySqlConnection c2 = connection.Clone();
+		await c2.OpenAsync(ct);
+		using MySqlCommand cmd = c2.CreateCommand();
+		cmd.CommandText = config.Select.Replace("*extrawhere*", "") + $" LIMIT {limit}";
+		AddSearchParameters(cmd, config, query, login, mustFilter);
+		using MySqlDataReader reader = await cmd.ExecuteReaderAsync(ct);
+		int read = 0;
+		while (await reader.ReadAsync(ct))
+		{
+			read++;
+			rows.Rows.Add((reader.GetInt32(0), BuildResult(reader, config, query)));
+		}
+		rows.Truncated = read >= limit;
+		return rows;
+	}
+
+	private static void AddSearchParameters(MySqlCommand cmd, SearchConfig config, SearchQuery query, string login, bool mustFilter)
+	{
+		string filter = config.SearchQueryType switch
+		{
+			SearchQueryType.Equal => query.SqlFilter, 
+			SearchQueryType.StartsWith => query.SqlFilter + "%", 
+			SearchQueryType.Contains => "%" + query.SqlFilter + "%", 
+			_ => throw new NotImplementedException($"Type de filtre {config.SearchQueryType} non implémenté"), 
+		};
+		cmd.Parameters.AddWithValue("@filter", filter);
+		cmd.Parameters.AddWithValue("@conseillerid", login);
+		cmd.Parameters.AddWithValue("@isAdmin", (!mustFilter) ? 1 : 0);
+	}
+
+	private static SelectResult BuildResult(MySqlDataReader reader, SearchConfig config, SearchQuery query)
+	{
+		bool hasAccess = config.HasAccessFieldIndex <= 0 || reader.GetBoolean(config.HasAccessFieldIndex);
+		string url = config.Url.Eval(reader);
+		return new SelectResult
+		{
+			CategoryId = config.CategoryId,
+			Category = config.Category,
+			Color = config.Color,
+			Id = reader.GetInt32(0),
+			Description = config.Output.Eval(reader, query, config.SearchQueryType),
+			Url = (hasAccess ? url : "#"),
+			Url2 = (hasAccess ? GetRightUrl(url) : "#")
+		};
+	}
+
 	private IEnumerable<SelectResult> Search(MySqlConnection connection, SearchConfig config, SearchQuery query, string login, SearchStore store, bool mustFilter, int max)
 	{
-		store.IdsPerTable.TryGetValue(config.TableName, out var ids);
-		if (ids == null)
-		{
-			ids = new HashSet<int>();
-			store.IdsPerTable.Add(config.TableName, ids);
-		}
+		HashSet<int> ids = store.Ids(config.TableName);
 		bool again = true;
 		List<SelectResult> res = new List<SelectResult>();
 		int pageSize = Math.Max(max, 15);
@@ -462,16 +615,9 @@ public class SearchService : ISearchService
 			using (MySqlCommand cmd = connection.CreateCommand())
 			{
 				cmd.CommandText = sql;
-				string filter = config.SearchQueryType switch
-				{
-					SearchQueryType.Equal => query.SqlFilter, 
-					SearchQueryType.StartsWith => query.SqlFilter + "%", 
-					SearchQueryType.Contains => "%" + query.SqlFilter + "%", 
-					_ => throw new NotImplementedException($"Type de filtre {config.SearchQueryType} non implémenté"), 
-				};
-				cmd.Parameters.AddWithValue("@filter", filter);
-				cmd.Parameters.AddWithValue("@conseillerid", login);
-				cmd.Parameters.AddWithValue("@isAdmin", (!mustFilter) ? 1 : 0);
+				AddSearchParameters(cmd, config, query, login, mustFilter);
+				query.Cancellation.ThrowIfCancellationRequested();
+				using CancellationTokenRegistration cancel = query.Cancellation.Register(cmd.Cancel);
 				using MySqlDataReader reader = cmd.ExecuteReader();
 				while (reader.Read())
 				{
@@ -479,18 +625,7 @@ public class SearchService : ISearchService
 					int id = reader.GetInt32(0);
 					if (!ids.Contains(id))
 					{
-						bool hasAccess = config.HasAccessFieldIndex <= 0 || reader.GetBoolean(config.HasAccessFieldIndex);
-						string url = config.Url.Eval(reader);
-						res.Add(new SelectResult
-						{
-							CategoryId = config.CategoryId,
-							Category = config.Category,
-							Color = config.Color,
-							Id = id,
-							Description = config.Output.Eval(reader, query, config.SearchQueryType),
-							Url = (hasAccess ? url : "#"),
-							Url2 = (hasAccess ? GetRightUrl(url) : "#")
-						});
+						res.Add(BuildResult(reader, config, query));
 						ids.Add(id);
 						if (res.Count == max)
 						{
