@@ -38,6 +38,8 @@ public class Evenements
 
 	public string EPropertyId { get; set; }
 
+	public uint? EPcId { get; set; }
+
 	public virtual Biens ERefBienNavigation { get; set; }
 
 	public virtual ConseillersPersonnels ERefConseillerNavigation { get; set; }

@@ -820,6 +820,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((Evenements e) => e.ENomContact).IsRequired().HasMaxLength(30)
 				.HasColumnName("E_NomContact");
 			entity.Property((Evenements e) => e.EPropertyId).HasMaxLength(40).HasColumnName("E_PropertyId");
+			entity.Property((Evenements e) => e.EPcId).HasColumnName("E_PC_Id");
 			entity.Property((Evenements e) => e.ERefAnnAgc).HasColumnName("E_RefAnnAGC");
 			entity.Property((Evenements e) => e.ERefBien).HasColumnName("E_RefBien");
 			entity.Property((Evenements e) => e.ERefConseiller).HasColumnName("E_RefConseiller");

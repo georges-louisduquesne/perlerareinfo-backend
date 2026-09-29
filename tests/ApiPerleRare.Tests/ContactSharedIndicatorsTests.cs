@@ -38,4 +38,27 @@ public class ContactSharedIndicatorsTests
 		Assert.DoesNotContain("RV PROSPECT", types);
 		Assert.Equal(3, types.Count);
 	}
+
+	[Fact]
+	public void Own_visit_without_property_or_pc_matches_no_card()
+	{
+		Assert.False(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			null, null, 62696, 763549, "9bbadbd0-b88d-11f1-b0db-054d6852b2e2", 62696));
+		Assert.False(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			"  ", null, 62696, 763549, "9bbadbd0-b88d-11f1-b0db-054d6852b2e2", 62696));
+	}
+
+	[Fact]
+	public void Own_visit_matches_same_property_or_same_pc()
+	{
+		const string propertyId = "9bbadbd0-b88d-11f1-b0db-054d6852b2e2";
+		Assert.True(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			propertyId, null, 62696, 763549, propertyId, 62696));
+		Assert.False(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			propertyId, null, 99, 763549, propertyId, 62696));
+		Assert.True(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			null, 763549, 62696, 763549, propertyId, 62696));
+		Assert.False(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			null, 1, 62696, 763549, propertyId, 62696));
+	}
 }

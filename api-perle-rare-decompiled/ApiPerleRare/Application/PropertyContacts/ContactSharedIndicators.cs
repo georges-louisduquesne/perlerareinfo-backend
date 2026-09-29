@@ -79,10 +79,9 @@ public static class ContactSharedIndicatorsQuery
 		var idSet = ids.ToHashSet(StringComparer.Ordinal);
 
 		var ownPcs = await context.PropertyContact.AsNoTracking()
-			.Where((PropertyContact pc) => pc.PcRefContact == contactRef && pc.PcActif && idSet.Contains(pc.PcPropertyId))
+			.Where((PropertyContact pc) => pc.PcRefContact == contactRef && idSet.Contains(pc.PcPropertyId))
 			.Select((PropertyContact pc) => new { pc.PcId, pc.PcPropertyId })
 			.ToListAsync();
-		var ownPcIds = ownPcs.Select((p) => p.PcId).ToHashSet();
 
 		var otherPcs = await context.PropertyContact.AsNoTracking()
 			.Where((PropertyContact pc) =>
@@ -106,7 +105,7 @@ public static class ContactSharedIndicatorsQuery
 		{
 			foreach (var pc in ownPcs)
 			{
-				if (!EventMatchesOwnPc(ev, pc.PcPropertyId, contactRef))
+				if (!OwnVisitMatchesPropertyContact(ev.EPropertyId, ev.EPcId, ev.ERefContact, pc.PcId, pc.PcPropertyId, contactRef))
 				{
 					continue;
 				}
@@ -229,18 +228,31 @@ public static class ContactSharedIndicatorsQuery
 		return outList;
 	}
 
-	private static bool EventMatchesOwnPc(Evenements ev, string propertyId, uint contactRef)
+	/// <summary>
+	/// Pastille verte : visite liée à cette fiche (E_PC_Id) ou au même bien (E_PropertyId).
+	/// Une visite du contact sans ces deux liens ne s'affiche sur aucune carte.
+	/// </summary>
+	public static bool OwnVisitMatchesPropertyContact(
+		string eventPropertyId,
+		uint? eventPcId,
+		uint? eventContactRef,
+		uint pcId,
+		string propertyId,
+		uint contactRef)
 	{
-		if (string.IsNullOrWhiteSpace(propertyId))
+		if (eventPcId is uint evPc && evPc > 0 && pcId > 0 && evPc == pcId)
+		{
+			return true;
+		}
+		if (string.IsNullOrWhiteSpace(propertyId) || string.IsNullOrWhiteSpace(eventPropertyId))
 		{
 			return false;
 		}
-		var evProp = ev.EPropertyId ?? "";
-		if (evProp.Length > 0 && !string.Equals(evProp, propertyId, StringComparison.Ordinal))
+		if (!string.Equals(eventPropertyId.Trim(), propertyId.Trim(), StringComparison.Ordinal))
 		{
 			return false;
 		}
-		var evRef = ev.ERefContact ?? 0;
+		var evRef = eventContactRef ?? 0;
 		return evRef == 0 || evRef == contactRef;
 	}
 
