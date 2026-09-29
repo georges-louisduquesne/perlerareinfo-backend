@@ -225,8 +225,17 @@ public class PhpSerializer
 		}
 	}
 
+	/// <summary>
+	/// Values already stored as JSON (e.g. <c>["2","3"]</c> for c_nb_pieces saved by the Angular CRM)
+	/// are returned as-is: a PHP-serialized value never starts with '[' or '{'.
+	/// </summary>
 	public static string ToJson(string php)
 	{
+		string trimmed = php?.Trim();
+		if (!string.IsNullOrEmpty(trimmed) && (trimmed[0] == '[' || trimmed[0] == '{'))
+		{
+			return trimmed;
+		}
 		object obj = new PhpSerializer().Deserialize(php);
 		return JsonConvert.SerializeObject(obj);
 	}
