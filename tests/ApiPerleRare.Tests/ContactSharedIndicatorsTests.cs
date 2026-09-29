@@ -61,4 +61,25 @@ public class ContactSharedIndicatorsTests
 		Assert.False(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
 			null, 1, 62696, 763549, propertyId, 62696));
 	}
+
+	[Fact]
+	public void Counselor_match_prefers_login_then_last_name()
+	{
+		var people = new[]
+		{
+			new ContactSharedIndicatorsQuery.CounselorMatch
+			{
+				Login = "GLDUQUESNE",
+				Prenom = "Georges-Louis",
+				Nom = "Duquesne",
+				Photo = "gl.png",
+				Tel = "0600000000",
+			},
+		};
+		var byLogin = ContactSharedIndicatorsQuery.MatchCounselor(people, "glduquesne");
+		Assert.Equal("0600000000", byLogin.Tel);
+		var byNom = ContactSharedIndicatorsQuery.MatchCounselor(people, "duquesne");
+		Assert.Equal("Georges-Louis", byNom.Prenom);
+		Assert.Null(ContactSharedIndicatorsQuery.MatchCounselor(people, "autre"));
+	}
 }

@@ -27,6 +27,16 @@ public sealed class SharedIndicatorItemDto
 
 	public string RoleName { get; set; }
 
+	public string RolePrenom { get; set; }
+
+	public string RoleNom { get; set; }
+
+	public string RoleLogin { get; set; }
+
+	public string RolePhoto { get; set; }
+
+	public string RoleTel { get; set; }
+
 	public string Since { get; set; }
 
 	public string EventType { get; set; }
@@ -122,6 +132,36 @@ public static class ContactSharedIndicatorsQuery
 			}
 		}
 
+		var otherEventRefs = events
+			.Select((ev) => ev.ERefContact ?? 0)
+			.Where((r) => r != 0 && r != contactRef)
+			.Distinct()
+			.ToList();
+		var otherEventContacts = otherEventRefs.Count == 0
+			? new List<ContactsRecherche>()
+			: await context.ContactsRecherche.AsNoTracking()
+				.Where((ContactsRecherche c) => otherEventRefs.Contains(c.CRefContact))
+				.ToListAsync();
+		var contactsByRef = otherEventContacts.ToDictionary((c) => c.CRefContact);
+		var counselorRows = await context.ConseillersPersonnels.AsNoTracking()
+			.Select((ConseillersPersonnels c) => new
+			{
+				c.CpLogin,
+				c.CpPrenom,
+				c.CpNomFamille,
+				c.CpPhotoSignature,
+				c.CpTelPersonnel,
+			})
+			.ToListAsync();
+		var counselors = counselorRows.Select((c) => new CounselorMatch
+		{
+			Login = c.CpLogin,
+			Prenom = c.CpPrenom,
+			Nom = c.CpNomFamille,
+			Photo = c.CpPhotoSignature,
+			Tel = c.CpTelPersonnel,
+		}).ToList();
+
 		foreach (var ev in events)
 		{
 			if (string.IsNullOrWhiteSpace(ev.EPropertyId) || !idSet.Contains(ev.EPropertyId))
@@ -133,16 +173,19 @@ public static class ContactSharedIndicatorsQuery
 			{
 				continue;
 			}
-			AddGrouped(response.OtherEvents, ev.EPropertyId, new SharedIndicatorItemDto
+			contactsByRef.TryGetValue(evContact, out var otherContact);
+			var item = new SharedIndicatorItemDto
 			{
 				PropertyId = ev.EPropertyId,
 				RefContact = evContact,
-				Name = ev.ETypeEvenement ?? "Évènement",
-				Color = "#FFFFFF",
+				Name = otherContact == null ? "" : FormatContactName(otherContact, evContact),
+				Color = StatusColor(otherContact?.CStatut),
 				EventType = ev.ETypeEvenement,
 				EventWhen = FormatEventWhen(ev.EDate),
 				EventRef = ev.ERefEvenement,
-			});
+			};
+			ApplyCounselor(item, otherContact, counselors);
+			AddGrouped(response.OtherEvents, ev.EPropertyId, item);
 		}
 
 		var seenPcKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -158,17 +201,16 @@ public static class ContactSharedIndicatorsQuery
 				continue;
 			}
 			var cr = row.PcRefContactNavigation;
-			var (roleKind, roleName) = RoleFromContact(cr);
-			AddGrouped(response.SharedPc, row.PcPropertyId, new SharedIndicatorItemDto
+			var item = new SharedIndicatorItemDto
 			{
 				PropertyId = row.PcPropertyId,
 				RefContact = row.PcRefContact,
 				Name = FormatContactName(cr, row.PcRefContact),
 				Color = StatusColor(cr?.CStatut),
-				RoleKind = roleKind,
-				RoleName = roleName,
 				Since = FormatAffDate(row.PcDateAff),
-			});
+			};
+			ApplyCounselor(item, cr, counselors);
+			AddGrouped(response.SharedPc, row.PcPropertyId, item);
 		}
 
 		return response;
@@ -271,6 +313,63 @@ public static class ContactSharedIndicatorsQuery
 			grouped[propertyId] = list;
 		}
 		list.Add(item);
+	}
+
+	public sealed class CounselorMatch
+	{
+		public string Login { get; set; }
+
+		public string Prenom { get; set; }
+
+		public string Nom { get; set; }
+
+		public string Photo { get; set; }
+
+		public string Tel { get; set; }
+	}
+
+	/// <summary>Login d'abord, sinon nom de famille.</summary>
+	public static CounselorMatch MatchCounselor(IEnumerable<CounselorMatch> people, string key)
+	{
+		var needle = (key ?? "").Trim();
+		if (needle.Length == 0 || people == null)
+		{
+			return null;
+		}
+		CounselorMatch byNom = null;
+		foreach (var person in people)
+		{
+			if (person == null)
+			{
+				continue;
+			}
+			if (string.Equals((person.Login ?? "").Trim(), needle, StringComparison.OrdinalIgnoreCase))
+			{
+				return person;
+			}
+			if (byNom == null && string.Equals((person.Nom ?? "").Trim(), needle, StringComparison.OrdinalIgnoreCase))
+			{
+				byNom = person;
+			}
+		}
+		return byNom;
+	}
+
+	private static void ApplyCounselor(SharedIndicatorItemDto dto, ContactsRecherche cr, IReadOnlyList<CounselorMatch> people)
+	{
+		var (kind, name) = RoleFromContact(cr);
+		dto.RoleKind = kind;
+		dto.RoleName = name;
+		var match = MatchCounselor(people, name);
+		if (match == null)
+		{
+			return;
+		}
+		dto.RolePrenom = (match.Prenom ?? "").Trim();
+		dto.RoleNom = string.IsNullOrWhiteSpace(match.Nom) ? name : match.Nom.Trim();
+		dto.RoleLogin = (match.Login ?? "").Trim();
+		dto.RolePhoto = (match.Photo ?? "").Trim();
+		dto.RoleTel = (match.Tel ?? "").Trim();
 	}
 
 	private static (string roleKind, string roleName) RoleFromContact(ContactsRecherche cr)
