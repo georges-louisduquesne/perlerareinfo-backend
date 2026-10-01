@@ -58,7 +58,7 @@ echo PREFLIGHT_OK
 REMOTE
 echo "Prod DLL sha256=$PROD_SHA pid=$PROD_PID"
 
-echo "==> Generate demo appsettings (pr_api_demo: SELECT + DELETE property_contact only)"
+echo "==> Generate demo appsettings (pr_api_demo: SELECT/INSERT/UPDATE/CREATE + DELETE property_contact)"
 DEMO_DB_ENV="$REPO_ROOT/infra/ovh/secrets/api-demo-db.env"
 if [[ ! -f "$DEMO_DB_ENV" ]]; then
 	echo "Missing $DEMO_DB_ENV (gitignored). MYSQL_USER=pr_api_demo and MYSQL_PASSWORD required." >&2
@@ -92,7 +92,7 @@ cs = src["ConnectionStrings"]["PerleRareDB"].replace("Server=142.4.216.57", "Ser
 cs = re.sub(r"Uid=[^;]*", "Uid=" + user, cs, count=1, flags=re.I)
 cs = re.sub(r"Pwd=[^;]*", "Pwd=" + password, cs, count=1, flags=re.I)
 src["ConnectionStrings"]["PerleRareDB"] = cs
-src["ConnectionStrings"]["Exchange"] = ""
+src["ConnectionStrings"]["Exchange"] = "Server=ex2.mail.ovh.net"
 src["AppSettings"]["YanportToken"] = ""
 src["AppSettings"]["OldWebSiteFolder"] = "$DEMO_DIR/uploads"
 if not src["AppSettings"].get("Secret"):

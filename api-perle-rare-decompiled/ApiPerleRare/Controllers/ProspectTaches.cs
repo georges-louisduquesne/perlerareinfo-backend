@@ -18,6 +18,12 @@ public class ProspectTaches : ITachesEx
 
 	public uint TRefContact { get; set; }
 
+	public string TAppointmentId { get; set; }
+
+	public string TPropertyId { get; set; }
+
+	public int? TPcId { get; set; }
+
 	public string TQui { get; set; }
 
 	public string TQui_PS { get; set; }

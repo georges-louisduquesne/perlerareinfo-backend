@@ -716,6 +716,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 				.HasDefaultValueSql("''")
 				.HasColumnName("C_NomFamilleConseiller");
 			entity.Property((ContactsRecherche e) => e.CNumeroMandat).HasColumnName("C_NumeroMandat");
+			entity.Property((ContactsRecherche e) => e.CTypeMandat).HasColumnName("C_TypeMandat");
 			entity.Property((ContactsRecherche e) => e.COrigine).IsRequired().HasMaxLength(20)
 				.HasColumnName("C_Origine");
 			entity.Property((ContactsRecherche e) => e.CPaysRegion).HasMaxLength(50).HasDefaultValueSql("'France'")
@@ -821,6 +822,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 				.HasColumnName("E_NomContact");
 			entity.Property((Evenements e) => e.EPropertyId).HasMaxLength(40).HasColumnName("E_PropertyId");
 			entity.Property((Evenements e) => e.EPcId).HasColumnName("E_PC_Id");
+			entity.Property((Evenements e) => e.EAppointmentId).HasMaxLength(512).HasColumnName("E_AppointmentId");
 			entity.Property((Evenements e) => e.ERefAnnAgc).HasColumnName("E_RefAnnAGC");
 			entity.Property((Evenements e) => e.ERefBien).HasColumnName("E_RefBien");
 			entity.Property((Evenements e) => e.ERefConseiller).HasColumnName("E_RefConseiller");
@@ -1543,6 +1545,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((Taches e) => e.TLien).IsRequired().HasMaxLength(300)
 				.HasColumnName("T_Lien");
 			entity.Property((Taches e) => e.TPropertyId).HasMaxLength(40).HasColumnName("T_PropertyId");
+			entity.Property((Taches e) => e.TPcId).HasColumnName("T_PC_Id");
+			entity.Property((Taches e) => e.TAppointmentId).HasMaxLength(512).HasColumnName("T_AppointmentId");
 			entity.Property((Taches e) => e.TQui).IsRequired().HasMaxLength(100)
 				.HasColumnName("T_Qui");
 			entity.Property((Taches e) => e.TRefAnnonce).HasColumnName("T_Ref_Annonce");

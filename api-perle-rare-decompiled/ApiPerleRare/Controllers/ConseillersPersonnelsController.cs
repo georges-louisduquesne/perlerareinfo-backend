@@ -115,6 +115,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			return BadRequest();
 		}
 		_context.Entry(conseillersPersonnels).State = EntityState.Modified;
+		_context.Entry(conseillersPersonnels).Property(x => x.CpMotDePasse).IsModified = false;
 		try
 		{
 			await _context.SaveChangesAsync();

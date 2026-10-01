@@ -34,6 +34,8 @@ internal static class TachesQuery
 			TEtat = t.TEtat,
 			TLien = t.TLien,
 			TPropertyId = t.TPropertyId,
+			TPcId = t.TPcId,
+			TAppointmentId = t.TAppointmentId,
 			TQui = t.TQui,
 			TRef = t.TRef,
 			TRefContact = t.TRefContact,

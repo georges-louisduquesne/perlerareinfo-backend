@@ -26,5 +26,9 @@ public class Taches
 
 	public string TPropertyId { get; set; }
 
+	public int? TPcId { get; set; }
+
+	public string TAppointmentId { get; set; }
+
 	public virtual ContactsRecherche TRefContactNavigation { get; set; }
 }

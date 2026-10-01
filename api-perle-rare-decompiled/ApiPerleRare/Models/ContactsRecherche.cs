@@ -87,6 +87,8 @@ public class ContactsRecherche
 
 	public int? CNumeroMandat { get; set; }
 
+	public int? CTypeMandat { get; set; }
+
 	public string CMandat { get; set; }
 
 	public string CQrecherche { get; set; }

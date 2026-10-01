@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using ApiPerleRare.Controllers;
 
@@ -13,9 +14,21 @@ public interface IGetTodayAppointmentsUseCase
 	TodayAppointmentsResponse Execute(int conseillerId);
 }
 
+public interface IIsUserAvailableUseCase
+{
+	bool Execute(int conseillerId, string userEmail, DateTime start, DateTime end);
+}
+
+public interface IGetSalonCalendarUseCase
+{
+	System.Collections.Generic.List<SalonCalendarEvent> Execute(int conseillerId, DateTime start, DateTime end);
+}
+
 public interface IAddAppointmentUseCase
 {
 	Task<AddAppointmentResponse> Execute(int conseillerId, RendezVous rendezVous);
+
+	Task<AddAppointmentResponse> ExecuteForOrganizer(int conseillerId, RendezVous rendezVous, int callerId, bool callerIsAdmin);
 }
 
 public interface IFindAppointmentByEvenementUseCase
@@ -26,4 +39,6 @@ public interface IFindAppointmentByEvenementUseCase
 public interface IDeleteAppointmentByEvenementUseCase
 {
 	Task<DeleteAppointmentFromERefEvenementResponse> Execute(int conseillerId, int eRefEvenement);
+
+	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteIfAllowed(int conseillerId, int eRefEvenement, int callerId, bool callerIsAdmin);
 }

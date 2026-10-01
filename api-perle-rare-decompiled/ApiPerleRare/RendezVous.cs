@@ -35,4 +35,7 @@ public class RendezVous
 
 	[DataMember]
 	public int ReminderMinutesBeforeStart { get; set; }
+
+	[DataMember]
+	public string LegacyFreeBusyStatus { get; set; }
 }

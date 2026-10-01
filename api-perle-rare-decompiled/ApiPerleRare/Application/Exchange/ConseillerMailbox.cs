@@ -5,4 +5,6 @@ public sealed class ConseillerMailbox
 	public string Email { get; init; }
 
 	public string Password { get; init; }
+
+	public string DisplayName { get; init; }
 }

@@ -6,7 +6,7 @@ namespace ApiPerleRare.Helpers;
 
 /// <summary>
 /// Soft-migration password storage for <c>CP_MotDePasse</c>.
-/// Plaintext values (legacy) are rewritten on successful login to a prefixed PBKDF2 string.
+/// Verification helper. Login must not replace a stored <c>CP_MotDePasse</c> with a hash.
 /// Format: <c>$pbkdf2-sha256${iterations}${salt_b64url}${hash_b64url}</c> (~90 chars → needs varchar ≥ 128).
 /// </summary>
 public static class PasswordHasher

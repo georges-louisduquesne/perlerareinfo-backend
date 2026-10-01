@@ -6,12 +6,10 @@ namespace ApiPerleRare.Tests;
 public class PasswordAuthTests
 {
 	[Fact]
-	public void Plaintext_match_returns_upgraded_hash()
+	public void Plaintext_match_does_not_rewrite_stored_password()
 	{
 		Assert.True(PasswordAuth.TryAuthenticate("secret", "secret", out string upgraded));
-		Assert.NotNull(upgraded);
-		Assert.True(PasswordHasher.IsHashed(upgraded));
-		Assert.True(PasswordHasher.Verify("secret", upgraded));
+		Assert.Null(upgraded);
 	}
 
 	[Fact]

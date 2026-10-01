@@ -15,11 +15,15 @@ public interface IExchangeService
 
 	int GetUnreadEmails(string email, string password);
 
+	bool IsUserAvailable(string callerEmail, string callerPassword, string targetEmail, DateTime start, DateTime end);
+
+	System.Collections.Generic.List<SalonCalendarEvent> GetSalonCalendar(string callerEmail, string callerPassword, DateTime start, DateTime end);
+
 	TodayAppointmentsResponse GetTodayAppointments(string email, string password);
 
 	Task<AddAppointmentRes> AddAppointment(string email, string password, RendezVous rendezVous);
 
-	Task<RendezVous> FindAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement);
+	Task<RendezVous> FindAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement, string appointmentId = null);
 
-	Task<bool> DeleteAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement);
+	Task<bool> DeleteAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement, string appointmentId = null);
 }

@@ -24,5 +24,9 @@ public class ProspectEvenements
 
 	public string CNegociateur { get; set; }
 
+	public string CNegociateur_PS { get; set; }
+
 	public string EConseiller_PS { get; set; }
+
+	public string EAppointmentId { get; set; }
 }

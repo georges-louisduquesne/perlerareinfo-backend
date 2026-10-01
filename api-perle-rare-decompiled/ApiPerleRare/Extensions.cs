@@ -52,7 +52,7 @@ public static class Extensions
 		};
 		foreach (string raw in candidates)
 		{
-			if (int.TryParse(raw, out int id) && id > 0)
+			if (int.TryParse(raw, out int id) && id >= 0)
 			{
 				return id;
 			}

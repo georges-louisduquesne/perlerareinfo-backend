@@ -16,6 +16,8 @@ public class ClientEvenements
 
 	public string ETexte { get; set; }
 
+	public string EAppointmentId { get; set; }
+
 	public uint? ERefContact { get; set; }
 
 	public string CNomFamille { get; set; }

@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -80,9 +81,23 @@ public class IntermediairesDirectsController : ControllerBase
 	}
 
 	[HttpGet("{id}")]
-	public async Task<ActionResult<IntermediairesDirects>> GetIntermediairesDirects(uint id)
+	public async Task<ActionResult<IntermediairesDirects>> GetIntermediairesDirects(uint id, [FromQuery] string Expand = null)
 	{
-		IntermediairesDirects intermediairesDirects = await _context.IntermediairesDirects.FindAsync(id);
+		IQueryable<IntermediairesDirects> query = _context.IntermediairesDirects.AsNoTracking();
+		if (!string.IsNullOrWhiteSpace(Expand))
+		{
+			string[] parts = Expand.Split(',');
+			foreach (string part in parts)
+			{
+				string name = part.Trim();
+				if (string.Equals(name, "pProperty", StringComparison.OrdinalIgnoreCase)
+					|| string.Equals(name, "PProperty", StringComparison.OrdinalIgnoreCase))
+				{
+					query = query.Include((IntermediairesDirects row) => row.PProperty);
+				}
+			}
+		}
+		IntermediairesDirects intermediairesDirects = await query.FirstOrDefaultAsync((IntermediairesDirects e) => e.IRefIntermediaire == id);
 		if (intermediairesDirects == null)
 		{
 			return NotFound();

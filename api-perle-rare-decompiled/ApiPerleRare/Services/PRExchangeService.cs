@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
@@ -21,6 +22,8 @@ internal class PRExchangeService : IExchangeService
 
 	private readonly ExtendedPropertyDefinition _extendedPropEventId = new ExtendedPropertyDefinition(new Guid("{00020329-0000-0000-C000-000000000046}"), "ERefEvenement", MapiPropertyType.Integer);
 
+	private static readonly string[] RoomMailboxEmails = new string[2] { "grande_salle@perle-rare.com", "salon@perle-rare.com" };
+
 	public TimeZoneInfo CurrentTimeZone => _parisTimeZone;
 
 	public PRExchangeService(IConfiguration configuration)
@@ -42,9 +45,12 @@ internal class PRExchangeService : IExchangeService
 	{
 		if (string.IsNullOrEmpty(_ecs.Server))
 		{
-			return true;
+			Console.WriteLine("Exchange: chaîne de connexion vide — envoi ignoré.");
+			return false;
 		}
-		if (Startup.IsDevMachine)
+		// Service-account / jobs on a dev box stay redirected. CRM compose with
+		// the conseiller password keeps the real recipients (localhost = demo/prod).
+		if (Startup.IsDevMachine && string.IsNullOrWhiteSpace(senderPassword))
 		{
 			to = to.Select((string v) => "florimond@lapotionstudio.com").ToArray();
 			cc = cc?.Select((string v) => "florimond@lapotionstudio.com")?.ToArray();
@@ -130,7 +136,7 @@ internal class PRExchangeService : IExchangeService
 	private ExchangeService GetExchangeService(string userName = null, string password = null)
 	{
 		ExchangeService service = new ExchangeService(ExchangeVersion.Exchange2013_SP1, _parisTimeZone);
-		service.Credentials = new WebCredentials(userName ?? _ecs.Username, password ?? _ecs.Password, _ecs.Domain);
+		service.Credentials = new WebCredentials(userName ?? _ecs.Username, password ?? _ecs.Password, _ecs.Domain ?? "");
 		service.Url = new Uri("https://" + _ecs.Server + "/EWS/Exchange.asmx");
 		return service;
 	}
@@ -142,6 +148,146 @@ internal class PRExchangeService : IExchangeService
 		FolderId folderId = new FolderId(WellKnownFolderName.Inbox, mailBox);
 		Folder folder = Folder.Bind(service, folderId).Result;
 		return folder.UnreadCount;
+	}
+
+	public bool IsUserAvailable(string callerEmail, string callerPassword, string targetEmail, DateTime start, DateTime end)
+	{
+		if (string.IsNullOrWhiteSpace(targetEmail) || end <= start)
+		{
+			return false;
+		}
+		// GetUserAvailability n'accepte qu'une fenêtre d'au moins 24 h, de minuit à minuit.
+		// Le créneau demandé est filtré ensuite sur les événements de la journée.
+		DateTime slotStart = DateTime.SpecifyKind(start, DateTimeKind.Unspecified);
+		DateTime slotEnd = DateTime.SpecifyKind(end, DateTimeKind.Unspecified);
+		DateTime windowStart = slotStart.Date;
+		DateTime windowEnd = slotEnd.Date;
+		if (slotEnd.TimeOfDay > TimeSpan.Zero || windowEnd <= windowStart)
+		{
+			windowEnd = windowEnd.AddDays(1);
+		}
+		if ((windowEnd - windowStart).TotalHours < 24)
+		{
+			windowEnd = windowStart.AddDays(1);
+		}
+		ExchangeService service = GetExchangeService(callerEmail, callerPassword);
+		List<AttendeeInfo> attendees = new List<AttendeeInfo>
+		{
+			new AttendeeInfo(targetEmail.Trim())
+		};
+		GetUserAvailabilityResults results = service.GetUserAvailability(attendees, new TimeWindow(windowStart, windowEnd), AvailabilityData.FreeBusy).Result;
+		if (results?.AttendeesAvailability == null || results.AttendeesAvailability.Count == 0)
+		{
+			return true;
+		}
+		AttendeeAvailability availability = results.AttendeesAvailability[0];
+		if (availability.CalendarEvents == null)
+		{
+			return availability.ErrorCode == ServiceError.NoError;
+		}
+		foreach (CalendarEvent ev in availability.CalendarEvents)
+		{
+			LegacyFreeBusyStatus status = ev.FreeBusyStatus;
+			if (status == LegacyFreeBusyStatus.Free || status == LegacyFreeBusyStatus.NoData)
+			{
+				continue;
+			}
+			DateTime evStart = DateTime.SpecifyKind(ev.StartTime, DateTimeKind.Unspecified);
+			DateTime evEnd = DateTime.SpecifyKind(ev.EndTime, DateTimeKind.Unspecified);
+			if (evStart < slotEnd && evEnd > slotStart)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public List<SalonCalendarEvent> GetSalonCalendar(string callerEmail, string callerPassword, DateTime start, DateTime end)
+	{
+		if (end <= start)
+		{
+			return new List<SalonCalendarEvent>();
+		}
+		DateTime windowStart = DateTime.SpecifyKind(start, DateTimeKind.Unspecified);
+		DateTime windowEnd = DateTime.SpecifyKind(end, DateTimeKind.Unspecified);
+		ExchangeService service = GetExchangeService(callerEmail, callerPassword);
+		(string Room, string Email)[] rooms = new (string, string)[]
+		{
+			("panoramique", "grande_salle@perle-rare.com"),
+			("bis", "salon@perle-rare.com")
+		};
+		List<SalonCalendarEvent> events = new List<SalonCalendarEvent>();
+		foreach ((string room, string email) in rooms)
+		{
+			events.AddRange(ReadSalonFreeBusy(service, room, email, windowStart, windowEnd));
+		}
+		events.Sort((SalonCalendarEvent a, SalonCalendarEvent b) => a.Start.CompareTo(b.Start));
+		return events;
+	}
+
+	private List<SalonCalendarEvent> ReadSalonFreeBusy(ExchangeService service, string room, string email, DateTime start, DateTime end)
+	{
+		DateTime windowStart = start.Date;
+		DateTime windowEnd = end.Date;
+		if (end.TimeOfDay > TimeSpan.Zero || windowEnd <= windowStart)
+		{
+			windowEnd = windowEnd.AddDays(1);
+		}
+		if ((windowEnd - windowStart).TotalHours < 24)
+		{
+			windowEnd = windowStart.AddDays(1);
+		}
+		AvailabilityOptions options = new AvailabilityOptions
+		{
+			RequestedFreeBusyView = FreeBusyViewType.Detailed
+		};
+		List<AttendeeInfo> attendees = new List<AttendeeInfo>
+		{
+			new AttendeeInfo(email)
+		};
+		GetUserAvailabilityResults results = service.GetUserAvailability(attendees, new TimeWindow(windowStart, windowEnd), AvailabilityData.FreeBusy, options).Result;
+		List<SalonCalendarEvent> list = new List<SalonCalendarEvent>();
+		if (results?.AttendeesAvailability == null || results.AttendeesAvailability.Count == 0)
+		{
+			return list;
+		}
+		AttendeeAvailability availability = results.AttendeesAvailability[0];
+		if (availability.CalendarEvents == null)
+		{
+			return list;
+		}
+		foreach (CalendarEvent ev in availability.CalendarEvents)
+		{
+			if (ev.FreeBusyStatus == LegacyFreeBusyStatus.Free || ev.FreeBusyStatus == LegacyFreeBusyStatus.NoData)
+			{
+				continue;
+			}
+			DateTime evStart = AsWallClock(ev.StartTime);
+			DateTime evEnd = AsWallClock(ev.EndTime);
+			if (evEnd <= start || evStart >= end)
+			{
+				continue;
+			}
+			list.Add(new SalonCalendarEvent
+			{
+				Room = room,
+				Subject = ev.Details?.Subject ?? string.Empty,
+				Start = evStart,
+				End = evEnd,
+				OrganizerEmail = string.Empty,
+				OrganizerName = string.Empty
+			});
+		}
+		return list;
+	}
+
+	private DateTime AsWallClock(DateTime value)
+	{
+		if (value.Kind == DateTimeKind.Utc && _parisTimeZone != null)
+		{
+			value = TimeZoneInfo.ConvertTimeFromUtc(value, _parisTimeZone);
+		}
+		return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
 	}
 
 	public TodayAppointmentsResponse GetTodayAppointments(string email, string password)
@@ -165,15 +311,26 @@ internal class PRExchangeService : IExchangeService
 	public async Task<AddAppointmentRes> AddAppointment(string email, string password, RendezVous rendezVous)
 	{
 		ExchangeService service = GetExchangeService(email, password);
+		FolderId calendarId = new FolderId(WellKnownFolderName.Calendar, new Mailbox(email));
 		Appointment appointment = null;
+		Appointment staleCopy = null;
 		bool updated = false;
 		if (rendezVous.ERefEvenement != 0)
 		{
-			Item existing = await FindItem(service, rendezVous.ERefEvenement);
+			Item existing = await FindItem(service, rendezVous.ERefEvenement, calendarId);
 			if (existing != null)
 			{
-				appointment = await Appointment.Bind(service, existing.Id);
-				updated = true;
+				Appointment bound = await Appointment.Bind(service, existing.Id, new PropertySet(BasePropertySet.FirstClassProperties, AppointmentSchema.Organizer));
+				if (OrganizerIsMailbox(bound, email))
+				{
+					appointment = bound;
+					updated = true;
+				}
+				else
+				{
+					// Copie reçue : ne pas la supprimer avant d'avoir créé l'exemplaire organisateur.
+					staleCopy = bound;
+				}
 			}
 		}
 		if (appointment == null)
@@ -211,13 +368,31 @@ internal class PRExchangeService : IExchangeService
 			}
 			mode = SendInvitationsMode.SendToAllAndSaveCopy;
 		}
+		LegacyFreeBusyStatus busyStatus = ToLegacyFreeBusyStatus(rendezVous.LegacyFreeBusyStatus);
+		appointment.LegacyFreeBusyStatus = busyStatus;
 		if (appointment.Id != null)
 		{
-			await appointment.Update(ConflictResolutionMode.AlwaysOverwrite);
+			await appointment.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToAllAndSaveCopy);
+		}
+		else if (mode == SendInvitationsMode.SendToNone)
+		{
+			await appointment.Save(calendarId, mode);
 		}
 		else
 		{
+			// Save(FolderId, SendToAll) ne conserve pas la copie organisateur sur ce serveur Exchange.
 			await appointment.Save(mode);
+		}
+		await EnsureLegacyFreeBusyStatus(service, appointment, busyStatus);
+		if (staleCopy != null && staleCopy.Id != null)
+		{
+			try
+			{
+				await staleCopy.Delete(DeleteMode.HardDelete);
+			}
+			catch
+			{
+			}
 		}
 		return new AddAppointmentRes
 		{
@@ -226,10 +401,64 @@ internal class PRExchangeService : IExchangeService
 		};
 	}
 
-	public async Task<Item> FindItem(ExchangeService service, int eRefEvenement, bool loadProperties = false)
+	private static LegacyFreeBusyStatus ToLegacyFreeBusyStatus(string value)
 	{
-		PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
-		CalendarFolder calendar = CalendarFolder.Bind(service, WellKnownFolderName.Calendar, ps).Result;
+		switch ((value ?? string.Empty).Trim().ToLowerInvariant())
+		{
+		case "free":
+		case "0":
+		case "disponible":
+			return LegacyFreeBusyStatus.Free;
+		case "tentative":
+			return LegacyFreeBusyStatus.Tentative;
+		case "oof":
+		case "outofoffice":
+			return LegacyFreeBusyStatus.OOF;
+		default:
+			return LegacyFreeBusyStatus.Busy;
+		}
+	}
+
+	private static async System.Threading.Tasks.Task EnsureLegacyFreeBusyStatus(ExchangeService service, Appointment appointment, LegacyFreeBusyStatus status)
+	{
+		if (status == LegacyFreeBusyStatus.Busy || appointment?.Id == null)
+		{
+			return;
+		}
+		try
+		{
+			Appointment saved = await Appointment.Bind(service, appointment.Id, new PropertySet(BasePropertySet.IdOnly, AppointmentSchema.LegacyFreeBusyStatus));
+			if (saved.LegacyFreeBusyStatus == status)
+			{
+				return;
+			}
+			saved.LegacyFreeBusyStatus = status;
+			await saved.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToNone);
+		}
+		catch
+		{
+		}
+	}
+
+	private static bool OrganizerIsMailbox(Appointment appointment, string email)
+	{
+		string organizer = appointment?.Organizer?.Address?.Trim() ?? string.Empty;
+		if (organizer.Length == 0 || string.IsNullOrWhiteSpace(email) || organizer.IndexOf('@') < 0)
+		{
+			return true;
+		}
+		return string.Equals(organizer, email.Trim(), StringComparison.OrdinalIgnoreCase);
+	}
+
+	public Task<Item> FindItem(ExchangeService service, int eRefEvenement, bool loadProperties = false)
+	{
+		return FindItem(service, eRefEvenement, new FolderId(WellKnownFolderName.Calendar), loadProperties);
+	}
+
+	public async Task<Item> FindItem(ExchangeService service, int eRefEvenement, FolderId calendarId, bool loadProperties = false)
+	{
+		PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
+		CalendarFolder calendar = CalendarFolder.Bind(service, calendarId, ps).Result;
 		ItemView view = new ItemView(1);
 		SearchFilter.IsEqualTo filter = new SearchFilter.IsEqualTo(_extendedPropEventId, eRefEvenement);
 		FindItemsResults<Item> res = await calendar.FindItems(filter, view);
@@ -240,10 +469,22 @@ internal class PRExchangeService : IExchangeService
 		return res.FirstOrDefault();
 	}
 
-	public async Task<RendezVous> FindAppointmentFromERefEvenement(string email, string password, int eRefEvenement)
+	public async Task<RendezVous> FindAppointmentFromERefEvenement(string email, string password, int eRefEvenement, string appointmentId = null)
 	{
 		ExchangeService service = GetExchangeService(email, password);
 		Item first = await FindItem(service, eRefEvenement, loadProperties: true);
+		if (first == null && !string.IsNullOrWhiteSpace(appointmentId))
+		{
+			try
+			{
+				PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
+				first = await Appointment.Bind(service, new ItemId(appointmentId), ps);
+			}
+			catch (ServiceResponseException)
+			{
+				return null;
+			}
+		}
 		if (first == null)
 		{
 			return null;
@@ -257,6 +498,7 @@ internal class PRExchangeService : IExchangeService
 			ReminderMinutesBeforeStart = app.ReminderMinutesBeforeStart,
 			RequiredAttendees = GetAttendees(app.RequiredAttendees),
 			OptionalAttendees = GetAttendees(app.OptionalAttendees),
+			Location = app.Location,
 			ERefEvenement = eRefEvenement,
 			HtmlBody = app.Body?.Text
 		};
@@ -271,15 +513,65 @@ internal class PRExchangeService : IExchangeService
 		return attendees.Select((Attendee a) => a.Address).ToArray();
 	}
 
-	public async Task<bool> DeleteAppointmentFromERefEvenement(string email, string password, int eRefEvenement)
+	public async Task<bool> DeleteAppointmentFromERefEvenement(string email, string password, int eRefEvenement, string appointmentId = null)
 	{
 		ExchangeService service = GetExchangeService(email, password);
-		Item first = await FindItem(service, eRefEvenement);
-		if (first == null)
+		FolderId calendarId = new FolderId(WellKnownFolderName.Calendar, new Mailbox(email));
+		bool deleted = await DeleteInCalendar(service, email, eRefEvenement, calendarId, appointmentId);
+		foreach (string roomEmail in RoomMailboxEmails)
+		{
+			if (string.Equals(roomEmail, email, StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			try
+			{
+				FolderId roomCalendar = new FolderId(WellKnownFolderName.Calendar, new Mailbox(roomEmail));
+				if (await DeleteInCalendar(service, roomEmail, eRefEvenement, roomCalendar, null))
+				{
+					deleted = true;
+				}
+			}
+			catch
+			{
+				// La salle n'est pas toujours accessible ; l'annulation organisateur la libère.
+			}
+		}
+		return deleted;
+	}
+
+	private async Task<bool> DeleteInCalendar(ExchangeService service, string mailboxEmail, int eRefEvenement, FolderId calendarId, string appointmentId)
+	{
+		Appointment appointment = null;
+		Item first = await FindItem(service, eRefEvenement, calendarId);
+		PropertySet props = new PropertySet(BasePropertySet.FirstClassProperties, AppointmentSchema.Organizer, AppointmentSchema.IsMeeting);
+		if (first != null)
+		{
+			appointment = await Appointment.Bind(service, first.Id, props);
+		}
+		else if (!string.IsNullOrWhiteSpace(appointmentId))
+		{
+			try
+			{
+				appointment = await Appointment.Bind(service, new ItemId(appointmentId), props);
+			}
+			catch (ServiceResponseException)
+			{
+				return false;
+			}
+		}
+		if (appointment == null)
 		{
 			return false;
 		}
-		await first.Delete(DeleteMode.HardDelete);
+		if (appointment.IsMeeting && OrganizerIsMailbox(appointment, mailboxEmail))
+		{
+			await appointment.Delete(DeleteMode.MoveToDeletedItems, SendCancellationsMode.SendToAllAndSaveCopy);
+		}
+		else
+		{
+			await appointment.Delete(DeleteMode.HardDelete);
+		}
 		return true;
 	}
 }

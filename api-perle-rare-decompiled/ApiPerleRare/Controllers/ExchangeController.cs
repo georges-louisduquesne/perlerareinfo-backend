@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Exchange;
@@ -19,6 +20,10 @@ public class ExchangeController : ControllerBase
 
 	private readonly IGetTodayAppointmentsUseCase _todayAppointments;
 
+	private readonly IIsUserAvailableUseCase _isUserAvailable;
+
+	private readonly IGetSalonCalendarUseCase _salonCalendar;
+
 	private readonly IAddAppointmentUseCase _addAppointment;
 
 	private readonly IFindAppointmentByEvenementUseCase _findAppointment;
@@ -30,6 +35,8 @@ public class ExchangeController : ControllerBase
 		ISendEmailUseCase sendEmail,
 		IGetUnreadEmailCountUseCase unreadEmailCount,
 		IGetTodayAppointmentsUseCase todayAppointments,
+		IIsUserAvailableUseCase isUserAvailable,
+		IGetSalonCalendarUseCase salonCalendar,
 		IAddAppointmentUseCase addAppointment,
 		IFindAppointmentByEvenementUseCase findAppointment,
 		IDeleteAppointmentByEvenementUseCase deleteAppointment)
@@ -38,6 +45,8 @@ public class ExchangeController : ControllerBase
 		_sendEmail = sendEmail;
 		_unreadEmailCount = unreadEmailCount;
 		_todayAppointments = todayAppointments;
+		_isUserAvailable = isUserAvailable;
+		_salonCalendar = salonCalendar;
 		_addAppointment = addAppointment;
 		_findAppointment = findAppointment;
 		_deleteAppointment = deleteAppointment;
@@ -75,12 +84,20 @@ public class ExchangeController : ControllerBase
 		return _todayAppointments.Execute(conseillerId);
 	}
 
-	[Authorize(Roles = "Admin")]
+	[Authorize]
 	[HttpPut]
 	[Route("AddAppointment/{conseillerId}")]
 	public Task<AddAppointmentResponse> AddAppointment(int conseillerId, RendezVous rendezVous)
 	{
-		return _addAppointment.Execute(conseillerId, rendezVous);
+		return _addAppointment.ExecuteForOrganizer(conseillerId, rendezVous, this.GetUserId(), User.IsInRole("Admin"));
+	}
+
+	[Authorize]
+	[HttpPost]
+	[Route("AddAppointment/{conseillerId}")]
+	public Task<AddAppointmentResponse> PostAppointment(int conseillerId, RendezVous rendezVous)
+	{
+		return _addAppointment.ExecuteForOrganizer(conseillerId, rendezVous, this.GetUserId(), User.IsInRole("Admin"));
 	}
 
 	[Authorize]
@@ -89,6 +106,30 @@ public class ExchangeController : ControllerBase
 	public Task<AddAppointmentResponse> AddAppointment(RendezVous rendezVous)
 	{
 		return _addAppointment.Execute(this.GetUserId(), rendezVous);
+	}
+
+	[Authorize]
+	[HttpPost]
+	[Route("AddAppointment")]
+	public Task<AddAppointmentResponse> PostAppointment(RendezVous rendezVous)
+	{
+		return _addAppointment.Execute(this.GetUserId(), rendezVous);
+	}
+
+	[Authorize]
+	[HttpGet]
+	[Route("IsUserAvailable")]
+	public bool IsUserAvailable(string userEmail, DateTime start, DateTime end)
+	{
+		return _isUserAvailable.Execute(this.GetUserId(), userEmail, start, end);
+	}
+
+	[Authorize]
+	[HttpGet]
+	[Route("GetSalonCalendar")]
+	public List<SalonCalendarEvent> GetSalonCalendar(DateTime start, DateTime end)
+	{
+		return _salonCalendar.Execute(this.GetUserId(), start, end);
 	}
 
 	[Authorize]
@@ -113,6 +154,14 @@ public class ExchangeController : ControllerBase
 	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointmentFromERefEvenement(int eRefEvenement)
 	{
 		return _deleteAppointment.Execute(this.GetUserId(), eRefEvenement);
+	}
+
+	[Authorize]
+	[HttpDelete]
+	[Route("DeleteAppointmentFromERefEvenement/{eRefEvenement}/{conseillerId}")]
+	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointmentFromERefEvenement(int eRefEvenement, int conseillerId)
+	{
+		return _deleteAppointment.ExecuteIfAllowed(conseillerId, eRefEvenement, this.GetUserId(), User.IsInRole("Admin"));
 	}
 
 	[Authorize]

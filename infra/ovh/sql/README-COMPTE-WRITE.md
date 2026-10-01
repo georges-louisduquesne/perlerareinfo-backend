@@ -5,7 +5,7 @@
 | Compte | Usage | Droits |
 |--------|--------|--------|
 | `cursor_client` | MCP Cursor + API locale | SELECT / INSERT / UPDATE / CREATE sur `perle-rareinfo.*` + **DELETE** uniquement sur `property_contact` (métamoteur local, 2026-09-20) |
-| `pr_api_demo` | API démo uniquement | **SELECT** sur `perle-rareinfo.*` + **DELETE** sur `property_contact` seulement |
+| `pr_api_demo` | API démo uniquement | SELECT / INSERT / UPDATE / CREATE sur `perle-rareinfo.*` + **DELETE** uniquement sur `property_contact` (aligné localhost, 2026-09-20) |
 | `root` (vu dans appsettings API prod) | API prod live | Full — à remplacer au créneau secrets |
 
 Ne **pas** élargir `cursor_client` au-delà de `DELETE` sur `property_contact`. Script : [grant-cursor-client-property-contact-delete.sql](./grant-cursor-client-property-contact-delete.sql).
@@ -61,7 +61,7 @@ SHOW COLUMNS FROM conseillers_personnels LIKE 'CP_MotDePasse';
 
 ## Chemins possibles
 
-1. **Minimal (recommandé maintenant)** : créer `pr_migrate`, appliquer seulement l’`ALTER`, garder la démo en SELECT-only. Soft-hash effectif = quand une API **writable** (prod) tourne avec le nouveau code.
+1. **Minimal (recommandé maintenant)** : créer `pr_migrate`, appliquer seulement l’`ALTER`. Soft-hash mdp à la connexion = API **sans** `PR_LOCAL_SAFE` (prod). La démo a INSERT/UPDATE CRM ; le hash login reste skip tant que `PR_LOCAL_SAFE=1`.
 2. **User app propre** (créneau secrets) : remplacer `root` dans la connection string prod par un user `pr_api` (SELECT/INSERT/UPDATE/DELETE métier, pas DROP), et y inclure `ALTER` une fois ou via `pr_migrate`.
 3. **Ne pas** donner `ALTER`, `DROP`, ni `DELETE` sur une autre table que `property_contact` à `cursor_client`.
 

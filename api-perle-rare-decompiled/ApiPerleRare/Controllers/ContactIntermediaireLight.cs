@@ -43,4 +43,10 @@ public class ContactIntermediaireLight
 
 	[DataMember]
 	public string CCom { get; set; }
+
+	[DataMember]
+	public bool CDirecteur { get; set; }
+
+	[DataMember]
+	public string CPhoto { get; set; }
 }

@@ -84,6 +84,10 @@ public class DbController : ControllerBase
 			foreach (KeyValuePair<string, object> v in requestParam)
 			{
 				IProperty prop = props.FirstOrDefault((IProperty p) => string.Compare(p.Name, v.Key, ignoreCase: true) == 0);
+				if (prop == null || string.Equals(prop.Name, "CpMotDePasse", StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
 				prop.FieldInfo.SetValue(record, CastTo(v.Value, prop.FieldInfo.FieldType));
 				entry.Property(prop).IsModified = true;
 			}

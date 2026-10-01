@@ -123,7 +123,7 @@ public class Startup
 		IConfigurationSection appSettingsSection = Configuration.GetSection("AppSettings");
 		services.Configure<AppSettings>(appSettingsSection);
 		AppSettings appSettings = appSettingsSection.Get<AppSettings>();
-		byte[] key = Encoding.ASCII.GetBytes(appSettings.Secret);
+		byte[] key = JwtTokenFactory.SigningKeyBytes(appSettings.Secret);
 		services.AddAuthentication(delegate(AuthenticationOptions x)
 		{
 			x.DefaultAuthenticateScheme = "Bearer";
@@ -205,6 +205,8 @@ public class Startup
 		services.AddScoped<ISendEmailUseCase, SendEmailUseCase>();
 		services.AddScoped<IGetUnreadEmailCountUseCase, GetUnreadEmailCountUseCase>();
 		services.AddScoped<IGetTodayAppointmentsUseCase, GetTodayAppointmentsUseCase>();
+		services.AddScoped<IIsUserAvailableUseCase, IsUserAvailableUseCase>();
+		services.AddScoped<IGetSalonCalendarUseCase, GetSalonCalendarUseCase>();
 		services.AddScoped<IAddAppointmentUseCase, AddAppointmentUseCase>();
 		services.AddScoped<IFindAppointmentByEvenementUseCase, FindAppointmentByEvenementUseCase>();
 		services.AddScoped<IDeleteAppointmentByEvenementUseCase, DeleteAppointmentByEvenementUseCase>();

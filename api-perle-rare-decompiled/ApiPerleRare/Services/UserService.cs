@@ -41,14 +41,15 @@ public class UserService : IUserService
 		{
 			return null;
 		}
-		if (!PasswordAuth.TryAuthenticate(password, user.CpMotDePasse, out string upgradedHash))
+		string storedPassword = user.CpMotDePasse;
+		if (!PasswordAuth.TryAuthenticate(password, storedPassword, out _))
 		{
 			return null;
 		}
-		bool needsHashRewrite = upgradedHash != null;
-		if (needsHashRewrite)
+		// Login must not rewrite CP_MotDePasse (no soft-hash migration).
+		if (!string.Equals(user.CpMotDePasse, storedPassword, StringComparison.Ordinal))
 		{
-			user.CpMotDePasse = upgradedHash;
+			user.CpMotDePasse = storedPassword;
 		}
 
 		_userSessionService.ClearCache();
@@ -62,12 +63,13 @@ public class UserService : IUserService
 				user.CpAutoLogin = user.CpAutoLogin.Substring(0, 15);
 			}
 		}
-		if (needsHashRewrite || needsAutoLogin)
+		if (needsAutoLogin)
 		{
-			// Demo / local: MariaDB is SELECT-only — persist hash + autologin only on writable APIs.
+			// Demo / local: MariaDB is SELECT-only — persist autologin only on writable APIs.
 			bool readOnlyDemo = string.Equals(Environment.GetEnvironmentVariable("PR_LOCAL_SAFE"), "1", StringComparison.Ordinal);
 			if (!readOnlyDemo)
 			{
+				_context.Entry(user).Property(x => x.CpMotDePasse).IsModified = false;
 				_context.SaveChanges();
 			}
 		}

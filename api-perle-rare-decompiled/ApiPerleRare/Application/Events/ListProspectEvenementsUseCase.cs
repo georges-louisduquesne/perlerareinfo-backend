@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Catalog;
@@ -8,6 +9,7 @@ using ApiPerleRare.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using ApiPerleRare.Application.Abstractions;
+using ApiPerleRare;
 
 namespace ApiPerleRare.Application.Events;
 
@@ -17,10 +19,13 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 
 	private readonly IMemoryCache _cache;
 
-	public ListProspectEvenementsUseCase(IApplicationDbContext context, IMemoryCache memoryCache)
+	private readonly IUserService _users;
+
+	public ListProspectEvenementsUseCase(IApplicationDbContext context, IMemoryCache memoryCache, IUserService users)
 	{
 		_context = context;
 		_cache = memoryCache;
+		_users = users;
 	}
 
 	public async Task<SelectResult<ProspectEvenements>> Execute(EntityQuery query, string userLogin, bool applyNegociateurFilter)
@@ -58,8 +63,36 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			ENomContact = e.ENomContact,
 			ERefContact = e.ERefContact,
 			CNegociateur = e.ERefContactNavigation.CNegociateur,
-			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null)
+			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null),
+			EAppointmentId = e.EAppointmentId
 		});
-		return await EFHelper<ProspectEvenements>.Select(evQuery, query.Where, query.OrderBy, query.Take, query.Skip, query.Select);
+		SelectResult<ProspectEvenements> result = await EFHelper<ProspectEvenements>.Select(evQuery, query.Where, query.OrderBy, query.Take, query.Skip, query.Select);
+		AttachNegociateurPhotos(result.Items);
+		return result;
+	}
+
+	private void AttachNegociateurPhotos(ProspectEvenements[] rows)
+	{
+		if (rows == null || rows.Length == 0)
+		{
+			return;
+		}
+		HashSet<string> logins = new HashSet<string>(StringComparer.Ordinal);
+		foreach (ProspectEvenements row in rows)
+		{
+			if (!string.IsNullOrEmpty(row.CNegociateur))
+			{
+				logins.Add(row.CNegociateur);
+			}
+		}
+		_users.WarmConseillers(logins);
+		foreach (ProspectEvenements row in rows)
+		{
+			if (string.IsNullOrEmpty(row.CNegociateur))
+			{
+				continue;
+			}
+			row.CNegociateur_PS = _users.GetConseiller(row.CNegociateur)?.CpPhotoSignature;
+		}
 	}
 }

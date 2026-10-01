@@ -42,6 +42,34 @@ public class MailsController : ControllerBase
 		return await EFHelper<Mails>.Select(query, where, orderby, take, skip, select);
 	}
 
+	[HttpPost]
+	public async Task<ActionResult<Mails>> PostMails(Mails mail)
+	{
+		try
+		{
+			if (mail == null)
+			{
+				return BadRequest();
+			}
+			mail.Id = 0;
+			if (mail.Createdon == default)
+			{
+				mail.Createdon = DateTime.Now;
+			}
+			if (mail.Updatedon == default)
+			{
+				mail.Updatedon = DateTime.Now;
+			}
+			_context.Mails.Add(mail);
+			await _context.SaveChangesAsync();
+			return Ok(mail);
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(ex.ToString());
+		}
+	}
+
 	private ActionResult<string> SendMail([FromQuery] int mailId, [FromQuery] bool force = false)
 	{
 		Mails mail = _context.Mails.Single((Mails m) => (long)m.Id == (long)mailId);

@@ -19,7 +19,7 @@ public sealed class ConseillerMailboxLookup : IConseillerMailboxLookup
 	{
 		var cp = (from c in _db.ConseillersPersonnels
 			where (long)c.CpRefConseiller == (long)conseillerId
-			select new { c.CpMel, c.CpMelMotDePasse }).SingleOrDefault();
+			select new { c.CpMel, c.CpMelMotDePasse, c.CpPrenom, c.CpNomFamille }).SingleOrDefault();
 		if (cp == null)
 		{
 			throw new Exception($"Aucun conseiller '{conseillerId}'");
@@ -27,7 +27,8 @@ public sealed class ConseillerMailboxLookup : IConseillerMailboxLookup
 		return new ConseillerMailbox
 		{
 			Email = cp.CpMel,
-			Password = cp.CpMelMotDePasse
+			Password = cp.CpMelMotDePasse,
+			DisplayName = ConseillerDisplayName(cp.CpPrenom, cp.CpNomFamille)
 		};
 	}
 
@@ -35,7 +36,7 @@ public sealed class ConseillerMailboxLookup : IConseillerMailboxLookup
 	{
 		var cp = await (from c in _db.ConseillersPersonnels
 			where (long)c.CpRefConseiller == (long)conseillerId
-			select new { c.CpMel, c.CpMelMotDePasse }).SingleOrDefaultAsync();
+			select new { c.CpMel, c.CpMelMotDePasse, c.CpPrenom, c.CpNomFamille }).SingleOrDefaultAsync();
 		if (cp == null)
 		{
 			throw new Exception($"Aucun conseiller '{conseillerId}'");
@@ -43,7 +44,13 @@ public sealed class ConseillerMailboxLookup : IConseillerMailboxLookup
 		return new ConseillerMailbox
 		{
 			Email = cp.CpMel,
-			Password = cp.CpMelMotDePasse
+			Password = cp.CpMelMotDePasse,
+			DisplayName = ConseillerDisplayName(cp.CpPrenom, cp.CpNomFamille)
 		};
+	}
+
+	private static string ConseillerDisplayName(string prenom, string nom)
+	{
+		return string.Join(" ", new string[] { prenom, nom }.Where((string part) => !string.IsNullOrWhiteSpace(part)).Select((string part) => part.Trim()));
 	}
 }

@@ -1,14 +1,14 @@
 namespace ApiPerleRare.Helpers;
 
 /// <summary>
-/// Soft-migration gate used by <c>UserService.Authenticate</c>:
-/// plaintext match → rewrite hash; already hashed → verify only.
+/// Login check for <c>CP_MotDePasse</c>. Never returns a replacement value:
+/// a successful login must not rewrite the stored password.
 /// </summary>
 public static class PasswordAuth
 {
 	/// <summary>
 	/// Returns false if the password does not match.
-	/// When true and <paramref name="upgradedHash"/> is non-null, caller must persist it to replace plaintext.
+	/// <paramref name="upgradedHash"/> is always null — callers must not persist a new hash.
 	/// </summary>
 	public static bool TryAuthenticate(string password, string stored, out string upgradedHash)
 	{
@@ -21,11 +21,6 @@ public static class PasswordAuth
 		{
 			return PasswordHasher.Verify(password, stored);
 		}
-		if (password != stored)
-		{
-			return false;
-		}
-		upgradedHash = PasswordHasher.Hash(password);
-		return true;
+		return password == stored;
 	}
 }

@@ -58,6 +58,7 @@ public sealed class ListClientLastEvenementsUseCase : IListClientLastEvenementsU
 			BCp = e.ERefBienNavigation.BCp,
 			BAdresse = e.ERefBienNavigation.BAdresse,
 			ETexte = e.ETexte,
+			EAppointmentId = e.EAppointmentId,
 			ERefContact = e.ERefContact,
 			CIRef = e.ERefCtcInter,
 			CIPrenom = e.ERefCtcInterNavigation.CPrenom,

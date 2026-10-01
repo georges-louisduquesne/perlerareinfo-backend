@@ -41,6 +41,9 @@ public sealed class ListClientTachesUseCase : IListClientTachesUseCase
 			CNomFamille = t.TRefContactNavigation.CNomFamille,
 			TType = t.TType,
 			TCom = t.TCom,
+			TAppointmentId = t.TAppointmentId,
+			TPropertyId = t.TPropertyId,
+			TPcId = t.TPcId,
 			TRefContact = t.TRefContact,
 			TQui = t.TQui,
 			CNegociateur = t.TRefContactNavigation.CNegociateur

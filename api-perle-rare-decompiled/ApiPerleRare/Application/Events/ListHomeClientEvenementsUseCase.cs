@@ -60,6 +60,7 @@ public sealed class ListHomeClientEvenementsUseCase : IListHomeClientEvenementsU
 			BCp = ((e.ERefBienNavigation != null) ? e.ERefBienNavigation.BCp : null),
 			BAdresse = ((e.ERefBienNavigation != null) ? e.ERefBienNavigation.BAdresse : null),
 			ETexte = e.ETexte,
+			EAppointmentId = e.EAppointmentId,
 			ERefContact = e.ERefContact,
 			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null)
 		});

@@ -12,6 +12,9 @@ public class Email
 	public string SenderName { get; set; }
 
 	[DataMember]
+	public string SenderPassword { get; set; }
+
+	[DataMember]
 	public string To { get; set; }
 
 	[DataMember]
@@ -19,4 +22,7 @@ public class Email
 
 	[DataMember]
 	public string HtmlContents { get; set; }
+
+	[DataMember]
+	public bool HighImportance { get; set; }
 }
