@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Exchange;
 using ApiPerleRare.Controllers;
 using ApiPerleRare.Helpers;
 using Microsoft.Exchange.WebServices.Data;
@@ -348,28 +350,19 @@ internal class PRExchangeService : IExchangeService
 			appointment.SetExtendedProperty(_extendedPropEventId, rendezVous.ERefEvenement);
 		}
 		SendInvitationsMode mode = SendInvitationsMode.SendToNone;
-		appointment.OptionalAttendees.Clear();
-		if (rendezVous.OptionalAttendees != null && rendezVous.OptionalAttendees.Length != 0)
+		if (AddSmtpAttendees(appointment.OptionalAttendees, rendezVous.OptionalAttendees))
 		{
-			string[] optionalAttendees = rendezVous.OptionalAttendees;
-			foreach (string attendeeEmail in optionalAttendees)
-			{
-				appointment.OptionalAttendees.Add(attendeeEmail);
-			}
 			mode = SendInvitationsMode.SendToAllAndSaveCopy;
 		}
-		appointment.RequiredAttendees.Clear();
-		if (rendezVous.RequiredAttendees != null && rendezVous.RequiredAttendees.Length != 0)
+		if (AddSmtpAttendees(appointment.RequiredAttendees, rendezVous.RequiredAttendees))
 		{
-			string[] requiredAttendees = rendezVous.RequiredAttendees;
-			foreach (string attendeeEmail2 in requiredAttendees)
-			{
-				appointment.RequiredAttendees.Add(attendeeEmail2);
-			}
 			mode = SendInvitationsMode.SendToAllAndSaveCopy;
 		}
 		LegacyFreeBusyStatus busyStatus = ToLegacyFreeBusyStatus(rendezVous.LegacyFreeBusyStatus);
 		appointment.LegacyFreeBusyStatus = busyStatus;
+		// Le premier enregistrement fige l’organisateur en adresse EX. On pose l’adresse SMTP
+		// avant l’envoi, pour qu’Angular et FF n’exposent plus le legacy DN au destinataire.
+		StampSmtpOrganizer(appointment, email);
 		if (appointment.Id != null)
 		{
 			await appointment.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToAllAndSaveCopy);
@@ -381,7 +374,9 @@ internal class PRExchangeService : IExchangeService
 		else
 		{
 			// Save(FolderId, SendToAll) ne conserve pas la copie organisateur sur ce serveur Exchange.
-			await appointment.Save(mode);
+			await appointment.Save(SendInvitationsMode.SendToNone);
+			StampSmtpOrganizer(appointment, email);
+			await appointment.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToAllAndSaveCopy);
 		}
 		await EnsureLegacyFreeBusyStatus(service, appointment, busyStatus);
 		if (staleCopy != null && staleCopy.Id != null)
@@ -510,7 +505,89 @@ internal class PRExchangeService : IExchangeService
 		{
 			return new string[0];
 		}
-		return attendees.Select((Attendee a) => a.Address).ToArray();
+		return attendees.Select(AttendeeSmtp).Where((string address) => address.Length > 0).ToArray();
+	}
+
+	private static string AttendeeSmtp(Attendee attendee)
+	{
+		string fromAddress = ExchangeOrganizerIdentity.SmtpOrEmpty(attendee?.Address);
+		if (fromAddress.Length > 0)
+		{
+			return fromAddress;
+		}
+		return ExchangeOrganizerIdentity.SmtpOrEmpty(attendee?.Name);
+	}
+
+	private static bool AddSmtpAttendees(AttendeeCollection attendees, string[] emails)
+	{
+		attendees.Clear();
+		if (emails == null || emails.Length == 0)
+		{
+			return false;
+		}
+		bool any = false;
+		foreach (string raw in emails)
+		{
+			string smtp = ExchangeOrganizerIdentity.SmtpOrEmpty(raw);
+			if (smtp.Length == 0)
+			{
+				continue;
+			}
+			Attendee attendee = new Attendee(smtp);
+			attendee.RoutingType = "SMTP";
+			attendees.Add(attendee);
+			any = true;
+		}
+		return any;
+	}
+
+	private static readonly ExtendedPropertyDefinition SentRepresentingName = new ExtendedPropertyDefinition(66, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SentRepresentingAddressType = new ExtendedPropertyDefinition(100, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SentRepresentingEmail = new ExtendedPropertyDefinition(101, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SentRepresentingSmtp = new ExtendedPropertyDefinition(23810, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SentRepresentingSearchKey = new ExtendedPropertyDefinition(59, MapiPropertyType.Binary);
+
+	private static readonly ExtendedPropertyDefinition SentRepresentingEntryId = new ExtendedPropertyDefinition(65, MapiPropertyType.Binary);
+
+	private static readonly ExtendedPropertyDefinition SenderName = new ExtendedPropertyDefinition(3098, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SenderAddressType = new ExtendedPropertyDefinition(3102, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SenderEmail = new ExtendedPropertyDefinition(3103, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SenderSmtp = new ExtendedPropertyDefinition(23809, MapiPropertyType.String);
+
+	private static readonly ExtendedPropertyDefinition SenderSearchKey = new ExtendedPropertyDefinition(3101, MapiPropertyType.Binary);
+
+	private static readonly ExtendedPropertyDefinition SenderEntryId = new ExtendedPropertyDefinition(3097, MapiPropertyType.Binary);
+
+	private static void StampSmtpOrganizer(Appointment appointment, string email)
+	{
+		string smtp = ExchangeOrganizerIdentity.SmtpOrEmpty(email);
+		if (appointment == null || smtp.Length == 0)
+		{
+			return;
+		}
+		if (appointment.Id != null)
+		{
+			appointment.RemoveExtendedProperty(SentRepresentingEntryId);
+			appointment.RemoveExtendedProperty(SenderEntryId);
+		}
+		byte[] searchKey = Encoding.ASCII.GetBytes("SMTP:" + smtp.ToUpperInvariant() + "\0");
+		appointment.SetExtendedProperty(SentRepresentingName, smtp);
+		appointment.SetExtendedProperty(SentRepresentingAddressType, "SMTP");
+		appointment.SetExtendedProperty(SentRepresentingEmail, smtp);
+		appointment.SetExtendedProperty(SentRepresentingSmtp, smtp);
+		appointment.SetExtendedProperty(SentRepresentingSearchKey, searchKey);
+		appointment.SetExtendedProperty(SenderName, smtp);
+		appointment.SetExtendedProperty(SenderAddressType, "SMTP");
+		appointment.SetExtendedProperty(SenderEmail, smtp);
+		appointment.SetExtendedProperty(SenderSmtp, smtp);
+		appointment.SetExtendedProperty(SenderSearchKey, searchKey);
 	}
 
 	public async Task<bool> DeleteAppointmentFromERefEvenement(string email, string password, int eRefEvenement, string appointmentId = null)
