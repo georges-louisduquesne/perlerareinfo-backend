@@ -175,6 +175,7 @@ public class Startup
 		services.AddSingleton<IFileStorage, LocalFileStorage>();
 		services.AddScoped<IUploadFileUseCase, UploadFileUseCase>();
 		services.AddScoped<IDownloadFileUseCase, DownloadFileUseCase>();
+		services.AddScoped<ImportAgencyLogoUseCase>();
 		services.AddScoped(typeof(IQueryEntitiesUseCase<>), typeof(QueryEntitiesUseCase<>));
 		services.AddScoped<IListEncaissementsEnCoursUseCase, ListEncaissementsEnCoursUseCase>();
 		services.AddScoped<IListHomeClientEvenementsUseCase, ListHomeClientEvenementsUseCase>();

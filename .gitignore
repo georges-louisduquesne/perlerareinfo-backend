@@ -1,5 +1,6 @@
 # compiled
 /dist
+/local-files/
 /bin
 /obj
 **/bin/
