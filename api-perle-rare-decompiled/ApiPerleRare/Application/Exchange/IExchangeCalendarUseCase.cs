@@ -41,4 +41,6 @@ public interface IDeleteAppointmentByEvenementUseCase
 	Task<DeleteAppointmentFromERefEvenementResponse> Execute(int conseillerId, int eRefEvenement);
 
 	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteIfAllowed(int conseillerId, int eRefEvenement, int callerId, bool callerIsAdmin);
+
+	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteByAppointmentId(int conseillerId, string appointmentId, int callerId, bool callerIsAdmin);
 }

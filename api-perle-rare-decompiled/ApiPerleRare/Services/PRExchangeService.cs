@@ -617,6 +617,38 @@ internal class PRExchangeService : IExchangeService
 		return deleted;
 	}
 
+	public async Task<bool> DeleteAppointmentById(string email, string password, string appointmentId)
+	{
+		if (string.IsNullOrWhiteSpace(appointmentId))
+		{
+			return false;
+		}
+		ExchangeService service = GetExchangeService(email, password);
+		PropertySet props = new PropertySet(BasePropertySet.FirstClassProperties, AppointmentSchema.Organizer, AppointmentSchema.IsMeeting);
+		Appointment appointment;
+		try
+		{
+			appointment = await Appointment.Bind(service, new ItemId(appointmentId.Trim()), props);
+		}
+		catch (ServiceResponseException)
+		{
+			return false;
+		}
+		if (appointment == null)
+		{
+			return false;
+		}
+		if (appointment.IsMeeting && OrganizerIsMailbox(appointment, email))
+		{
+			await appointment.Delete(DeleteMode.MoveToDeletedItems, SendCancellationsMode.SendToAllAndSaveCopy);
+		}
+		else
+		{
+			await appointment.Delete(DeleteMode.HardDelete);
+		}
+		return true;
+	}
+
 	private async Task<bool> DeleteInCalendar(ExchangeService service, string mailboxEmail, int eRefEvenement, FolderId calendarId, string appointmentId)
 	{
 		Appointment appointment = null;

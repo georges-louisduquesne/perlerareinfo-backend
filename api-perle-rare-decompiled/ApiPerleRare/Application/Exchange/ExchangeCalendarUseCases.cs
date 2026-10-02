@@ -335,6 +335,44 @@ public sealed class DeleteAppointmentByEvenementUseCase : IDeleteAppointmentByEv
 		}
 	}
 
+	public async Task<DeleteAppointmentFromERefEvenementResponse> ExecuteByAppointmentId(int conseillerId, string appointmentId, int callerId, bool callerIsAdmin)
+	{
+		if (string.IsNullOrWhiteSpace(appointmentId))
+		{
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = "Identifiant d'agenda manquant.",
+				IsDeleted = false
+			};
+		}
+		if (!callerIsAdmin && conseillerId != callerId)
+		{
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = "Agenda non autorisé pour ce conseiller.",
+				IsDeleted = false
+			};
+		}
+		try
+		{
+			ConseillerMailbox cp = await _mailboxes.GetByConseillerIdAsync(conseillerId);
+			bool deleted = await _exchange.DeleteAppointmentById(cp.Email, cp.Password, appointmentId.Trim());
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = deleted ? null : "Créneau introuvable.",
+				IsDeleted = deleted
+			};
+		}
+		catch (Exception ex)
+		{
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = ex.ToString(),
+				IsDeleted = false
+			};
+		}
+	}
+
 	private async Task<bool> DeleteOnMailbox(int mailboxId, int eRefEvenement, string appointmentId)
 	{
 		ConseillerMailbox cp = await _mailboxes.GetByConseillerIdAsync(mailboxId);

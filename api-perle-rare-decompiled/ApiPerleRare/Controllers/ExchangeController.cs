@@ -165,6 +165,14 @@ public class ExchangeController : ControllerBase
 	}
 
 	[Authorize]
+	[HttpDelete]
+	[Route("DeleteAppointment/{conseillerId}")]
+	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointment(int conseillerId, [FromQuery] string appointmentId)
+	{
+		return _deleteAppointment.ExecuteByAppointmentId(conseillerId, appointmentId, this.GetUserId(), User.IsInRole("Admin"));
+	}
+
+	[Authorize]
 	[Route("GetTimeZones")]
 	[HttpGet]
 	public string[] GetTimeZoneIds()
