@@ -39,6 +39,7 @@ public class ContactIntermediairesController : ControllerBase
 			CQualiteRelation = c.CQualiteRelation,
 			CDirecteur = c.CDirecteur,
 			CPhoto = c.CPhoto,
+			CUrl = c.CUrl,
 			IRefIntermediaire = c.CRefIntermediaireNavigation.IRefIntermediaire,
 			INomIntermediaire = c.CRefIntermediaireNavigation.INomIntermediaire,
 			IActif = c.CRefIntermediaireNavigation.IActif,

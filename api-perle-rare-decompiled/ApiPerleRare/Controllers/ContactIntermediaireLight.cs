@@ -49,4 +49,7 @@ public class ContactIntermediaireLight
 
 	[DataMember]
 	public string CPhoto { get; set; }
+
+	[DataMember]
+	public string CUrl { get; set; }
 }
