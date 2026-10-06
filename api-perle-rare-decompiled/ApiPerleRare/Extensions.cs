@@ -39,9 +39,16 @@ public static class Extensions
 
 	public static int GetId(this ClaimsPrincipal user)
 	{
+		return user.TryGetId(out int id) ? id : 0;
+	}
+
+	// CP_RefConseiller 0 is a real account: callers that must not confuse it with "no claim" use this.
+	public static bool TryGetId(this ClaimsPrincipal user, out int id)
+	{
+		id = 0;
 		if (user == null)
 		{
-			return 0;
+			return false;
 		}
 		string[] candidates =
 		{
@@ -52,12 +59,13 @@ public static class Extensions
 		};
 		foreach (string raw in candidates)
 		{
-			if (int.TryParse(raw, out int id) && id >= 0)
+			if (int.TryParse(raw, out int parsed) && parsed >= 0)
 			{
-				return id;
+				id = parsed;
+				return true;
 			}
 		}
-		return 0;
+		return false;
 	}
 
 	public static string GetUserLogin(this ControllerBase controller)

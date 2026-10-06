@@ -53,7 +53,11 @@ public class UserController : ControllerBase
 	[HttpGet("refresh")]
 	public IActionResult Refresh()
 	{
-		AuthenticateResult result = _refresh.Execute(this.GetUserId());
+		if (!User.TryGetId(out int userId))
+		{
+			return Unauthorized();
+		}
+		AuthenticateResult result = _refresh.Execute(userId);
 		if (!result.Success)
 		{
 			return Unauthorized();

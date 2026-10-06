@@ -80,7 +80,7 @@ public class UserService : IUserService
 	public ConseillersPersonnels RefreshSession(int userId, out string token)
 	{
 		token = null;
-		if (userId <= 0)
+		if (userId < 0)
 		{
 			return null;
 		}

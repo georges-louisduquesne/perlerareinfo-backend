@@ -37,5 +37,25 @@ public class JwtClaimsExtensionsTests
 			new Claim(ClaimTypes.Name, "CTHIERIET")
 		}, "Bearer");
 		Assert.Equal(0, new ClaimsPrincipal(identity).GetId());
+		Assert.False(new ClaimsPrincipal(identity).TryGetId(out _));
+	}
+
+	[Fact]
+	public void TryGetId_accepts_conseiller_zero()
+	{
+		var identity = new ClaimsIdentity(new[]
+		{
+			new Claim(ClaimTypes.Name, "0"),
+			new Claim(ClaimTypes.NameIdentifier, "GLDUQUESNE")
+		}, "Bearer");
+		Assert.True(new ClaimsPrincipal(identity).TryGetId(out int id));
+		Assert.Equal(0, id);
+	}
+
+	[Fact]
+	public void TryGetId_rejects_missing_name_claim()
+	{
+		var identity = new ClaimsIdentity(new[] { new Claim("sub", "demo") }, "Bearer");
+		Assert.False(new ClaimsPrincipal(identity).TryGetId(out _));
 	}
 }
