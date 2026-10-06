@@ -9,6 +9,8 @@ Public visé : Cursor **chez le client**. Contrat API figé = `.cursor/rules/per
 
 Dépôts : back = dépôt courant, front = sibling `../frontend`. La règle détaillée de `go demo` / `go prod` est identique à celle du front (`../frontend/.cursor/rules/perlerare-client-workflow.mdc`) ; elle est résumée ici.
 
+**Nouvelle machine, ou échec d’accès (push, SSH, tests, secrets)** → lancer `bash ../frontend/scripts/check-setup.sh` (lecture seule) et guider l’utilisateur sur chaque ligne « MANQUE ».
+
 ## 1. Sync des deux dépôts — à CHAQUE demande de travail
 
 Dès que l’utilisateur demande de **réaliser** quelque chose (corriger, ajouter, modifier, déployer, `go demo`, `go prod`…), **avant de toucher au code** :
