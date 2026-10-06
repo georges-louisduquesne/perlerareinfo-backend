@@ -25,18 +25,61 @@ public class ConseillersPersonnelsController : ControllerBase
 		_context = context;
 	}
 
-	[Authorize(Roles = "Admin")]
+	private static readonly string[] RestrictedFilterTokens = new string[7] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire" };
+
+	private bool IsAdmin => User.IsInRole("Admin");
+
+	private static bool UsesRestrictedField(string expression)
+	{
+		if (string.IsNullOrEmpty(expression))
+		{
+			return false;
+		}
+		string folded = expression.ToLowerInvariant().Replace("_", "");
+		return RestrictedFilterTokens.Any((string t) => folded.Contains(t));
+	}
+
+	// Non-admins (agents, associés) need the team directory for Contact, agenda, tâches and mails,
+	// but never credentials nor other people's personal data.
+	private static void StripForNonAdmin(ConseillersPersonnels cp, bool isSelf)
+	{
+		cp.CpMotDePasse = null;
+		cp.CpMelMotDePasse = null;
+		cp.CpAutoLogin = null;
+		if (!isSelf)
+		{
+			cp.CpPieceIdentite = null;
+			cp.CpDateNaissance = null;
+			cp.CpMelPerso = null;
+			cp.CpAdresse = null;
+			cp.CpCp = 0;
+			cp.CpVille = null;
+			cp.CpCommentaire = null;
+			cp.CpCv = null;
+		}
+	}
+
 	[HttpGet]
 	public async Task<ActionResult<IEnumerable<ConseillersPersonnels>>> GetConseillersPersonnels([FromQuery] string select = null, [FromQuery] string where = null, [FromQuery] string orderby = null, [FromQuery] int skip = 0, [FromQuery] int take = 0)
 	{
+		bool isAdmin = IsAdmin;
+		if (!isAdmin && (UsesRestrictedField(where) || UsesRestrictedField(orderby)))
+		{
+			return Forbid();
+		}
 		try
 		{
 			IQueryable<ConseillersPersonnels> query = _context.ConseillersPersonnels.AsNoTracking();
 			query = EFHelper<ConseillersPersonnels>.Apply(query, where, orderby, take, skip, select);
 			List<ConseillersPersonnels> res = await query.AsNoTracking().ToListAsync();
+			int userId = isAdmin ? 0 : this.GetUserId();
 			foreach (ConseillersPersonnels cr in res)
 			{
 				EncodingHelper.FixEncodingInStringProperties(cr);
+				if (!isAdmin)
+				{
+					StripForNonAdmin(cr, cr.CpRefConseiller == userId);
+				}
 			}
 			return res;
 		}
@@ -94,14 +137,17 @@ public class ConseillersPersonnelsController : ControllerBase
 		}
 	}
 
-	[Authorize(Roles = "Admin")]
 	[HttpGet("{id}")]
 	public async Task<ActionResult<ConseillersPersonnels>> GetConseillersPersonnels(uint id)
 	{
-		ConseillersPersonnels cp = await _context.ConseillersPersonnels.FindAsync(id);
+		ConseillersPersonnels cp = await _context.ConseillersPersonnels.AsNoTracking().FirstOrDefaultAsync((ConseillersPersonnels e) => e.CpRefConseiller == id);
 		if (cp == null)
 		{
 			return NotFound();
+		}
+		if (!IsAdmin)
+		{
+			StripForNonAdmin(cp, cp.CpRefConseiller == this.GetUserId());
 		}
 		return cp;
 	}
