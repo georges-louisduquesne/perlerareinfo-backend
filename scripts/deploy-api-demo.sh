@@ -40,6 +40,12 @@ fi
 test -f "$SNIPPET"
 test -f "$UNIT_SRC"
 
+# shellcheck source=release-guard.sh
+source "$SCRIPT_DIR/release-guard.sh"
+echo "==> Release guard: pushed main, tests green"
+guard_pushed_main
+guard_tests
+
 echo "==> Preflight disk + prod fingerprint"
 PROD_SHA="$("${SSH[@]}" "sha256sum $PROD_DLL | awk '{print \$1}'")"
 PROD_PID="$("${SSH[@]}" "systemctl show -p MainPID --value $PROD_UNIT")"
@@ -220,6 +226,11 @@ print("authenticate_contract_ok")
 PY
 rm -f /tmp/pr-api-demo-auth.json
 curl -sS -o /dev/null -w "prod_api_status=%{http_code}\n" "https://api.perle-rare.info/api/Test/info"
+
+# deploy-api-prod-v2.sh only ships an API version recorded here.
+DEPLOYED_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+"${SSH[@]}" "echo $DEPLOYED_SHA | sudo -n tee /home/administrateur/backups/api-demo-DEPLOYED-COMMIT >/dev/null"
+echo "deployed_commit=$DEPLOYED_SHA"
 
 echo
 echo "OK — demo API: https://dev.perle-rare.info/api-demo/"

@@ -1,5 +1,5 @@
 ---
-description: Workflow backend — toujours main, pas de branche, sync puis push après OK
+description: Workflow Perle Rare (back) — sync des 2 dépôts à chaque demande, commit + push main à chaque avancée, commandes « go demo » / « go prod »
 alwaysApply: true
 ---
 
@@ -7,71 +7,82 @@ alwaysApply: true
 
 Public visé : Cursor **chez le client**. Contrat API figé = `.cursor/rules/perlerare-backend-workflow.mdc`.
 
-## 1. Git — uniquement `main`
+Dépôts : back = dépôt courant, front = sibling `../frontend`. La règle détaillée de `go demo` / `go prod` est identique à celle du front (`../frontend/.cursor/rules/perlerare-client-workflow.mdc`) ; elle est résumée ici.
 
-Début de session (premier message code / déploiement / git — pas pour une simple question sans modification) :
+## 1. Sync des deux dépôts — à CHAQUE demande de travail
 
-1. **Back (dépôt courant)** :
-
-```bash
-git fetch origin
-git checkout main
-git pull --ff-only origin main
-git status
-```
-
-2. **Front (sibling)** — si `../frontend/.git` existe :
+Dès que l’utilisateur demande de **réaliser** quelque chose (corriger, ajouter, modifier, déployer, `go demo`, `go prod`…), **avant de toucher au code** :
 
 ```bash
-cd ../frontend && git fetch origin && git checkout main && git pull --ff-only origin main && git status
+git fetch origin && git checkout main && git pull --ff-only origin main && git config core.hooksPath .githooks && git status -sb
+cd ../frontend && git fetch origin && git checkout main && git pull --ff-only origin main && git config core.hooksPath .githooks && git status -sb
 ```
 
-Avant **tout** code :
+`core.hooksPath .githooks` active le hook `pre-push` versionné : il refuse un push dont le build / les tests sont rouges ou qui contient un test désactivé (`Skip =`, `fit`, `xit`…).
 
-- Travailler **seulement** sur `main`. Jamais `git checkout -b`, jamais une PR depuis une autre branche.
-- Branche en retard → `git pull --ff-only`. Divergence / pull qui refuse → **STOP**, demander.
-- Working tree sale hors sujet → **STOP**, demander.
+- Seulement `main`. Jamais `git checkout -b`, jamais de PR depuis une autre branche.
+- Commits locaux non poussés + `origin/main` en avance → `git pull --rebase origin main` **si aucun conflit**. Conflit → **STOP**, demander.
+- Fichiers locaux hors sujet : ne pas les toucher ni les stager.
 
-Après un palier (fix / feature / doc versionnée) :
+## 2. Commit + push sur `main` à chaque avancée — sans attendre
 
-1. `dotnet test` + `dotnet build` (ou dire ce qui n’a pas tourné).
-2. Demander : **« C’est bon ? Je commit et je push sur main ? »**
-3. Si oui : commit (secrets hors git) puis `git push origin main`. Pas de `--force`, pas de skip hooks.
-4. Si « commit » sans « push » : commit seulement, puis rappeler le push.
+1. `dotnet build ApiPerleRare.sln -c Release` puis `dotnet test tests/ApiPerleRare.Tests -c Release` (SDK .NET 8 ; si `dotnet --version` < 8 : `export DOTNET_ROOT=$HOME/.dotnet PATH=$HOME/.dotnet:$PATH`). Rouge → corriger d’abord.
+2. `git add <fichiers précis>`, `git commit -m "…"`, `git push origin main`. Dire ce qui a été poussé (hash court). Ne pas demander « je commit ? ».
+3. Pas de `--force`, pas de `--no-verify`, pas d’amend sur un commit poussé.
 
-Ne pas laisser le travail seulement en local une fois l’OK donné.
+### Tests unitaires — consolider à chaque avancée
 
-**Ne jamais committer :** `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`, `api-perle-rare-publish/`, mots de passe.
+Chaque commit de code arrive **avec ses tests xUnit** (`tests/ApiPerleRare.Tests`), dans le même commit :
 
-### Identité Git (commit / push)
+- **Bug corrigé** → d’abord un test qui reproduit le bug (rouge), puis le correctif (vert).
+- **Nouvelle règle / route / filtre** → tests de la logique (méthode privée → `internal`, `InternalsVisibleTo` existe déjà).
+- **Code touché sans test** → au moins un test sur le comportement modifié.
+- **Jamais** supprimer, désactiver (`Skip =`) ni affaiblir un test pour passer au vert ; changement volontaire → adapter le test et le dire dans le commit.
+- Le nombre de tests ne baisse pas : l’indiquer dans le rapport.
 
-- **`git commit` / `git push`** sans override : auteur = config Git **locale** de celui qui valide la commande dans Cursor.
-- **Interdit** : variables `GIT_AUTHOR_*` / `GIT_COMMITTER_*`, `-c user.email=…`, `--author=…`, noms ou e-mails **figés** dans le script (ne pas copier LordFinom / florimond.jacquet44@gmail.com depuis l’historique).
-- Config absente → **STOP**, guider `git config`, ne pas inventer.
-- Pas de `Co-authored-by: Cursor` sauf demande explicite.
+**Ne jamais committer :** `git.key`, `.env`, `appsettings*.json` réels, `.cursor/mcp.json`, `api-perle-rare-publish/`, `artifacts/`, mots de passe.
 
-## 2. Prudence produit
+### Identité Git
 
-- Pas de refonte hors demande. Correctifs ciblés.
-- JSON / routes / query string : **contrat gelé**. Route **nouvelle** OK si l’ancienne reste.
-- Hash mdp = bascule **douce**. JWT 48 h glissant : pas de TTL silencieux en prod.
-- Yanport / mails : **un seul** process writable (`PR_LOCAL_SAFE` off). Jamais démo + prod jobs sur la même DB.
+- `git commit` / `git push` sans override : auteur = config Git **locale**.
+- **Interdit** : `GIT_AUTHOR_*` / `GIT_COMMITTER_*`, `-c user.email=…`, `--author=…`, noms ou e-mails figés.
+- Config absente → **STOP**, guider `git config`.
+- Pas de `Co-authored-by: Cursor` sauf demande.
 
-## 3. API, base, VPS — seulement sur ordre explicite
+## 3. « go demo »
 
-Par défaut : **local + git**. Pas de SSH, pas d’ALTER, pas de restart.
+Autorise la démo seulement. Sync (§1), tout poussé, tests verts (les scripts refusent sinon et enregistrent le commit déployé dans `~/backups/api-demo-DEPLOYED-COMMIT` / `~/backups/demo-front-DEPLOYED-COMMIT`), puis :
 
-| Cible | Quand | Comment |
-|---|---|---|
-| Démo API | « déploie la démo API » | `bash scripts/deploy-api-demo.sh` uniquement (`api-client-demo`, port 5080). Vérifier empreinte **prod** inchangée |
-| Démo CRM | autre dépôt front | ne pas rsync le front depuis ce repo |
-| **API prod** `api.perle-rare.info` | phrase exacte **« déploie l’API en prod »** | empreinte DLL+PID **avant/après** ; rollback prêt ; **une** instance Kestrel jobs |
-| MariaDB | SELECT via `cursor_client` par défaut | `ALTER` / `UPDATE` / seed : ordre **écrit** + backup + script dans `infra/ovh/sql/` ; **jamais** `DROP`/`TRUNCATE` sans phrase |
-| Secrets JWT / DB / Yanport / Exchange | créneau client | jamais tout seul ; déconnecte les sessions |
+- API démo : `bash scripts/deploy-api-demo.sh` → https://dev.perle-rare.info/api-demo/ (prérequis : `api-perle-rare-decompiled/appsettings.Development.json` local) ;
+- front démo : `cd ../frontend && bash infra/ovh/scripts/deploy-demo.sh` ;
+- contrôles : `POST …/api-demo/api/User/authenticate` avec `{}` → 400, page démo + fichiers JS/CSS → 200, « prod fingerprint unchanged ». Sinon **STOP**.
+
+## 4. « go prod »
+
+Équivaut à « déploie en prod ». Sans cette phrase : prod interdite.
+
+1. Sync (§1), tout poussé, tests front + back verts. Version pas encore passée en démo → `go demo` d’abord.
+   - **Garde-fous intégrés aux scripts prod** (ne jamais les contourner ni les modifier pour passer) : refus si `HEAD` ≠ `origin/main`, si le code diffère de la version enregistrée en démo, ou si un test est rouge. Échec après remplacement des fichiers → **restauration automatique** de la v2 précédente (front : rollback automatique).
+2. Quoi déployer : `ssh -i git.key -p 2477 administrateur@142.4.216.57 'cat ~/backups/prod-front-DEPLOYED-COMMIT ~/backups/api-v2-DEPLOYED-COMMIT'`, puis `git diff --quiet <sha> HEAD -- api-perle-rare-decompiled infra/ovh/systemd/api-v2.perle-rare.info.service infra/ovh/apache/api-v2.snippet.conf` (back) et `-- src angular.json package.json package-lock.json` dans `../frontend` (front). Repère absent → déployer.
+3. API v2 d’abord : `CONFIRM_PROD=deploie-en-prod bash scripts/deploy-api-prod-v2.sh` (coupure de quelques secondes ; ~60 s après : service actif, `api.access.log` sans série de 4xx/5xx, « current API unchanged »).
+4. Front ensuite : `cd ../frontend && CONFIRM_PROD=deploie-en-prod bash infra/ovh/scripts/deploy-prod.sh` (fichiers `dist/` → 200, `/` en `no-cache`, vieux lien `index.php?page=…` → 302 `/#/`).
+5. Contrôle en échec → rollback immédiat : `CONFIRM_PROD=deploie-en-prod bash scripts/rollback-api-prod-v2.sh` (API : remet la version v2 précédente) / `cd ../frontend && CONFIRM_PROD=deploie-en-prod bash infra/ovh/scripts/rollback-prod.sh` (front). Jamais `MODE=unplug` seul : il coupe la v2 et casse le front prod. Les rollbacks effacent le repère `*-DEPLOYED-COMMIT`.
+6. Rapport : commits partis, sauvegardes, contrôles, rollback. Rappeler Cmd+Shift+R.
+
+## 5. Toujours interdit sans ordre écrit explicite
+
+- Ancienne API `api.perle-rare.info` : `/var/www/api.perle-rare.info`, `api.perle-rare.info.service` (Aspose, mobile, imports de nuit). Jamais écrire, redémarrer, reconfigurer.
+- MariaDB : SELECT par défaut. `UPDATE` / `ALTER` / `INSERT` / `DELETE` → ordre **écrit**, script dans `infra/ovh/sql/`, sauvegarde + retour arrière, test à blanc en SELECT. Jamais `DROP` / `TRUNCATE`.
+- Secrets JWT / DB / Yanport / Exchange : jamais tout seul, jamais affichés.
+- Yanport / mails : **un seul** process qui écrit (`PR_SCHEDULED_TASKS=off` sur la v2).
+
+## 6. Repères
 
 - SSH : `142.4.216.57` port **2477**, user `administrateur`, clé `git.key` (hors git).
-- Après deploy démo : **prod non touchée**.
+- API v2 prod : `127.0.0.1:5002`, `/var/www/api-v2.perle-rare.info`, `api-v2.perle-rare.info.service` → https://api.perle-rare.info/v2/api/
+- API démo : `127.0.0.1:5080`, `/home/administrateur/api-client-demo` → https://dev.perle-rare.info/api-demo/api/
+- Produit : correctifs ciblés ; JSON / routes / query string = contrat gelé ; hash mdp en bascule douce ; pas de TTL JWT changé en silence.
 
 ## Phrase type
 
-> Dépôt `main` à jour. Changements prêts. **C’est bon ?** Je commit et je **push sur main**. Prod / VPS / SQL **non touchés**. Tu veux la **démo API** ?
+> Back et front à jour sur main. Correctif fait, tests verts, **poussé sur main** (back `abc1234`). Dis **go demo** pour la démo, **go prod** pour la prod.

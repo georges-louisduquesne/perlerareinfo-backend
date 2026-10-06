@@ -5,7 +5,10 @@
 # is never written, restarted or reconfigured: Aspose invoices, the mobile app and the
 # scheduled imports keep running on it. Only an extra "ProxyPass /v2/" is added to its vhost.
 #
-# Run only after an explicit "déploie en prod":
+# Refuses unless HEAD is the pushed tip of main, already deployed on the API demo, with green tests.
+# Any failure after the v2 files are replaced restores the previous v2 build automatically.
+#
+# Run only after an explicit "go prod" / "déploie en prod":
 #   CONFIRM_PROD=deploie-en-prod bash scripts/deploy-api-prod-v2.sh
 # Rollback: CONFIRM_PROD=deploie-en-prod bash scripts/rollback-api-prod-v2.sh
 set -euo pipefail
@@ -46,10 +49,27 @@ chmod +x "$RSYNC_SSH_WRAP"
 test -f "$KEY_FILE" || { echo "SSH key not found: $KEY_FILE" >&2; exit 1; }
 test -f "$UNIT_SRC"
 test -f "$SNIPPET"
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain -- api-perle-rare-decompiled)" ]]; then
-	echo "Refused: uncommitted changes in api-perle-rare-decompiled (deploy what is on main)." >&2
-	exit 1
-fi
+# shellcheck source=release-guard.sh
+source "$SCRIPT_DIR/release-guard.sh"
+
+echo "==> Release guard: pushed main, already on the demo, tests green"
+guard_pushed_main
+guard_demo_validated "$("${SSH[@]}" "cat $BACKUPS/api-demo-DEPLOYED-COMMIT 2>/dev/null || true")"
+guard_tests
+
+TS="$(date +%Y%m%d%H%M%S)"
+V2_ARCHIVE="$BACKUPS/api-v2-$TS.tgz"
+V2_REPLACING=0
+auto_restore() {
+	local rc=$?
+	if [[ $rc -ne 0 && $V2_REPLACING == 1 ]]; then
+		echo "!! Deploy failed after v2 files were replaced — automatic restore of $V2_ARCHIVE" >&2
+		CONFIRM_PROD=deploie-en-prod BACKUP="$V2_ARCHIVE" bash "$SCRIPT_DIR/rollback-api-prod-v2.sh" \
+			|| echo "!! AUTOMATIC RESTORE FAILED — check v2 by hand (rollback-api-prod-v2.sh)" >&2
+	fi
+	exit $rc
+}
+trap auto_restore EXIT
 
 echo "==> Preflight (disk, memory, sudo, current API fingerprint, port $V2_PORT)"
 PROD_SHA="$("${SSH[@]}" "sha256sum $PROD_DLL | awk '{print \$1}'")"
@@ -76,6 +96,7 @@ fi
 echo PREFLIGHT_OK
 REMOTE
 echo "Current API DLL sha256=$PROD_SHA pid=$PROD_PID"
+V2_EXISTS="$("${SSH[@]}" "sudo -n test -x $V2_DIR/ApiPerleRare && echo yes || echo no")"
 
 echo "==> Publish self-contained linux-x64 (VPS has no .NET 8 runtime)"
 export PATH="${HOME}/.dotnet:${PATH}"
@@ -99,14 +120,18 @@ rsync -az --delete -e "$RSYNC_SSH_WRAP" "$PUBLISH_DIR/" "$USER@$HOST:$STAGING/"
 "${SCP[@]}" "$SNIPPET" "$USER@$HOST:$STAGING.snippet"
 
 echo "==> Install $V2_DIR (settings copied server-side from the current API, same JWT secret)"
+if [[ "$V2_EXISTS" == "yes" ]]; then
+	"${SSH[@]}" bash -s <<REMOTE
+set -euo pipefail
+sudo -n tar -C /var/www -czf $V2_ARCHIVE --exclude=logs api-v2.perle-rare.info
+sudo -n chown administrateur:administrateur $V2_ARCHIVE
+echo $V2_ARCHIVE | sudo -n tee $BACKUPS/api-v2-LATEST >/dev/null
+echo "archive: $V2_ARCHIVE"
+REMOTE
+	V2_REPLACING=1
+fi
 "${SSH[@]}" bash -s <<REMOTE
 set -euo pipefail
-TS=\$(date +%Y%m%d%H%M%S)
-mkdir -p $BACKUPS
-if [ -d $V2_DIR ]; then
-  sudo -n tar -C /var/www -czf $BACKUPS/api-v2-\$TS.tgz --exclude=logs api-v2.perle-rare.info
-  sudo -n chown administrateur:administrateur $BACKUPS/api-v2-\$TS.tgz
-fi
 sudo -n mkdir -p $V2_DIR
 sudo -n rsync -a --delete --exclude 'appsettings*.json' --exclude 'logs/' $STAGING/ $V2_DIR/
 sudo -n cp $PROD_DIR/appsettings.json $V2_DIR/appsettings.json
@@ -197,6 +222,11 @@ echo "$AUTH" | grep -q 'Login or password is incorrect'
 curl -sS -o /dev/null -w "v2_refresh_status=%{http_code} (401 expected without token)\n" "$PUBLIC_V2/api/User/refresh"
 curl -sS -o /dev/null -w "current_api_status=%{http_code}\n" "https://api.perle-rare.info/api/Test/info"
 curl -sS -o /dev/null -w "current_api_auth_status=%{http_code}\n" -H 'Content-Type: application/json' -d '{"login":"x","password":"y"}' "https://api.perle-rare.info/api/User/authenticate"
+V2_REPLACING=0
+
+DEPLOYED_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+"${SSH[@]}" "echo $DEPLOYED_SHA | sudo -n tee $BACKUPS/api-v2-DEPLOYED-COMMIT >/dev/null"
+echo "deployed_commit=$DEPLOYED_SHA"
 
 echo
 echo "OK — API v2: $PUBLIC_V2/api/   (current API unchanged: sha=$PROD_SHA pid=$PROD_PID)"
