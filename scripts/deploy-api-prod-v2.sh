@@ -146,7 +146,8 @@ for f in $VHOSTS; do
 done
 test -n "$TARGETS" || { echo "No api.perle-rare.info vhost with 'ProxyPass / http://127.0.0.1:5000/'" >&2; exit 1; }
 TS=$(date +%Y%m%d%H%M%S)
-mkdir -p "$BACKUPS/apache"
+sudo -n mkdir -p "$BACKUPS/apache"
+sudo -n chown administrateur:administrateur "$BACKUPS/apache"
 CHANGED=""
 for f in $TARGETS; do
   if grep -q 'ProxyPass /v2/' "$f"; then echo "already patched: $f"; continue; fi

@@ -23,7 +23,8 @@ ssh -i "$KEY_FILE" -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=acc
 set -euo pipefail
 BACKUPS=/home/administrateur/backups
 TS=$(date +%Y%m%d%H%M%S)
-mkdir -p "$BACKUPS/apache"
+sudo -n mkdir -p "$BACKUPS/apache"
+sudo -n chown administrateur:administrateur "$BACKUPS/apache"
 VHOSTS=$(grep -l 'ServerName api.perle-rare.info' /etc/apache2/sites-enabled/*.conf | xargs -n1 readlink -f | sort -u)
 CHANGED=""
 for f in $VHOSTS; do
