@@ -232,6 +232,11 @@ public class Startup
 			options.IdleTimeout = TimeSpan.FromDays(1.0);
 			options.Cookie.HttpOnly = true;
 			options.Cookie.IsEssential = true;
+			string sessionCookie = Environment.GetEnvironmentVariable("PR_SESSION_COOKIE");
+			if (!string.IsNullOrWhiteSpace(sessionCookie))
+			{
+				options.Cookie.Name = sessionCookie.Trim();
+			}
 		});
 		if (!IsLocalSafe)
 		{
