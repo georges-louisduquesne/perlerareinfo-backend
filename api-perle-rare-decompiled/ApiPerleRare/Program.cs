@@ -12,8 +12,6 @@ public class Program
 {
 	public static void Main(string[] args)
 	{
-		// La clé HMAC en prod fait moins de 256 bits. .NET 8 la refuse sinon, et les sessions en cours cassent.
-		AppContext.SetSwitch("Switch.Microsoft.IdentityModel.UnsafeRelaxHmacKeySizeValidation", true);
 		IHost host = CreateHostBuilder(args).Build();
 		if (args.Length == 0)
 		{

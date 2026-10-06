@@ -47,6 +47,15 @@ public class Startup
 
 	public static bool IsLocalSafe => string.Equals(Environment.GetEnvironmentVariable("PR_LOCAL_SAFE"), "1", StringComparison.Ordinal);
 
+	/// <summary>
+	/// <c>PR_SCHEDULED_TASKS=off</c> on an instance that shares the database with another API
+	/// which already runs the imports and notification sending (tasks are not coordinated).
+	/// </summary>
+	public static bool ScheduledTasksEnabled(string value)
+	{
+		return !string.Equals(value?.Trim(), "off", StringComparison.OrdinalIgnoreCase);
+	}
+
 	public static bool IsDevMachine => IsLocalSafe || Environment.UserName == "jbhuber" || Environment.MachineName == "PORT0623001";
 
 	public Startup(IConfiguration configuration)
@@ -123,7 +132,7 @@ public class Startup
 		IConfigurationSection appSettingsSection = Configuration.GetSection("AppSettings");
 		services.Configure<AppSettings>(appSettingsSection);
 		AppSettings appSettings = appSettingsSection.Get<AppSettings>();
-		byte[] key = JwtTokenFactory.SigningKeyBytes(appSettings.Secret);
+		SymmetricSecurityKey signingKey = JwtTokenFactory.SigningKey(appSettings.Secret);
 		services.AddAuthentication(delegate(AuthenticationOptions x)
 		{
 			x.DefaultAuthenticateScheme = "Bearer";
@@ -135,7 +144,7 @@ public class Startup
 			x.TokenValidationParameters = new TokenValidationParameters
 			{
 				ValidateIssuerSigningKey = true,
-				IssuerSigningKey = new SymmetricSecurityKey(key),
+				IssuerSigningKey = signingKey,
 				ValidateIssuer = false,
 				ValidateAudience = false,
 				ClockSkew = TimeSpan.Zero
@@ -227,7 +236,10 @@ public class Startup
 		if (!IsLocalSafe)
 		{
 			services.AddHostedService<QueuedHostedService>();
-			services.AddHostedService<TimedHostedService>();
+			if (ScheduledTasksEnabled(Environment.GetEnvironmentVariable("PR_SCHEDULED_TASKS")))
+			{
+				services.AddHostedService<TimedHostedService>();
+			}
 		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 		if (IsDevMachine)

@@ -1,0 +1,22 @@
+[Unit]
+Description=API Perle-rare v2 (new CRM API, side by side with api.perle-rare.info)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/api-v2.perle-rare.info
+ExecStart=/var/www/api-v2.perle-rare.info/ApiPerleRare
+User=www-data
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5002
+# Imports / notifications stay on api.perle-rare.info.service (same database, tasks are not coordinated).
+Environment=PR_SCHEDULED_TASKS=off
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=DOTNET_EnableDiagnostics=0
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+MemoryMax=768M
+
+[Install]
+WantedBy=multi-user.target

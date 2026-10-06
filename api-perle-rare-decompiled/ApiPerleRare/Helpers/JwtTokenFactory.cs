@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using ApiPerleRare.Models;
 using Microsoft.IdentityModel.Tokens;
@@ -18,17 +17,18 @@ public static class JwtTokenFactory
 	public const int LifetimeMinutes = 2880;
 
 	/// <summary>
-	/// HMAC-SHA256 refuses keys shorter than 32 bytes. The production secret is shorter,
-	/// so it is stretched with SHA-256. Signing and validation must both use this.
+	/// Raw ASCII bytes of the secret, like the .NET 7 production API. The production secret is
+	/// shorter than 256 bits: stretching it would make tokens unreadable by the API that still
+	/// serves invoices (Aspose) and the mobile app with the same Bearer token.
 	/// </summary>
 	public static byte[] SigningKeyBytes(string secret)
 	{
-		byte[] raw = Encoding.ASCII.GetBytes(secret ?? "");
-		if (raw.Length >= 32)
-		{
-			return raw;
-		}
-		return SHA256.HashData(raw);
+		return Encoding.ASCII.GetBytes(secret ?? "");
+	}
+
+	public static SymmetricSecurityKey SigningKey(string secret)
+	{
+		return LegacyHmacKey.Create(SigningKeyBytes(secret));
 	}
 
 	public static string Issue(ConseillersPersonnels user, string secret)
@@ -60,12 +60,11 @@ public static class JwtTokenFactory
 		{
 			TokenLifetimeInMinutes = LifetimeMinutes
 		};
-		byte[] key = SigningKeyBytes(secret);
 		SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
 		{
 			Subject = new ClaimsIdentity(claims),
 			Expires = DateTime.UtcNow.AddMinutes(LifetimeMinutes),
-			SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256")
+			SigningCredentials = new SigningCredentials(SigningKey(secret), "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256")
 		};
 		SecurityToken secToken = tokenHandler.CreateToken(tokenDescriptor);
 		return tokenHandler.WriteToken(secToken);
