@@ -29,7 +29,7 @@ public class ConseillersPersonnelsController : ControllerBase
 
 	private bool IsAdmin => User.IsInRole("Admin");
 
-	private static bool UsesRestrictedField(string expression)
+	internal static bool UsesRestrictedField(string expression)
 	{
 		if (string.IsNullOrEmpty(expression))
 		{
@@ -42,7 +42,7 @@ public class ConseillersPersonnelsController : ControllerBase
 	// Non-admins (agents, associés) need the team directory for Contact, agenda, tâches and mails,
 	// but never credentials nor other people's personal data.
 	// Mail send does not need CP_MelMotDePasse in this payload: Exchange/SendEmail reads it for the signed-in conseiller.
-	private static void StripForNonAdmin(ConseillersPersonnels cp, bool isSelf)
+	internal static void StripForNonAdmin(ConseillersPersonnels cp, bool isSelf)
 	{
 		cp.CpMotDePasse = null;
 		cp.CpMelMotDePasse = null;
