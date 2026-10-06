@@ -7,7 +7,9 @@ alwaysApply: true
 
 Public visé : Cursor **chez le client**. Contrat API figé = `.cursor/rules/perlerare-backend-workflow.mdc`.
 
-Dépôts : back = dépôt courant, front = sibling `../frontend`. La règle détaillée de `go demo` / `go prod` est identique à celle du front (`../frontend/.cursor/rules/perlerare-client-workflow.mdc`) ; elle est résumée ici.
+Dépôts : back = dépôt courant, front = sibling `../frontend`. La règle détaillée de `go demo` / `go prod` est identique à celle du front (`../frontend/.cursor/rules/perlerare-client-workflow.mdc`) ; elle est résumée ici. Le dossier peut porter un autre nom (ex. `perlerareFrontWeb`, back `perlerareinfo-backend`) : `../frontend` = le dépôt front à côté du back.
+
+Windows : lancer les scripts `.sh` avec Git Bash. Ils n’ont besoin que de `tar` + `ssh` (aucun `rsync` local à installer, pas de Chocolatey ni de droits admin).
 
 **Nouvelle machine, ou échec d’accès (push, SSH, tests, secrets)** → lancer `bash ../frontend/scripts/check-setup.sh` (lecture seule) et guider l’utilisateur sur chaque ligne « MANQUE ».
 

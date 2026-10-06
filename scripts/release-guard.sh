@@ -1,7 +1,15 @@
-# Sourced by deploy-api-demo.sh and deploy-api-prod-v2.sh (expects REPO_ROOT).
+# Sourced by deploy-api-demo.sh and deploy-api-prod-v2.sh (expects REPO_ROOT and the SSH array).
 # Only the pushed, tested tip of main may leave this machine; prod also requires the demo to run it.
 
 API_PATHS=(api-perle-rare-decompiled)
+
+# Replaces remote dir $2 with the contents of local dir $1. Only needs tar + ssh (Git Bash on Windows has no rsync).
+# COPYFILE_DISABLE stops macOS tar from shipping ._* metadata files. Windows drops the exec bit: restore it on the server.
+upload_dir() {
+	local src="$1" dest="$2"
+	COPYFILE_DISABLE=1 tar -czf - -C "$src" . \
+		| "${SSH[@]}" "rm -rf '$dest' && mkdir -p '$dest' && tar --warning=no-unknown-keyword -xzf - -C '$dest' && chmod +x '$dest/ApiPerleRare'"
+}
 
 guard_pushed_main() {
 	local branch
@@ -21,10 +29,16 @@ guard_pushed_main() {
 	fi
 }
 
+# A user-local SDK in ~/.dotnet wins over an older system one; elsewhere (Windows installer) leave dotnet as found.
+use_local_dotnet() {
+	if [[ -x "$HOME/.dotnet/dotnet" ]]; then
+		export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"
+	fi
+}
+
 guard_tests() {
 	echo "==> Regression guard: build + unit tests"
-	export PATH="${HOME}/.dotnet:${PATH}"
-	export DOTNET_ROOT="${HOME}/.dotnet"
+	use_local_dotnet
 	(cd "$REPO_ROOT" && dotnet build ApiPerleRare.sln -c Release && dotnet test tests/ApiPerleRare.Tests -c Release --no-build) || {
 		echo "Refused: build or tests are red." >&2
 		exit 1

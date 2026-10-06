@@ -39,12 +39,6 @@ PUBLIC_V2="https://api.perle-rare.info/v2"
 
 SSH=(ssh -i "$KEY_FILE" -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new "$USER@$HOST")
 SCP=(scp -i "$KEY_FILE" -P "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new)
-RSYNC_SSH_WRAP="/tmp/pr-rsync-ssh.sh"
-cat > "$RSYNC_SSH_WRAP" <<WRAP
-#!/usr/bin/env bash
-exec ssh -i "$KEY_FILE" -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new "\$@"
-WRAP
-chmod +x "$RSYNC_SSH_WRAP"
 
 test -f "$KEY_FILE" || { echo "SSH key not found: $KEY_FILE" >&2; exit 1; }
 test -f "$UNIT_SRC"
@@ -99,8 +93,7 @@ echo "Current API DLL sha256=$PROD_SHA pid=$PROD_PID"
 V2_EXISTS="$("${SSH[@]}" "sudo -n test -x $V2_DIR/ApiPerleRare && echo yes || echo no")"
 
 echo "==> Publish self-contained linux-x64 (VPS has no .NET 8 runtime)"
-export PATH="${HOME}/.dotnet:${PATH}"
-export DOTNET_ROOT="${HOME}/.dotnet"
+use_local_dotnet
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR"
 dotnet publish "$REPO_ROOT/api-perle-rare-decompiled/ApiPerleRare.csproj" \
@@ -114,8 +107,7 @@ echo "Publish size: ${PUB_MB}M"
 test "$PUB_MB" -lt 250
 
 echo "==> Upload to staging $STAGING"
-"${SSH[@]}" "mkdir -p $STAGING"
-rsync -az --delete -e "$RSYNC_SSH_WRAP" "$PUBLISH_DIR/" "$USER@$HOST:$STAGING/"
+upload_dir "$PUBLISH_DIR" "$STAGING"
 "${SCP[@]}" "$UNIT_SRC" "$USER@$HOST:$STAGING.unit"
 "${SCP[@]}" "$SNIPPET" "$USER@$HOST:$STAGING.snippet"
 

@@ -22,12 +22,7 @@ SNIPPET="$REPO_ROOT/infra/ovh/apache/dev-api-demo.snippet.conf"
 UNIT_SRC="$REPO_ROOT/infra/ovh/systemd/api-demo.perle-rare.info.service"
 
 SSH=(ssh -i "$KEY_FILE" -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new "$USER@$HOST")
-RSYNC_SSH_WRAP="/tmp/pr-rsync-ssh.sh"
-cat > "$RSYNC_SSH_WRAP" <<WRAP
-#!/usr/bin/env bash
-exec ssh -i "$KEY_FILE" -p "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new "\$@"
-WRAP
-chmod +x "$RSYNC_SSH_WRAP"
+STAGING="/home/administrateur/api-demo-staging"
 
 if [[ ! -f "$KEY_FILE" ]]; then
 	echo "SSH key not found: $KEY_FILE" >&2
@@ -108,8 +103,7 @@ print("settings_written")
 PY
 
 echo "==> Publish self-contained linux-x64 (no .NET 8 install on VPS)"
-export PATH="${HOME}/.dotnet:${PATH}"
-export DOTNET_ROOT="${HOME}/.dotnet"
+use_local_dotnet
 # Stale DLLs in this folder (e.g. JwtBearer 7.x) survive `dotnet publish -o` and crash Kestrel on start.
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR"
@@ -119,20 +113,14 @@ dotnet publish "$REPO_ROOT/api-perle-rare-decompiled/ApiPerleRare.csproj" \
 	-o "$PUBLISH_DIR"
 find "$PUBLISH_DIR" -name 'appsettings*.json' -delete
 cp "$SETTINGS_OUT" "$PUBLISH_DIR/appsettings.json"
-chmod +x "$PUBLISH_DIR/ApiPerleRare"
-test -x "$PUBLISH_DIR/ApiPerleRare"
+test -f "$PUBLISH_DIR/ApiPerleRare"
 PUB_MB=$(du -sm "$PUBLISH_DIR" | awk '{print $1}')
 echo "Publish size: ${PUB_MB}M"
 test "$PUB_MB" -lt 250
 
-echo "==> Rsync -> $DEMO_DIR only"
-"${SSH[@]}" "mkdir -p $DEMO_DIR/uploads $DEMO_DIR/logs"
-rsync -az --delete \
-	--exclude 'logs/' \
-	--exclude 'uploads/' \
-	--exclude '.dev.vhost.bak.*' \
-	-e "$RSYNC_SSH_WRAP" \
-	"$PUBLISH_DIR/" "$USER@$HOST:$DEMO_DIR/"
+echo "==> Upload, then sync -> $DEMO_DIR only (server-side rsync)"
+upload_dir "$PUBLISH_DIR" "$STAGING"
+"${SSH[@]}" "mkdir -p $DEMO_DIR/uploads $DEMO_DIR/logs && rsync -a --delete --exclude 'logs/' --exclude 'uploads/' --exclude '.dev.vhost.bak.*' $STAGING/ $DEMO_DIR/ && rm -rf $STAGING"
 
 echo "==> Install isolated systemd unit (does not touch $PROD_UNIT)"
 scp -i "$KEY_FILE" -P "$PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
