@@ -137,7 +137,8 @@ public class ExchangeController : ControllerBase
 	[Route("SendEmail")]
 	public string SendEmail(Email em)
 	{
-		return _sendEmail.Execute(em);
+		int? conseillerId = User.TryGetId(out int id) ? id : null;
+		return _sendEmail.Execute(em, conseillerId);
 	}
 
 	[Authorize]

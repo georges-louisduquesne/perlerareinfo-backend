@@ -4,5 +4,5 @@ namespace ApiPerleRare.Application.Exchange;
 
 public interface ISendEmailUseCase
 {
-	string Execute(Email email);
+	string Execute(Email email, int? conseillerId);
 }

@@ -10,20 +10,30 @@ namespace ApiPerleRare.Application.Exchange;
 /// </summary>
 public sealed class SendEmailUseCase : ISendEmailUseCase
 {
+	internal const string MissingMailboxPassword = "Mot de passe Exchange du conseiller introuvable.";
+
 	private readonly IExchangeService _exchange;
 
 	private readonly ILocalhostMailService _localhostMail;
 
-	public SendEmailUseCase(IExchangeService exchange, ILocalhostMailService localhostMail)
+	private readonly IConseillerMailboxLookup _mailboxes;
+
+	public SendEmailUseCase(IExchangeService exchange, ILocalhostMailService localhostMail, IConseillerMailboxLookup mailboxes)
 	{
 		_exchange = exchange;
 		_localhostMail = localhostMail;
+		_mailboxes = mailboxes;
 	}
 
-	public string Execute(Email em)
+	public string Execute(Email em, int? conseillerId)
 	{
 		try
 		{
+			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes);
+			if (blocked != null)
+			{
+				return blocked;
+			}
 			if (em == null || string.IsNullOrWhiteSpace(em.To) || string.IsNullOrWhiteSpace(em.Subject))
 			{
 				return "Destinataire ou objet manquant.";
@@ -58,6 +68,50 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		{
 			return ex.ToString();
 		}
+	}
+
+	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes)
+	{
+		if (em == null || !string.IsNullOrWhiteSpace(em.SenderPassword) || !conseillerId.HasValue)
+		{
+			return null;
+		}
+		if (!NeedsExchangePassword(em.SenderEmail))
+		{
+			return null;
+		}
+		ConseillerMailbox mailbox = null;
+		try
+		{
+			mailbox = mailboxes?.GetByConseillerId(conseillerId.Value);
+		}
+		catch (Exception)
+		{
+			mailbox = null;
+		}
+		if (mailbox == null || string.IsNullOrWhiteSpace(mailbox.Password))
+		{
+			return MissingMailboxPassword;
+		}
+		em.SenderPassword = mailbox.Password;
+		if (string.IsNullOrWhiteSpace(em.SenderEmail))
+		{
+			em.SenderEmail = mailbox.Email;
+		}
+		if (string.IsNullOrWhiteSpace(em.SenderName))
+		{
+			em.SenderName = mailbox.DisplayName;
+		}
+		return null;
+	}
+
+	internal static bool NeedsExchangePassword(string senderEmail)
+	{
+		if (string.IsNullOrWhiteSpace(senderEmail))
+		{
+			return true;
+		}
+		return senderEmail.Trim().EndsWith("@perle-rare.com", StringComparison.OrdinalIgnoreCase);
 	}
 
 	internal static string[] SplitAddresses(string raw)

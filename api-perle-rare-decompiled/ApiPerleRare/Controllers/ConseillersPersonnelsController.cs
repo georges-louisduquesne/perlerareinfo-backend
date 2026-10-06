@@ -41,6 +41,7 @@ public class ConseillersPersonnelsController : ControllerBase
 
 	// Non-admins (agents, associés) need the team directory for Contact, agenda, tâches and mails,
 	// but never credentials nor other people's personal data.
+	// Mail send does not need CP_MelMotDePasse in this payload: Exchange/SendEmail reads it for the signed-in conseiller.
 	private static void StripForNonAdmin(ConseillersPersonnels cp, bool isSelf)
 	{
 		cp.CpMotDePasse = null;
