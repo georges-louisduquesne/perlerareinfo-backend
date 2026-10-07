@@ -133,6 +133,19 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 	}
 
 	[Fact]
+	public async Task SwitchDispoMission_rejects_non_admin()
+	{
+		using HttpClient client = _factory.CreateClient();
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwt.Create());
+		HttpResponseMessage agent = await client.GetAsync("/api/User/SwitchDispoMission/1");
+		Assert.Equal(HttpStatusCode.Forbidden, agent.StatusCode);
+
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestJwt.Create(admin: true));
+		HttpResponseMessage admin = await client.GetAsync("/api/User/SwitchDispoMission/1");
+		Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
+	}
+
+	[Fact]
 	public async Task Swagger_stays_available_in_local_safe_mode()
 	{
 		HttpResponseMessage res = await _client.GetAsync("/swagger/index.html");

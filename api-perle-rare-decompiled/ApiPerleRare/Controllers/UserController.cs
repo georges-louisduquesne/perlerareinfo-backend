@@ -79,7 +79,7 @@ public class UserController : ControllerBase
 	}
 
 	[HttpGet("SwitchDispoMission/{id:int}")]
-	[Authorize]
+	[Authorize(Roles = "Admin")]
 	public bool SwitchDispoMission(int id)
 	{
 		IPAddress obj = base.Request?.HttpContext?.Connection?.RemoteIpAddress;
