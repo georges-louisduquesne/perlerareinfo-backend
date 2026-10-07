@@ -66,11 +66,22 @@ if [[ ! -f "$DEMO_DB_ENV" ]]; then
 	exit 1
 fi
 mkdir -p "$REPO_ROOT/artifacts"
+# Windows python.exe does not open Git Bash paths (/c/Users/...). cygpath -w keeps Linux python unchanged.
+to_py_path() {
+	if command -v cygpath >/dev/null 2>&1; then
+		cygpath -w "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+DEMO_DB_ENV_PY="$(to_py_path "$DEMO_DB_ENV")"
+DEV_SETTINGS_PY="$(to_py_path "$DEV_SETTINGS")"
+SETTINGS_OUT_PY="$(to_py_path "$SETTINGS_OUT")"
 python3 - <<PY
 import json, re, sys
 from pathlib import Path
 
-env_path = Path(r"$DEMO_DB_ENV")
+env_path = Path(r"$DEMO_DB_ENV_PY")
 vals = {}
 for raw in env_path.read_text().splitlines():
     line = raw.strip()
@@ -88,7 +99,7 @@ if any(ch in password for ch in ";'\""):
     print("MYSQL_PASSWORD must not contain ; ' or \"", file=sys.stderr)
     raise SystemExit(1)
 
-src = json.loads(Path(r"$DEV_SETTINGS").read_text())
+src = json.loads(Path(r"$DEV_SETTINGS_PY").read_text(encoding="utf-8-sig"))
 cs = src["ConnectionStrings"]["PerleRareDB"].replace("Server=142.4.216.57", "Server=127.0.0.1")
 cs = re.sub(r"Uid=[^;]*", "Uid=" + user, cs, count=1, flags=re.I)
 cs = re.sub(r"Pwd=[^;]*", "Pwd=" + password, cs, count=1, flags=re.I)
@@ -98,7 +109,7 @@ src["AppSettings"]["YanportToken"] = ""
 src["AppSettings"]["OldWebSiteFolder"] = "$DEMO_DIR/uploads"
 if not src["AppSettings"].get("Secret"):
     src["AppSettings"]["Secret"] = "LOCAL-DEV-JWT-SECRET-DO-NOT-USE-IN-PROD"
-Path(r"$SETTINGS_OUT").write_text(json.dumps(src, indent=2) + "\n")
+Path(r"$SETTINGS_OUT_PY").write_text(json.dumps(src, indent=2) + "\n")
 print("settings_written")
 PY
 
@@ -201,18 +212,20 @@ curl -sS -o /tmp/pr-api-demo-swagger.html -w "swagger_status=%{http_code}\n" \
 	"https://dev.perle-rare.info/api-demo/swagger/index.html"
 grep -q 'swagger' /tmp/pr-api-demo-swagger.html
 rm -f /tmp/pr-api-demo-swagger.html
-curl -sS -o /tmp/pr-api-demo-auth.json -w "authenticate_status=%{http_code}\n" \
+AUTH_FILE="${TMPDIR:-/tmp}/pr-api-demo-auth.json"
+curl -sS -o "$AUTH_FILE" -w "authenticate_status=%{http_code}\n" \
 	-H 'Content-Type: application/json' \
 	-d '{"login":"x","password":"y"}' \
 	"https://dev.perle-rare.info/api-demo/api/User/authenticate"
-python3 - <<'PY'
+AUTH_FILE_PY="$(to_py_path "$AUTH_FILE")"
+python3 - <<PY
 import json
 from pathlib import Path
-doc = json.loads(Path("/tmp/pr-api-demo-auth.json").read_text())
+doc = json.loads(Path(r"$AUTH_FILE_PY").read_text(encoding="utf-8-sig"))
 assert doc.get("message") == "Login or password is incorrect", doc
 print("authenticate_contract_ok")
 PY
-rm -f /tmp/pr-api-demo-auth.json
+rm -f "$AUTH_FILE"
 curl -sS -o /dev/null -w "prod_api_status=%{http_code}\n" "https://api.perle-rare.info/api/Test/info"
 
 # deploy-api-prod-v2.sh only ships an API version recorded here.
