@@ -12,6 +12,8 @@ public interface IUserService
 
 	bool SwitchDispo(int refConseiller, string remoteIpAddress);
 
+	bool SwitchDispoMission(int refConseiller, string remoteIpAddress);
+
 	ConseillersPersonnels GetConseiller(string login);
 
 	/// <summary>Prefetch missing conseillers in one query (same cache as GetConseiller).</summary>

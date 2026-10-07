@@ -85,6 +85,8 @@ public class ConseillersPersonnels
 
 	public sbyte CpDispo { get; set; }
 
+	public bool CpDispoMission { get; set; }
+
 	public string CpAutoLogin { get; set; }
 
 	public string CpPhotoSignature { get; set; }

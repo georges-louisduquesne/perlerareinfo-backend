@@ -153,6 +153,22 @@ public class UserService : IUserService
 		return info.CpDispo == 1;
 	}
 
+	public bool SwitchDispoMission(int refConseiller, string remoteIpAddress)
+	{
+		int updated = _context.Database.ExecuteSqlRaw("UPDATE conseillers_personnels SET CP_DispoMission = 1 - CP_DispoMission WHERE CP_RefConseiller = {0}", refConseiller);
+		if (updated != 1)
+		{
+			throw new AppException("Conseiller not found");
+		}
+		var info = (from cp in _context.ConseillersPersonnels.AsNoTracking()
+			where (long)cp.CpRefConseiller == (long)refConseiller
+			select new { cp.CpDispoMission, cp.CpLogin }).Single();
+		int previous = info.CpDispoMission ? 0 : 1;
+		int current = info.CpDispoMission ? 1 : 0;
+		_auditService.Add(_context, info.CpLogin, "conseillers_personnels", "UPDATE", $"CP_DispoMission: {previous}>{current}", "CP_Login=" + info.CpLogin, remoteIpAddress);
+		return info.CpDispoMission;
+	}
+
 	public ConseillersPersonnels GetConseiller(string login)
 	{
 		if (string.IsNullOrEmpty(login))

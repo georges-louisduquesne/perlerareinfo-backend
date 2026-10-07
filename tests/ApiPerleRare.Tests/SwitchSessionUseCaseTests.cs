@@ -21,6 +21,19 @@ public class SwitchSessionUseCaseTests
 	}
 
 	[Fact]
+	public void SwitchDispoMission_delegates_to_directory_with_ip()
+	{
+		var users = new RecordingUsers();
+		var useCase = new SwitchDispoMissionUseCase(users);
+
+		bool result = useCase.Execute(9, "10.1.0.2");
+
+		Assert.True(result);
+		Assert.Equal(9, users.LastRef);
+		Assert.Equal("10.1.0.2", users.LastIp);
+	}
+
+	[Fact]
 	public void SwitchFilter_toggles_session_flag()
 	{
 		var session = new StubSession { Filter = false };
@@ -51,6 +64,13 @@ public class SwitchSessionUseCaseTests
 		}
 
 		public bool SwitchDispo(int refConseiller, string remoteIpAddress)
+		{
+			LastRef = refConseiller;
+			LastIp = remoteIpAddress;
+			return true;
+		}
+
+		public bool SwitchDispoMission(int refConseiller, string remoteIpAddress)
 		{
 			LastRef = refConseiller;
 			LastIp = remoteIpAddress;

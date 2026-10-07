@@ -422,6 +422,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpDateNaissance).HasColumnName("CP_DateNaissance");
 			entity.Property((ConseillersPersonnels e) => e.CpDateSignatureContrat).HasColumnName("CP_DateSignatureContrat");
 			entity.Property((ConseillersPersonnels e) => e.CpDispo).HasDefaultValueSql("'1'").HasColumnName("CP_Dispo");
+			entity.Property((ConseillersPersonnels e) => e.CpDispoMission).HasDefaultValueSql("'1'").HasColumnName("CP_DispoMission");
 			entity.Property((ConseillersPersonnels e) => e.CpEnSociete).HasColumnName("CP_EnSociete");
 			entity.Property((ConseillersPersonnels e) => e.CpFonction).HasMaxLength(50).HasColumnName("CP_Fonction");
 			entity.Property((ConseillersPersonnels e) => e.CpInitiales).HasMaxLength(3).HasColumnName("CP_Initiales");

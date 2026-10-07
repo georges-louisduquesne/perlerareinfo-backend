@@ -76,6 +76,8 @@ public class AuthenticateUseCaseTests
 
 		public bool SwitchDispo(int refConseiller, string remoteIpAddress) => false;
 
+		public bool SwitchDispoMission(int refConseiller, string remoteIpAddress) => false;
+
 		public ConseillersPersonnels GetConseiller(string login) => null;
 
 		public void WarmConseillers(System.Collections.Generic.IEnumerable<string> logins)

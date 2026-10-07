@@ -17,17 +17,21 @@ public class UserController : ControllerBase
 
 	private readonly ISwitchDispoUseCase _switchDispo;
 
+	private readonly ISwitchDispoMissionUseCase _switchDispoMission;
+
 	private readonly ISwitchFilterUseCase _switchFilter;
 
 	public UserController(
 		IAuthenticateUseCase authenticate,
 		IRefreshSessionUseCase refresh,
 		ISwitchDispoUseCase switchDispo,
+		ISwitchDispoMissionUseCase switchDispoMission,
 		ISwitchFilterUseCase switchFilter)
 	{
 		_authenticate = authenticate;
 		_refresh = refresh;
 		_switchDispo = switchDispo;
+		_switchDispoMission = switchDispoMission;
 		_switchFilter = switchFilter;
 	}
 
@@ -72,6 +76,14 @@ public class UserController : ControllerBase
 		int refConseiller = this.GetUserId();
 		IPAddress obj = base.Request?.HttpContext?.Connection?.RemoteIpAddress;
 		return _switchDispo.Execute(refConseiller, obj?.ToString());
+	}
+
+	[HttpGet("SwitchDispoMission/{id:int}")]
+	[Authorize]
+	public bool SwitchDispoMission(int id)
+	{
+		IPAddress obj = base.Request?.HttpContext?.Connection?.RemoteIpAddress;
+		return _switchDispoMission.Execute(id, obj?.ToString());
 	}
 
 	[HttpGet("SwitchFilter")]

@@ -124,6 +124,8 @@ public class ContractIntegrationTests : IClassFixture<ApiFactory>
 	[InlineData("/api/Taches")]
 	[InlineData("/api/Evenements/EncaissementsEnCours")]
 	[InlineData("/api/ConseillersPersonnelsEvenements")]
+	[InlineData("/api/Disponibilites/MissionsActives")]
+	[InlineData("/api/User/SwitchDispoMission/1")]
 	public async Task Front_unused_or_authed_routes_reject_anonymous(string path)
 	{
 		HttpResponseMessage res = await _client.GetAsync(path);

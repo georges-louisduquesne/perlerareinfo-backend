@@ -22,7 +22,8 @@ public class ConseillersPersonnelsNonAdminTests
 		CpCp = 75001,
 		CpVille = "PARIS",
 		CpCommentaire = "rh",
-		CpCv = "cv.pdf"
+		CpCv = "cv.pdf",
+		CpDispoMission = true
 	};
 
 	[Fact]
@@ -44,6 +45,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Null(cp.CpVille);
 		Assert.Null(cp.CpCommentaire);
 		Assert.Null(cp.CpCv);
+		Assert.True(cp.CpDispoMission);
 	}
 
 	[Fact]

@@ -30,6 +30,8 @@ internal class FakeUserService : IUserService
 
 	public bool SwitchDispo(int refConseiller, string remoteIpAddress) => false;
 
+	public bool SwitchDispoMission(int refConseiller, string remoteIpAddress) => false;
+
 	private static ConseillersPersonnels DemoUser() => new()
 	{
 		CpRefConseiller = 42,

@@ -8,6 +8,7 @@ using ApiPerleRare.Application.Annonces;
 using ApiPerleRare.Application.Authentication;
 using ApiPerleRare.Application.Catalog;
 using ApiPerleRare.Application.Contacts;
+using ApiPerleRare.Application.Disponibilites;
 using ApiPerleRare.Application.Events;
 using ApiPerleRare.Application.Exchange;
 using ApiPerleRare.Application.Files;
@@ -180,6 +181,8 @@ public class Startup
 		services.AddScoped<IAuthenticateUseCase, AuthenticateUseCase>();
 		services.AddScoped<IRefreshSessionUseCase, RefreshSessionUseCase>();
 		services.AddScoped<ISwitchDispoUseCase, SwitchDispoUseCase>();
+		services.AddScoped<ISwitchDispoMissionUseCase, SwitchDispoMissionUseCase>();
+		services.AddScoped<IListActiveMissionLoginsUseCase, ListActiveMissionLoginsUseCase>();
 		services.AddScoped<ISwitchFilterUseCase, SwitchFilterUseCase>();
 		services.AddSingleton<IFileStorage, LocalFileStorage>();
 		services.AddScoped<IUploadFileUseCase, UploadFileUseCase>();
