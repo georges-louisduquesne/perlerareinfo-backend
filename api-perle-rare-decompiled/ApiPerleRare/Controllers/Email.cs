@@ -25,4 +25,23 @@ public class Email
 
 	[DataMember]
 	public bool HighImportance { get; set; }
+
+	[DataMember]
+	public string Cc { get; set; }
+
+	[DataMember]
+	public EmailAttachment[] Attachments { get; set; }
+}
+
+[DataContract]
+public class EmailAttachment
+{
+	[DataMember]
+	public string FileName { get; set; }
+
+	[DataMember]
+	public string ContentType { get; set; }
+
+	[DataMember]
+	public string ContentBase64 { get; set; }
 }

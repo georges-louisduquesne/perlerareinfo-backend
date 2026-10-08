@@ -2,5 +2,5 @@ namespace ApiPerleRare;
 
 public interface ILocalhostMailService
 {
-	bool SendMail(string senderName, string senderEmail, string to, string subject, string contents);
+	bool SendMail(string senderName, string senderEmail, string to, string subject, string contents, string cc = null, MailAttachment[] attachments = null);
 }
