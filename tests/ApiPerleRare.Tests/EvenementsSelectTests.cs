@@ -1,6 +1,8 @@
 using System.Linq;
+using ApiPerleRare.Application.Events;
 using ApiPerleRare.Controllers;
 using ApiPerleRare.Helpers;
+using ApiPerleRare.Models;
 using ApiPerleRare.Predicates;
 using Xunit;
 
@@ -8,6 +10,25 @@ namespace ApiPerleRare.Tests;
 
 public class EvenementsSelectTests
 {
+	[Fact]
+	public void List_projection_keeps_pc_and_property_for_the_linked_bien_flag()
+	{
+		EvenementsEx row = EvenementsListShape.Project.Compile()(new Evenements
+		{
+			ERefEvenement = 508338,
+			EPcId = 773540,
+			EPropertyId = "ee2a6b60-b3a1-11f1-a52a-8514996ce0dc",
+			ERefBien = 26888,
+			ECr = "",
+			ENomContact = "",
+			ETexte = ""
+		});
+		Assert.Equal(508338, row.ERefEvenement);
+		Assert.Equal(773540u, row.EPcId);
+		Assert.Equal("ee2a6b60-b3a1-11f1-a52a-8514996ce0dc", row.EPropertyId);
+		Assert.Equal(26888u, row.ERefBien);
+	}
+
 	[Fact]
 	public void Select_skips_unknown_event_fields_instead_of_400()
 	{

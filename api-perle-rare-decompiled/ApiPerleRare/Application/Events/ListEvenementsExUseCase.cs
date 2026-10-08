@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Catalog;
@@ -11,6 +13,37 @@ using Microsoft.Extensions.Caching.Memory;
 using ApiPerleRare.Application.Abstractions;
 
 namespace ApiPerleRare.Application.Events;
+
+/// <summary>
+/// Colonnes lues par GET Evenements. E_PC_Id et E_PropertyId servent à l’indicateur « bien lié ».
+/// </summary>
+public static class EvenementsListShape
+{
+	public static readonly Expression<Func<Evenements, EvenementsEx>> Project = (Evenements e) => new EvenementsEx
+	{
+		ERefAnnAgc = e.ERefAnnAgc,
+		ECr = e.ECr,
+		EDate = e.EDate,
+		EDateCreation = e.EDateCreation,
+		EMail = e.EMail,
+		ENomContact = e.ENomContact,
+		EPropertyId = e.EPropertyId,
+		EPcId = e.EPcId,
+		EAppointmentId = e.EAppointmentId,
+		ERefBien = e.ERefBien,
+		ERefConseiller = e.ERefConseiller,
+		ERefContact = e.ERefContact,
+		ERefCtcInter = e.ERefCtcInter,
+		ERefEvenement = e.ERefEvenement,
+		ERefInterD = e.ERefInterD,
+		ERefInterI = e.ERefInterI,
+		EStatut = e.EStatut,
+		ETexte = e.ETexte,
+		ETypeEvenement = e.ETypeEvenement,
+		EConseiller_Nom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpNomFamille : null),
+		EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null)
+	};
+}
 
 public sealed class ListEvenementsExUseCase : IListEvenementsExUseCase
 {
@@ -27,29 +60,7 @@ public sealed class ListEvenementsExUseCase : IListEvenementsExUseCase
 	public async Task<List<EvenementsEx>> Execute(EntityQuery query, string option, string userLogin, bool applyNegociateurFilter, CancellationToken cancellationToken = default)
 	{
 		query ??= new EntityQuery();
-		IQueryable<EvenementsEx> evenements = _context.Evenements.AsNoTracking().Select((Evenements e) => new EvenementsEx
-		{
-			ERefAnnAgc = e.ERefAnnAgc,
-			ECr = e.ECr,
-			EDate = e.EDate,
-			EDateCreation = e.EDateCreation,
-			EMail = e.EMail,
-			ENomContact = e.ENomContact,
-			EPropertyId = e.EPropertyId,
-			EAppointmentId = e.EAppointmentId,
-			ERefBien = e.ERefBien,
-			ERefConseiller = e.ERefConseiller,
-			ERefContact = e.ERefContact,
-			ERefCtcInter = e.ERefCtcInter,
-			ERefEvenement = e.ERefEvenement,
-			ERefInterD = e.ERefInterD,
-			ERefInterI = e.ERefInterI,
-			EStatut = e.EStatut,
-			ETexte = e.ETexte,
-			ETypeEvenement = e.ETypeEvenement,
-			EConseiller_Nom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpNomFamille : null),
-			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null)
-		}).AsNoTracking();
+		IQueryable<EvenementsEx> evenements = _context.Evenements.AsNoTracking().Select(EvenementsListShape.Project).AsNoTracking();
 		evenements = await ApplyDefaultFilter(evenements, option, userLogin, applyNegociateurFilter);
 		evenements = EFHelper<EvenementsEx>.Apply(evenements, query.Where, query.OrderBy, query.Take, query.Skip, query.Select);
 		return await evenements.ToListAsync(cancellationToken);
