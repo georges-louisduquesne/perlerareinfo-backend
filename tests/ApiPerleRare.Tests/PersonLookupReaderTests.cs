@@ -1,4 +1,5 @@
 using System.Linq;
+using ApiPerleRare.Controllers;
 using ApiPerleRare.Helpers;
 using Xunit;
 
@@ -15,6 +16,14 @@ public class PersonLookupReaderTests
 	public void Seul_le_prenom_et_le_nom_exacts_comptent(string prenom, string nom, string candidate, bool expected)
 	{
 		Assert.Equal(expected, PersonLookupReader.IsExactPersonName(prenom, nom, candidate));
+	}
+
+	[Fact]
+	public void Lit_le_jeton_Apify_dans_le_fichier_ou_un_profil()
+	{
+		Assert.Equal("abc", PersonLookupController.TokenFromAuthJson("{\"token\":\" abc \",\"username\":\"x\"}"));
+		Assert.Equal("nested", PersonLookupController.TokenFromAuthJson("{\"secretsBackend\":\"keyring\",\"profiles\":{\"default\":{\"token\":\"nested\"}}}"));
+		Assert.Null(PersonLookupController.TokenFromAuthJson("{\"secretsBackend\":\"keyring\",\"username\":\"x\"}"));
 	}
 
 	[Fact]

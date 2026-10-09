@@ -18,6 +18,7 @@ using ApiPerleRare.Helpers;
 using ApiPerleRare.Infrastructure.Files;
 using ApiPerleRare.Infrastructure.Mail;
 using ApiPerleRare.Infrastructure.Yanport;
+using ApiPerleRare.YanportModels;
 using ApiPerleRare.Models;
 using ApiPerleRare.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -250,6 +251,7 @@ public class Startup
 			}
 		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+		services.AddSingleton<AgencyYanportLinkJob>();
 		if (IsDevMachine)
 		{
 			services.AddSingleton<IYanportService, YanportDevService>();

@@ -5,6 +5,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -49,6 +51,7 @@ public class PersonLookupController : ControllerBase
 		var token = ReadApifyToken(_configuration);
 		if (string.IsNullOrWhiteSpace(token))
 		{
+			Console.WriteLine("PersonLookup: jeton Apify absent.");
 			return Ok(PersonLookupReader.Unavailable());
 		}
 		using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(55) };
@@ -123,8 +126,9 @@ public class PersonLookupController : ControllerBase
 		{
 			throw;
 		}
-		catch
+		catch (Exception ex)
 		{
+			Console.WriteLine("PersonLookup: " + ex.Message);
 			return Ok(PersonLookupReader.Unavailable());
 		}
 	}
@@ -139,7 +143,7 @@ public class PersonLookupController : ControllerBase
 		var body = await response.Content.ReadAsStringAsync(cancellationToken);
 		if (!response.IsSuccessStatusCode)
 		{
-			throw new InvalidOperationException("Recherche publique indisponible.");
+			throw new InvalidOperationException("Recherche publique indisponible (" + (int)response.StatusCode + ").");
 		}
 		return body;
 	}
@@ -159,23 +163,151 @@ public class PersonLookupController : ControllerBase
 		try
 		{
 			var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".apify", "auth.json");
-			if (!System.IO.File.Exists(path))
+			if (System.IO.File.Exists(path))
 			{
-				return null;
+				var json = System.IO.File.ReadAllText(path);
+				var fromFile = TokenFromAuthJson(json);
+				if (!string.IsNullOrWhiteSpace(fromFile))
+				{
+					return fromFile;
+				}
 			}
-			using var doc = JsonDocument.Parse(System.IO.File.ReadAllText(path));
-			if (doc.RootElement.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String)
+		}
+		catch
+		{
+			// Fichier illisible : le trousseau Windows peut encore avoir le jeton.
+		}
+		return ReadKeyringToken();
+	}
+
+	private static string DecodeCredential(byte[] bytes)
+	{
+		if (bytes.Length >= 4 && bytes.Length % 2 == 0 && bytes[1] == 0)
+		{
+			var utf16 = Encoding.Unicode.GetString(bytes).Trim('\0', ' ', '\r', '\n');
+			if (!string.IsNullOrWhiteSpace(utf16))
 			{
-				var value = token.GetString();
-				return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+				return utf16;
 			}
+		}
+		return Encoding.UTF8.GetString(bytes).Trim('\0', ' ', '\r', '\n');
+	}
+
+	internal static string TokenFromAuthJson(string json)
+	{
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return null;
+		}
+		try
+		{
+			using var doc = JsonDocument.Parse(json);
+			return TokenFromElement(doc.RootElement);
 		}
 		catch
 		{
 			return null;
 		}
+	}
+
+	private static string TokenFromElement(JsonElement element)
+	{
+		if (element.ValueKind != JsonValueKind.Object)
+		{
+			return null;
+		}
+		if (element.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String)
+		{
+			var value = token.GetString();
+			if (!string.IsNullOrWhiteSpace(value))
+			{
+				return value.Trim();
+			}
+		}
+		if (element.TryGetProperty("profiles", out var profiles) && profiles.ValueKind == JsonValueKind.Object)
+		{
+			foreach (var profile in profiles.EnumerateObject())
+			{
+				var found = TokenFromElement(profile.Value);
+				if (!string.IsNullOrWhiteSpace(found))
+				{
+					return found;
+				}
+			}
+		}
 		return null;
 	}
+
+	private static string ReadKeyringToken()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return null;
+		}
+		string[] targets =
+		{
+			"token.com.apify.cli",
+			"com.apify.cli.token",
+			"com.apify.cli/token",
+			"com.apify.cli:token",
+		};
+		foreach (var target in targets)
+		{
+			var value = ReadGenericCredential(target);
+			if (!string.IsNullOrWhiteSpace(value))
+			{
+				return value.Trim();
+			}
+		}
+		return null;
+	}
+
+	private static string ReadGenericCredential(string target)
+	{
+		if (!CredRead(target, 1, 0, out var credential))
+		{
+			return null;
+		}
+		try
+		{
+			var cred = Marshal.PtrToStructure<Credential>(credential);
+			if (cred.CredentialBlob == IntPtr.Zero || cred.CredentialBlobSize <= 0)
+			{
+				return null;
+			}
+			var bytes = new byte[cred.CredentialBlobSize];
+			Marshal.Copy(cred.CredentialBlob, bytes, 0, bytes.Length);
+			var text = DecodeCredential(bytes);
+			return string.IsNullOrWhiteSpace(text) ? null : text;
+		}
+		finally
+		{
+			CredFree(credential);
+		}
+	}
+
+	[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+	private struct Credential
+	{
+		public int Flags;
+		public int Type;
+		public IntPtr TargetName;
+		public IntPtr Comment;
+		public long LastWritten;
+		public int CredentialBlobSize;
+		public IntPtr CredentialBlob;
+		public int Persist;
+		public int AttributeCount;
+		public IntPtr Attributes;
+		public IntPtr TargetAlias;
+		public IntPtr UserName;
+	}
+
+	[DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+	private static extern bool CredRead(string target, int type, int reservedFlag, out IntPtr credential);
+
+	[DllImport("advapi32.dll")]
+	private static extern void CredFree(IntPtr credential);
 
 	private static string Clean(string value)
 	{
