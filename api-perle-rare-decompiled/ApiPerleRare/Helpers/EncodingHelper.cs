@@ -1,5 +1,6 @@
 #define TRACE
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -57,7 +58,7 @@ public class EncodingHelper
 
 	private static readonly char[] _firstLetters;
 
-	private static Dictionary<Type, PropertyInfo[]> cache_stringProperties;
+	private static readonly ConcurrentDictionary<Type, PropertyInfo[]> cache_stringProperties = new ConcurrentDictionary<Type, PropertyInfo[]>();
 
 	public static List<string> Forbidden { get; }
 
@@ -65,7 +66,6 @@ public class EncodingHelper
 	{
 		_automate = new Node("ROOT");
 		Forbidden = new List<string>();
-		cache_stringProperties = new Dictionary<Type, PropertyInfo[]>();
 		Set("Ã©", "é");
 		Set("Ã§", "ç");
 		Set("Ã\u00a8", "è");
@@ -189,13 +189,9 @@ public class EncodingHelper
 
 	public static PropertyInfo[] GetStringProperties(Type type)
 	{
-		if (!cache_stringProperties.TryGetValue(type, out var props))
-		{
-			props = (from p in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.SetProperty)
+		return cache_stringProperties.GetOrAdd(type, static t =>
+			(from p in t.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.SetProperty)
 				where p.PropertyType == typeof(string)
-				select p).ToArray();
-			cache_stringProperties.Add(type, props);
-		}
-		return props;
+				select p).ToArray());
 	}
 }
