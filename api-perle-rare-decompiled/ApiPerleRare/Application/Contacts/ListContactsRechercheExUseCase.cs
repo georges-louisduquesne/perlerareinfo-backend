@@ -47,24 +47,7 @@ public sealed class ListContactsRechercheExUseCase : IListContactsRechercheExUse
 		if (leanForAccueil)
 		{
 			// Home Accueil only needs identity / roles / flags — skip huge TEXT + PHP blobs on the wire.
-			query = query.Select((ContactsRecherche c) => new ContactsRecherche
-			{
-				CRefContact = c.CRefContact,
-				CPrenom = c.CPrenom,
-				CNomFamille = c.CNomFamille,
-				CDateCreation = c.CDateCreation,
-				CDate = c.CDate,
-				CDateFin = c.CDateFin,
-				CApporteur = c.CApporteur,
-				C2emeApporteur = c.C2emeApporteur,
-				CNegociateur = c.CNegociateur,
-				C2emeNegociateur = c.C2emeNegociateur,
-				CNomFamilleConseiller = c.CNomFamilleConseiller,
-				C2emeConseiller = c.C2emeConseiller,
-				CTypeRecherche = c.CTypeRecherche,
-				CStatut = c.CStatut,
-				CMttHono = c.CMttHono
-			});
+			query = query.Select(ContactsRechercheAccueilLean.Projection);
 		}
 		List<ContactsRecherche> res = await query.ToListAsync();
 		if (leanForAccueil)
