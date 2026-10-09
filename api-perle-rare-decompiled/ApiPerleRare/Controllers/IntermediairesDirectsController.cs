@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
+using ApiPerleRare.YanportModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -71,10 +72,13 @@ public class IntermediairesDirectsController : ControllerBase
 
 	private readonly ImportAgencyLogoUseCase _importLogo;
 
-	public IntermediairesDirectsController(ApplicationDbContext context, ImportAgencyLogoUseCase importLogo)
+	private readonly AgencyYanportLinkJob _yanportLinks;
+
+	public IntermediairesDirectsController(ApplicationDbContext context, ImportAgencyLogoUseCase importLogo, AgencyYanportLinkJob yanportLinks)
 	{
 		_context = context;
 		_importLogo = importLogo;
+		_yanportLinks = yanportLinks;
 	}
 
 	[HttpGet]
@@ -131,6 +135,10 @@ public class IntermediairesDirectsController : ControllerBase
 		{
 			return BadRequest();
 		}
+		long? previousYanportId = await _context.IntermediairesDirects.AsNoTracking()
+			.Where((IntermediairesDirects e) => e.IRefIntermediaire == id)
+			.Select((IntermediairesDirects e) => (long?)e.IIdYanport)
+			.FirstOrDefaultAsync();
 		_context.Entry(intermediairesDirects).State = EntityState.Modified;
 		try
 		{
@@ -144,6 +152,10 @@ public class IntermediairesDirectsController : ControllerBase
 			}
 			throw;
 		}
+		if (previousYanportId.HasValue)
+		{
+			_yanportLinks.Enqueue(id, previousYanportId.Value, intermediairesDirects.IIdYanport);
+		}
 		return NoContent();
 	}
 
@@ -152,6 +164,7 @@ public class IntermediairesDirectsController : ControllerBase
 	{
 		_context.IntermediairesDirects.Add(intermediairesDirects);
 		await _context.SaveChangesAsync();
+		_yanportLinks.Enqueue(intermediairesDirects.IRefIntermediaire, 0, intermediairesDirects.IIdYanport);
 		return CreatedAtAction("GetIntermediairesDirects", new
 		{
 			id = intermediairesDirects.IRefIntermediaire
