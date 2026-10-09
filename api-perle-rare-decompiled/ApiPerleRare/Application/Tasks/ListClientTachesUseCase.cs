@@ -26,8 +26,8 @@ public sealed class ListClientTachesUseCase : IListClientTachesUseCase
 		query ??= new EntityQuery();
 		IQueryable<Taches> taches = _context.Taches.AsNoTracking();
 		taches = taches.Where((Taches t) => t.TEtat == "");
-		DateTime today = DateTime.Today;
-		taches = taches.Where((Taches t) => t.TDateRealisation <= today);
+		DateTime dueBefore = AccueilTacheWindow.DueBefore(DateTime.Now);
+		taches = taches.Where((Taches t) => t.TDateRealisation < dueBefore);
 		taches = taches.Where((Taches t) => t.TRefContactNavigation.CStatut == "CLIENT ACTIF" || t.TRefContactNavigation.CStatut == "CLIENT MORT");
 		if (applyQuiFilter && !string.IsNullOrEmpty(userLogin))
 		{

@@ -26,8 +26,8 @@ public sealed class ListProspectTachesUseCase : IListProspectTachesUseCase
 		query ??= new EntityQuery();
 		IQueryable<Taches> taches = _context.Taches.AsNoTracking();
 		taches = taches.Where((Taches t) => t.TEtat == "");
-		DateTime tomorrow = DateTime.Today.AddDays(1.0);
-		taches = taches.Where((Taches t) => t.TDateRealisation < tomorrow);
+		DateTime dueBefore = AccueilTacheWindow.DueBefore(DateTime.Now);
+		taches = taches.Where((Taches t) => t.TDateRealisation < dueBefore);
 		taches = taches.Where((Taches t) => t.TRefContactNavigation.CStatut == "PROSPECT ACTIF" || t.TRefContactNavigation.CStatut == "PROSPECT MORT");
 		if (applyQuiFilter && !string.IsNullOrEmpty(userLogin))
 		{
