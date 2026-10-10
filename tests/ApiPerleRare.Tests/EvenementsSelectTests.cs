@@ -30,6 +30,57 @@ public class EvenementsSelectTests
 	}
 
 	[Fact]
+	public void List_projection_includes_linked_bien_address_for_compromis_and_acte()
+	{
+		EvenementsEx compromis = EvenementsListShape.Project.Compile()(new Evenements
+		{
+			ERefEvenement = 508680,
+			ETypeEvenement = "RV COMPROMIS",
+			ERefBien = 26780,
+			ERefBienNavigation = new Biens
+			{
+				BRef = 26780,
+				BCp = "75116",
+				BAdresse = "45 Avenue Victor Hugo"
+			},
+			ECr = "",
+			ENomContact = "",
+			ETexte = ""
+		});
+		Assert.Equal("75116", compromis.BCp);
+		Assert.Equal("45 Avenue Victor Hugo", compromis.BAdresse);
+
+		EvenementsEx acte = EvenementsListShape.Project.Compile()(new Evenements
+		{
+			ERefEvenement = 2,
+			ETypeEvenement = "RV ACTE AUTHENT.",
+			ERefBien = 10,
+			ERefBienNavigation = new Biens
+			{
+				BRef = 10,
+				BCp = "75011",
+				BAdresse = "6 rue du Marché Popincourt"
+			},
+			ECr = "",
+			ENomContact = "",
+			ETexte = ""
+		});
+		Assert.Equal("75011", acte.BCp);
+		Assert.Equal("6 rue du Marché Popincourt", acte.BAdresse);
+
+		EvenementsEx withoutBien = EvenementsListShape.Project.Compile()(new Evenements
+		{
+			ERefEvenement = 3,
+			ETypeEvenement = "RV COMPROMIS",
+			ECr = "",
+			ENomContact = "",
+			ETexte = ""
+		});
+		Assert.Null(withoutBien.BCp);
+		Assert.Null(withoutBien.BAdresse);
+	}
+
+	[Fact]
 	public void Select_skips_unknown_event_fields_instead_of_400()
 	{
 		EvenementsEx[] rows =

@@ -16,6 +16,7 @@ namespace ApiPerleRare.Application.Events;
 
 /// <summary>
 /// Colonnes lues par GET Evenements. E_PC_Id et E_PropertyId servent à l’indicateur « bien lié ».
+/// BCp et BAdresse viennent du bien lié (RV COMPROMIS, RV ACTE AUTHENT., visites hors accueil).
 /// </summary>
 public static class EvenementsListShape
 {
@@ -40,6 +41,8 @@ public static class EvenementsListShape
 		EStatut = e.EStatut,
 		ETexte = e.ETexte,
 		ETypeEvenement = e.ETypeEvenement,
+		BCp = ((e.ERefBienNavigation != null) ? e.ERefBienNavigation.BCp : null),
+		BAdresse = ((e.ERefBienNavigation != null) ? e.ERefBienNavigation.BAdresse : null),
 		EConseiller_Nom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpNomFamille : null),
 		EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null)
 	};
