@@ -54,4 +54,23 @@ public class FileController : ControllerBase
 		Response.Headers["Cache-Control"] = "public, max-age=86400";
 		return File(bytes, contentType);
 	}
+
+	/// <summary>Logo de réseau servi aux balises img, limité au dossier logos/reseaux.</summary>
+	[HttpGet("public/logos/reseaux/{fileName}")]
+	[AllowAnonymous]
+	public IActionResult PublicNetworkLogo(string fileName)
+	{
+		if (!AgencyLogoAddress.TryPublicFileName(fileName, "logos/reseaux", out string relative, out string contentType))
+		{
+			return NotFound();
+		}
+		if (!_storage.TryResolve(relative, out string fullPath, out _) || !_storage.Exists(fullPath))
+		{
+			return NotFound();
+		}
+		byte[] bytes = _storage.ReadAllBytes(fullPath);
+		Response.Headers["X-Content-Type-Options"] = "nosniff";
+		Response.Headers["Cache-Control"] = "public, max-age=86400";
+		return File(bytes, contentType);
+	}
 }

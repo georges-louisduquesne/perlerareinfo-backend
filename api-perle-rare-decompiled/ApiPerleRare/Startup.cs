@@ -189,6 +189,7 @@ public class Startup
 		services.AddScoped<IUploadFileUseCase, UploadFileUseCase>();
 		services.AddScoped<IDownloadFileUseCase, DownloadFileUseCase>();
 		services.AddScoped<ImportAgencyLogoUseCase>();
+		services.AddScoped<ImportNetworkLogoUseCase>();
 		services.AddScoped(typeof(IQueryEntitiesUseCase<>), typeof(QueryEntitiesUseCase<>));
 		services.AddScoped<IListEncaissementsEnCoursUseCase, ListEncaissementsEnCoursUseCase>();
 		services.AddScoped<IListHomeClientEvenementsUseCase, ListHomeClientEvenementsUseCase>();

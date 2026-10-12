@@ -202,8 +202,17 @@ internal static class AgencyLogoAddress
 
 	public static bool TryPublicFileName(string fileName, out string relative, out string contentType)
 	{
+		return TryPublicFileName(fileName, "logos/agences", out relative, out contentType);
+	}
+
+	public static bool TryPublicFileName(string fileName, string folder, out string relative, out string contentType)
+	{
 		relative = null;
 		contentType = null;
+		if (folder != "logos/agences" && folder != "logos/reseaux")
+		{
+			return false;
+		}
 		string name = (fileName ?? "").Trim();
 		if (!Regex.IsMatch(name, @"^\d+\.(png|jpg|jpeg|gif|webp|svg)$", RegexOptions.IgnoreCase))
 		{
@@ -214,7 +223,7 @@ internal static class AgencyLogoAddress
 		{
 			ext = "jpg";
 		}
-		relative = "logos/agences/" + PathId(name) + "." + ext;
+		relative = folder + "/" + PathId(name) + "." + ext;
 		contentType = ext switch
 		{
 			"png" => "image/png",

@@ -1,5 +1,7 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -15,9 +17,12 @@ public class IntermediairesIndirectsController : ControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
-	public IntermediairesIndirectsController(ApplicationDbContext context)
+	private readonly ImportNetworkLogoUseCase _importLogo;
+
+	public IntermediairesIndirectsController(ApplicationDbContext context, ImportNetworkLogoUseCase importLogo)
 	{
 		_context = context;
+		_importLogo = importLogo;
 	}
 
 	[HttpGet]
@@ -36,6 +41,21 @@ public class IntermediairesIndirectsController : ControllerBase
 			return NotFound();
 		}
 		return intermediairesIndirects;
+	}
+
+	[HttpPost("{id}/logo")]
+	[Authorize(Roles = "Admin")]
+	public async Task<IActionResult> ImportLogo(uint id, AgencyLogoImportRequest request)
+	{
+		try
+		{
+			NetworkLogoImportResult result = await _importLogo.Execute(id, request?.Url, HttpContext.RequestAborted);
+			return Ok(result);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { errors = ex.Message });
+		}
 	}
 
 	[HttpPut("{id}")]
