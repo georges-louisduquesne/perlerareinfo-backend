@@ -398,13 +398,20 @@ internal class PRExchangeService : IExchangeService
 		{
 			await appointment.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToAllAndSaveCopy);
 		}
-		else if (mode == SendInvitationsMode.SendToNone)
+		else if (OrganizerAppointmentSave.SaveInCalendarFolder(mode != SendInvitationsMode.SendToNone))
 		{
-			await appointment.Save(calendarId, mode);
+			// Save(FolderId, SendToAll) ne conserve pas la copie organisateur sur ce serveur Exchange.
+			// Save() sans dossier non plus : l'élément reste hors du calendrier. On crée d'abord
+			// la copie dans le calendrier de la boîte, puis on envoie les invitations.
+			await appointment.Save(calendarId, SendInvitationsMode.SendToNone);
+			if (mode != SendInvitationsMode.SendToNone)
+			{
+				StampSmtpOrganizer(appointment, email);
+				await appointment.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToAllAndSaveCopy);
+			}
 		}
 		else
 		{
-			// Save(FolderId, SendToAll) ne conserve pas la copie organisateur sur ce serveur Exchange.
 			await appointment.Save(SendInvitationsMode.SendToNone);
 			StampSmtpOrganizer(appointment, email);
 			await appointment.Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToAllAndSaveCopy);

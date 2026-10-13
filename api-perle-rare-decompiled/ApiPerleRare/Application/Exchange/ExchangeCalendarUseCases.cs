@@ -334,33 +334,19 @@ public sealed class DeleteAppointmentByEvenementUseCase : IDeleteAppointmentByEv
 		try
 		{
 			Evenements row = await _db.Evenements.FirstOrDefaultAsync((e) => e.ERefEvenement == eRefEvenement);
-			int organizerId = (row != null && row.ERefConseiller.HasValue) ? (int)row.ERefConseiller.Value : conseillerId;
-			string appointmentId = row?.EAppointmentId;
+			int? organizerId = (row != null && row.ERefConseiller.HasValue) ? (int)row.ERefConseiller.Value : null;
+			AppointmentMailboxDelete.Target target = AppointmentMailboxDelete.ForRequestedMailbox(conseillerId, organizerId, row?.EAppointmentId);
 			bool deleted = false;
 			string lastError = null;
 			try
 			{
-				deleted = await DeleteOnMailbox(organizerId, eRefEvenement, appointmentId);
+				deleted = await DeleteOnMailbox(target.MailboxId, eRefEvenement, target.AppointmentId);
 			}
 			catch (Exception ex)
 			{
 				lastError = ex.ToString();
 			}
-			if (conseillerId != organizerId)
-			{
-				try
-				{
-					if (await DeleteOnMailbox(conseillerId, eRefEvenement, null))
-					{
-						deleted = true;
-					}
-				}
-				catch (Exception ex)
-				{
-					lastError = ex.ToString();
-				}
-			}
-			if (deleted && row != null && !string.IsNullOrEmpty(row.EAppointmentId))
+			if (deleted && target.ClearStoredAppointmentId && row != null && !string.IsNullOrEmpty(row.EAppointmentId))
 			{
 				row.EAppointmentId = null;
 				await _db.SaveChangesAsync();
