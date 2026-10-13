@@ -39,6 +39,19 @@ public sealed class ImportAgencyLogoUseCase
 		_storage = storage;
 	}
 
+	public async Task ExecuteClear(uint agencyId, CancellationToken cancellationToken)
+	{
+		IntermediairesDirects row = await _db.IntermediairesDirects
+			.FirstOrDefaultAsync((IntermediairesDirects item) => item.IRefIntermediaire == agencyId, cancellationToken);
+		if (row == null)
+		{
+			throw new InvalidOperationException("Agence introuvable");
+		}
+		AgencyLogoAddress.DeleteAgencyFiles(_storage, agencyId, null);
+		row.ILogo = null;
+		await _db.SaveChangesAsync(cancellationToken);
+	}
+
 	public async Task<AgencyLogoImportResult> Execute(uint agencyId, string rawUrl, CancellationToken cancellationToken)
 	{
 		if (!AgencyLogoAddress.TryCreate(rawUrl, out Uri uri, out string urlError))
@@ -61,6 +74,7 @@ public sealed class ImportAgencyLogoUseCase
 		{
 			throw new InvalidOperationException("Agence introuvable");
 		}
+		AgencyLogoAddress.DeleteAgencyFiles(_storage, agencyId, relative);
 		_storage.WriteAllBytes(fullPath, bytes);
 		row.ILogo = relative;
 		await _db.SaveChangesAsync(cancellationToken);
@@ -198,6 +212,33 @@ internal static class AgencyLogoAddress
 		}
 		error = "Le fichier n’est pas une image.";
 		return false;
+	}
+
+	public static readonly string[] AgencyExtensions = { "png", "jpg", "gif", "webp", "svg" };
+
+	/// <summary>
+	/// Efface les fichiers logos/agences/{id}.ext. <paramref name="keepRelative"/> est conservé
+	/// (le fichier qu’on va réécrire juste après).
+	/// </summary>
+	public static void DeleteAgencyFiles(IFileStorage storage, uint agencyId, string keepRelative)
+	{
+		if (storage == null || agencyId == 0)
+		{
+			return;
+		}
+		string keep = (keepRelative ?? "").Replace('\\', '/').Trim().TrimStart('/');
+		foreach (string extension in AgencyExtensions)
+		{
+			string relative = "logos/agences/" + agencyId + "." + extension;
+			if (string.Equals(relative, keep, StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			if (storage.TryResolve(relative, out string fullPath, out _) && storage.Exists(fullPath))
+			{
+				storage.Delete(fullPath);
+			}
+		}
 	}
 
 	public static bool TryPublicFileName(string fileName, out string relative, out string contentType)

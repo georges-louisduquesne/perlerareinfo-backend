@@ -98,5 +98,7 @@ public class FileUseCaseTests
 		public bool Exists(string fullPath) => Files.ContainsKey(fullPath);
 
 		public byte[] ReadAllBytes(string fullPath) => Files[fullPath];
+
+		public void Delete(string fullPath) => Files.Remove(fullPath);
 	}
 }

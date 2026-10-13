@@ -12,4 +12,6 @@ public interface IFileStorage
 	bool Exists(string fullPath);
 
 	byte[] ReadAllBytes(string fullPath);
+
+	void Delete(string fullPath);
 }

@@ -32,4 +32,12 @@ public sealed class LocalFileStorage : IFileStorage
 	public bool Exists(string fullPath) => File.Exists(fullPath);
 
 	public byte[] ReadAllBytes(string fullPath) => File.ReadAllBytes(fullPath);
+
+	public void Delete(string fullPath)
+	{
+		if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
+		{
+			File.Delete(fullPath);
+		}
+	}
 }
