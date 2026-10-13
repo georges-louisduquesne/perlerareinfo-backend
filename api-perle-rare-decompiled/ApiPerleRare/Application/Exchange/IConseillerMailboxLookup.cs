@@ -7,4 +7,6 @@ public interface IConseillerMailboxLookup
 	Task<ConseillerMailbox> GetByConseillerIdAsync(int conseillerId);
 
 	ConseillerMailbox GetByConseillerId(int conseillerId);
+
+	ConseillerMailbox GetByEmail(string email);
 }

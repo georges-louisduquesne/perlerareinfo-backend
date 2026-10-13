@@ -310,6 +310,37 @@ internal class PRExchangeService : IExchangeService
 		};
 	}
 
+	public List<ExchangeAppointmentItem> GetAppointments(string email, string password, DateTime from, DateTime to)
+	{
+		if (string.IsNullOrWhiteSpace(email) || to <= from)
+		{
+			return new List<ExchangeAppointmentItem>();
+		}
+		ExchangeService service = GetExchangeService(email, password);
+		FolderId calendarId = new FolderId(WellKnownFolderName.Calendar, new Mailbox(email.Trim()));
+		DateTime start = DateTime.SpecifyKind(from, DateTimeKind.Unspecified);
+		DateTime end = DateTime.SpecifyKind(to, DateTimeKind.Unspecified);
+		CalendarFolder calendar = CalendarFolder.Bind(service, calendarId, new PropertySet(BasePropertySet.IdOnly)).Result;
+		CalendarView view = new CalendarView(start, end, 500);
+		view.PropertySet = new PropertySet(BasePropertySet.IdOnly, ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, AppointmentSchema.LegacyFreeBusyStatus);
+		FindItemsResults<Appointment> found = calendar.FindAppointments(view).Result;
+		List<ExchangeAppointmentItem> items = new List<ExchangeAppointmentItem>();
+		foreach (Appointment appointment in found)
+		{
+			items.Add(new ExchangeAppointmentItem
+			{
+				Id = appointment.Id?.UniqueId,
+				Subject = appointment.Subject,
+				Start = AsWallClock(appointment.Start),
+				End = AsWallClock(appointment.End),
+				Location = appointment.Location,
+				LegacyFreeBusyStatus = appointment.LegacyFreeBusyStatus.ToString()
+			});
+		}
+		items.Sort((ExchangeAppointmentItem a, ExchangeAppointmentItem b) => a.Start.CompareTo(b.Start));
+		return items;
+	}
+
 	public async Task<AddAppointmentRes> AddAppointment(string email, string password, RendezVous rendezVous)
 	{
 		ExchangeService service = GetExchangeService(email, password);

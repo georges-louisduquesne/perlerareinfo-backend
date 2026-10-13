@@ -20,6 +20,8 @@ public class ExchangeController : ControllerBase
 
 	private readonly IGetTodayAppointmentsUseCase _todayAppointments;
 
+	private readonly IGetAppointmentsUseCase _appointments;
+
 	private readonly IIsUserAvailableUseCase _isUserAvailable;
 
 	private readonly IGetSalonCalendarUseCase _salonCalendar;
@@ -35,6 +37,7 @@ public class ExchangeController : ControllerBase
 		ISendEmailUseCase sendEmail,
 		IGetUnreadEmailCountUseCase unreadEmailCount,
 		IGetTodayAppointmentsUseCase todayAppointments,
+		IGetAppointmentsUseCase appointments,
 		IIsUserAvailableUseCase isUserAvailable,
 		IGetSalonCalendarUseCase salonCalendar,
 		IAddAppointmentUseCase addAppointment,
@@ -45,6 +48,7 @@ public class ExchangeController : ControllerBase
 		_sendEmail = sendEmail;
 		_unreadEmailCount = unreadEmailCount;
 		_todayAppointments = todayAppointments;
+		_appointments = appointments;
 		_isUserAvailable = isUserAvailable;
 		_salonCalendar = salonCalendar;
 		_addAppointment = addAppointment;
@@ -82,6 +86,14 @@ public class ExchangeController : ControllerBase
 	public TodayAppointmentsResponse GetTodayAppointments(int conseillerId)
 	{
 		return _todayAppointments.Execute(conseillerId);
+	}
+
+	[Authorize]
+	[HttpGet]
+	[Route("GetAppointments/{key}")]
+	public AppointmentsResponse GetAppointments(string key, DateTime from, DateTime to)
+	{
+		return _appointments.Execute(key, from, to, this.GetUserId(), User.IsInRole("Admin"));
 	}
 
 	[Authorize]

@@ -71,6 +71,51 @@ public sealed class GetTodayAppointmentsUseCase : IGetTodayAppointmentsUseCase
 	}
 }
 
+public sealed class GetAppointmentsUseCase : IGetAppointmentsUseCase
+{
+	private readonly IConseillerMailboxLookup _mailboxes;
+
+	private readonly IExchangeService _exchange;
+
+	public GetAppointmentsUseCase(IConseillerMailboxLookup mailboxes, IExchangeService exchange)
+	{
+		_mailboxes = mailboxes;
+		_exchange = exchange;
+	}
+
+	public AppointmentsResponse Execute(string key, DateTime from, DateTime to, int callerId, bool callerIsAdmin)
+	{
+		try
+		{
+			ConseillerMailbox caller = _mailboxes.GetByConseillerId(callerId);
+			if (!AgendaReadAccess.Allows(callerId, callerIsAdmin, key, caller.Email))
+			{
+				return new AppointmentsResponse
+				{
+					Error = "Agenda non autorisé.",
+					Appointments = new System.Collections.Generic.List<ExchangeAppointmentItem>()
+				};
+			}
+			string token = (key ?? string.Empty).Trim();
+			ConseillerMailbox target = int.TryParse(token, out int conseillerId)
+				? _mailboxes.GetByConseillerId(conseillerId)
+				: _mailboxes.GetByEmail(token);
+			return new AppointmentsResponse
+			{
+				Appointments = _exchange.GetAppointments(target.Email, target.Password, from, to)
+			};
+		}
+		catch (Exception ex)
+		{
+			return new AppointmentsResponse
+			{
+				Error = ex.Message,
+				Appointments = new System.Collections.Generic.List<ExchangeAppointmentItem>()
+			};
+		}
+	}
+}
+
 public sealed class IsUserAvailableUseCase : IIsUserAvailableUseCase
 {
 	private readonly IConseillerMailboxLookup _mailboxes;

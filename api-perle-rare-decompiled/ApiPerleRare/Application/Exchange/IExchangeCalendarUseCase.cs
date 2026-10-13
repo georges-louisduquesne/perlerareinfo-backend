@@ -14,6 +14,11 @@ public interface IGetTodayAppointmentsUseCase
 	TodayAppointmentsResponse Execute(int conseillerId);
 }
 
+public interface IGetAppointmentsUseCase
+{
+	AppointmentsResponse Execute(string key, DateTime from, DateTime to, int callerId, bool callerIsAdmin);
+}
+
 public interface IIsUserAvailableUseCase
 {
 	bool Execute(int conseillerId, string userEmail, DateTime start, DateTime end);

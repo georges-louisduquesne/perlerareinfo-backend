@@ -160,6 +160,11 @@ public class SendEmailAttachmentTests
 		{
 			return System.Threading.Tasks.Task.FromResult(GetByConseillerId(conseillerId));
 		}
+
+		public ConseillerMailbox GetByEmail(string email)
+		{
+			return GetByConseillerId(0);
+		}
 	}
 
 	private sealed class CapturingLocalhostMail : ILocalhostMailService
@@ -223,6 +228,11 @@ public class SendEmailAttachmentTests
 		}
 
 		public TodayAppointmentsResponse GetTodayAppointments(string email, string password)
+		{
+			throw new NotImplementedException();
+		}
+
+		public List<ExchangeAppointmentItem> GetAppointments(string email, string password, DateTime from, DateTime to)
 		{
 			throw new NotImplementedException();
 		}

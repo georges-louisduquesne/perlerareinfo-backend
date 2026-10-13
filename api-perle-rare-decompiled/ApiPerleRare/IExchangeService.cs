@@ -21,6 +21,8 @@ public interface IExchangeService
 
 	TodayAppointmentsResponse GetTodayAppointments(string email, string password);
 
+	System.Collections.Generic.List<ExchangeAppointmentItem> GetAppointments(string email, string password, DateTime from, DateTime to);
+
 	Task<AddAppointmentRes> AddAppointment(string email, string password, RendezVous rendezVous);
 
 	Task<RendezVous> FindAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement, string appointmentId = null);

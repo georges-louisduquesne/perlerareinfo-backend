@@ -86,5 +86,10 @@ public class SendEmailMailboxPasswordTests
 		{
 			return Task.FromResult(GetByConseillerId(conseillerId));
 		}
+
+		public ConseillerMailbox GetByEmail(string email)
+		{
+			return GetByConseillerId(0);
+		}
 	}
 }

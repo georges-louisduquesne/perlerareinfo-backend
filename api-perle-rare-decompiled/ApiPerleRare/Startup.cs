@@ -220,6 +220,7 @@ public class Startup
 		services.AddScoped<ISendEmailUseCase, SendEmailUseCase>();
 		services.AddScoped<IGetUnreadEmailCountUseCase, GetUnreadEmailCountUseCase>();
 		services.AddScoped<IGetTodayAppointmentsUseCase, GetTodayAppointmentsUseCase>();
+		services.AddScoped<IGetAppointmentsUseCase, GetAppointmentsUseCase>();
 		services.AddScoped<IIsUserAvailableUseCase, IsUserAvailableUseCase>();
 		services.AddScoped<IGetSalonCalendarUseCase, GetSalonCalendarUseCase>();
 		services.AddScoped<IAddAppointmentUseCase, AddAppointmentUseCase>();

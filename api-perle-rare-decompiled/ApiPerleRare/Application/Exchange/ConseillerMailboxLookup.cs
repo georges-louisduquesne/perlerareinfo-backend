@@ -32,6 +32,24 @@ public sealed class ConseillerMailboxLookup : IConseillerMailboxLookup
 		};
 	}
 
+	public ConseillerMailbox GetByEmail(string email)
+	{
+		string mail = (email ?? string.Empty).Trim();
+		var cp = (from c in _db.ConseillersPersonnels
+			where c.CpMel == mail
+			select new { c.CpMel, c.CpMelMotDePasse, c.CpPrenom, c.CpNomFamille }).FirstOrDefault();
+		if (cp == null)
+		{
+			throw new Exception("Aucun conseiller pour cette adresse");
+		}
+		return new ConseillerMailbox
+		{
+			Email = cp.CpMel,
+			Password = cp.CpMelMotDePasse,
+			DisplayName = ConseillerDisplayName(cp.CpPrenom, cp.CpNomFamille)
+		};
+	}
+
 	public async Task<ConseillerMailbox> GetByConseillerIdAsync(int conseillerId)
 	{
 		var cp = await (from c in _db.ConseillersPersonnels
