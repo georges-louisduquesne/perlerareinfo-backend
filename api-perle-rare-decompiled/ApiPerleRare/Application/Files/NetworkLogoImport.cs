@@ -26,6 +26,20 @@ public sealed class ImportNetworkLogoUseCase
 		_storage = storage;
 	}
 
+	public async Task ExecuteClear(uint networkId, CancellationToken cancellationToken)
+	{
+		IntermediairesIndirects row = await _db.IntermediairesIndirects
+			.FirstOrDefaultAsync((IntermediairesIndirects item) => item.I2RefIntermIndirect == networkId, cancellationToken);
+		if (row == null)
+		{
+			throw new InvalidOperationException("Réseau introuvable");
+		}
+		AgencyLogoAddress.DeleteLogoFiles(_storage, "logos/reseaux", networkId, null);
+		// I2_Icon est NOT NULL : une chaîne vide retire l’image sans violer la colonne.
+		row.I2Icon = "";
+		await _db.SaveChangesAsync(cancellationToken);
+	}
+
 	public async Task<NetworkLogoImportResult> Execute(uint networkId, string rawUrl, CancellationToken cancellationToken)
 	{
 		if (!AgencyLogoAddress.TryCreate(rawUrl, out Uri uri, out string urlError))
@@ -48,6 +62,7 @@ public sealed class ImportNetworkLogoUseCase
 		{
 			throw new InvalidOperationException("Réseau introuvable");
 		}
+		AgencyLogoAddress.DeleteLogoFiles(_storage, "logos/reseaux", networkId, relative);
 		_storage.WriteAllBytes(fullPath, bytes);
 		row.I2Icon = relative;
 		await _db.SaveChangesAsync(cancellationToken);

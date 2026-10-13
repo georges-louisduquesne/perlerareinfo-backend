@@ -222,14 +222,26 @@ internal static class AgencyLogoAddress
 	/// </summary>
 	public static void DeleteAgencyFiles(IFileStorage storage, uint agencyId, string keepRelative)
 	{
-		if (storage == null || agencyId == 0)
+		DeleteLogoFiles(storage, "logos/agences", agencyId, keepRelative);
+	}
+
+	/// <summary>
+	/// Efface logos/{agences|reseaux}/{id}.ext. <paramref name="keepRelative"/> est conservé.
+	/// </summary>
+	public static void DeleteLogoFiles(IFileStorage storage, string folder, uint id, string keepRelative)
+	{
+		if (storage == null || id == 0)
+		{
+			return;
+		}
+		if (folder != "logos/agences" && folder != "logos/reseaux")
 		{
 			return;
 		}
 		string keep = (keepRelative ?? "").Replace('\\', '/').Trim().TrimStart('/');
 		foreach (string extension in AgencyExtensions)
 		{
-			string relative = "logos/agences/" + agencyId + "." + extension;
+			string relative = folder + "/" + id + "." + extension;
 			if (string.Equals(relative, keep, StringComparison.OrdinalIgnoreCase))
 			{
 				continue;

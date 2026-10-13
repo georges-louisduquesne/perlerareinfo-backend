@@ -58,6 +58,21 @@ public class IntermediairesIndirectsController : ControllerBase
 		}
 	}
 
+	[HttpDelete("{id}/logo")]
+	[Authorize(Roles = "Admin")]
+	public async Task<IActionResult> ClearLogo(uint id)
+	{
+		try
+		{
+			await _importLogo.ExecuteClear(id, HttpContext.RequestAborted);
+			return NoContent();
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { errors = ex.Message });
+		}
+	}
+
 	[HttpPut("{id}")]
 	public async Task<IActionResult> PutIntermediairesIndirects(uint id, IntermediairesIndirects intermediairesIndirects)
 	{
@@ -66,6 +81,9 @@ public class IntermediairesIndirectsController : ControllerBase
 			return BadRequest();
 		}
 		_context.Entry(intermediairesIndirects).State = EntityState.Modified;
+		// Le logo ne passe que par POST/DELETE …/logo. Sinon la fiche ouverte réécrit
+		// l’ancien I2_Icon et un logo effacé ne peut plus être remplacé.
+		_context.Entry(intermediairesIndirects).Property((IntermediairesIndirects row) => row.I2Icon).IsModified = false;
 		try
 		{
 			await _context.SaveChangesAsync();

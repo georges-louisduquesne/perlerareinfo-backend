@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -19,9 +20,12 @@ public class ContactIntermediairesController : ControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
-	public ContactIntermediairesController(ApplicationDbContext context)
+	private readonly UpdateAgentPhotoUseCase _photo;
+
+	public ContactIntermediairesController(ApplicationDbContext context, UpdateAgentPhotoUseCase photo)
 	{
 		_context = context;
+		_photo = photo;
 	}
 
 	[HttpGet]
@@ -92,6 +96,35 @@ ORDER BY asr.AS_Date ASC, al.AL_Id ASC";
 		return items.ToArray();
 	}
 
+	[HttpPost("{id}/photo")]
+	public async Task<IActionResult> SetPhoto(uint id, AgentPhotoRequest request)
+	{
+		try
+		{
+			AgentPhotoResult result = await _photo.ExecuteSet(id, request?.Url, HttpContext.RequestAborted);
+			return Ok(result);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { errors = ex.Message });
+		}
+	}
+
+	[HttpDelete("{id}/photo")]
+	[Authorize(Roles = "Admin")]
+	public async Task<IActionResult> ClearPhoto(uint id)
+	{
+		try
+		{
+			await _photo.ExecuteClear(id, HttpContext.RequestAborted);
+			return NoContent();
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { errors = ex.Message });
+		}
+	}
+
 	[HttpPut("{id}")]
 	public async Task<IActionResult> PutContactIntermediaire(uint id, ContactIntermediaire contactIntermediaire)
 	{
@@ -100,6 +133,9 @@ ORDER BY asr.AS_Date ASC, al.AL_Id ASC";
 			return BadRequest();
 		}
 		_context.Entry(contactIntermediaire).State = EntityState.Modified;
+		// La photo ne passe que par POST/DELETE …/photo. Sinon la fiche ouverte réécrit
+		// l’ancienne C_Photo et une photo effacée en base ne peut plus être remplacée.
+		_context.Entry(contactIntermediaire).Property((ContactIntermediaire row) => row.CPhoto).IsModified = false;
 		try
 		{
 			await _context.SaveChangesAsync();

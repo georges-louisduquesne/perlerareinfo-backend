@@ -39,6 +39,24 @@ public class AgencyLogoDeleteTests
 		Assert.Equal(new byte[] { 9 }, storage.Files["/tmp/logos/agences/6962.jpg"]);
 	}
 
+	[Fact]
+	public void Clear_removes_every_extension_for_that_network_only()
+	{
+		var storage = new MemoryFileStorage();
+		storage.Allow("logos/reseaux/12.png", "/tmp/logos/reseaux/12.png");
+		storage.Allow("logos/reseaux/12.jpg", "/tmp/logos/reseaux/12.jpg");
+		storage.Allow("logos/reseaux/13.png", "/tmp/logos/reseaux/13.png");
+		storage.Files["/tmp/logos/reseaux/12.png"] = new byte[] { 1 };
+		storage.Files["/tmp/logos/reseaux/12.jpg"] = new byte[] { 2 };
+		storage.Files["/tmp/logos/reseaux/13.png"] = new byte[] { 3 };
+
+		AgencyLogoAddress.DeleteLogoFiles(storage, "logos/reseaux", 12, null);
+
+		Assert.False(storage.Files.ContainsKey("/tmp/logos/reseaux/12.png"));
+		Assert.False(storage.Files.ContainsKey("/tmp/logos/reseaux/12.jpg"));
+		Assert.Equal(new byte[] { 3 }, storage.Files["/tmp/logos/reseaux/13.png"]);
+	}
+
 	private sealed class MemoryFileStorage : IFileStorage
 	{
 		public Dictionary<string, string> Resolutions { get; } = new();
