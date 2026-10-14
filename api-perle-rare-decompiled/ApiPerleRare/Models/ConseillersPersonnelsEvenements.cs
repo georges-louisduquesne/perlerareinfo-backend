@@ -12,7 +12,7 @@ public class ConseillersPersonnelsEvenements
 
 	public DateOnly CpeDateCreation { get; set; }
 
-	public DateOnly? CpeDateRealisation { get; set; }
+	public DateTime? CpeDateRealisation { get; set; }
 
 	public string CpeCommentaire { get; set; }
 
