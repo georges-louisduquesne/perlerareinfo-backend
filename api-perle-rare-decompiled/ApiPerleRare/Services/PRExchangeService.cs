@@ -38,12 +38,12 @@ internal class PRExchangeService : IExchangeService
 		return SendMail(subject, contents, null, null, null, new string[1] { to }, null, null, null, highImportance: false, copyInSentItems: false, complete);
 	}
 
-	public bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, Action<EmailMessage> complete = null)
+	public bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, Action<EmailMessage> complete = null, string loginEmail = null)
 	{
-		return SendMail(subject, contents, senderName, senderEmail, senderPassword, to, cc, cci, attachments, highImportance, copyInSentItems: true, complete);
+		return SendMail(subject, contents, senderName, senderEmail, senderPassword, to, cc, cci, attachments, highImportance, copyInSentItems: true, complete, loginEmail, explainFailure: true);
 	}
 
-	private bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, bool copyInSentItems, Action<EmailMessage> complete = null)
+	private bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, bool copyInSentItems, Action<EmailMessage> complete = null, string loginEmail = null, bool explainFailure = false)
 	{
 		if (string.IsNullOrEmpty(_ecs.Server))
 		{
@@ -60,21 +60,34 @@ internal class PRExchangeService : IExchangeService
 		}
 		try
 		{
-			string html = contents;
+			string html = contents ?? "";
 			if (!html.Contains("<html>"))
 			{
 				html = "<html><head><style>html,body{font-family:Verdana,sans-serif;font-size:15px;line-height:1.5}</style></head><body>" + html + "</body></html>";
 			}
-			if (senderEmail != null && string.IsNullOrWhiteSpace(senderPassword))
+			bool foreignFrom = !string.IsNullOrWhiteSpace(loginEmail)
+				&& !string.Equals(loginEmail.Trim(), (senderEmail ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
+			bool serviceAccount = foreignFrom
+				&& !Startup.IsDevMachine
+				&& !string.IsNullOrWhiteSpace(_ecs.Username)
+				&& !string.IsNullOrWhiteSpace(_ecs.Password);
+			string authEmail = serviceAccount ? null : (foreignFrom ? loginEmail.Trim() : senderEmail);
+			string authPassword = serviceAccount ? null : senderPassword;
+			if (!serviceAccount && authEmail != null && string.IsNullOrWhiteSpace(authPassword))
 			{
-				throw new Exception("Aucun mot de passe mail spécifié pour " + senderEmail);
+				throw new Exception("Aucun mot de passe mail spécifié pour " + (senderEmail ?? authEmail));
 			}
-			ExchangeService service = GetExchangeService(senderEmail, senderPassword);
-			EmailAddress sender = (string.IsNullOrWhiteSpace(senderName) ? new EmailAddress(senderEmail ?? _ecs.Sender) : new EmailAddress(senderName, senderEmail ?? _ecs.Sender));
+			ExchangeService service = GetExchangeService(authEmail, authPassword);
+			string visibleFrom = senderEmail ?? authEmail ?? _ecs.Sender;
+			EmailAddress sender = string.IsNullOrWhiteSpace(senderName) ? new EmailAddress(visibleFrom) : new EmailAddress(senderName, visibleFrom);
 			EmailMessage em = new EmailMessage(service);
 			em.Subject = subject;
 			em.Body = new MessageBody(BodyType.HTML, html);
 			em.Sender = sender;
+			if (foreignFrom)
+			{
+				em.From = sender;
+			}
 			em.Importance = ((!highImportance) ? Importance.Normal : Importance.High);
 			if (to != null)
 			{
@@ -126,6 +139,10 @@ internal class PRExchangeService : IExchangeService
 		catch (Exception ex)
 		{
 			Console.WriteLine(ex.ToString());
+			if (explainFailure)
+			{
+				throw new ExchangeSendException(ExchangeSendFailure.Message(ex, senderEmail));
+			}
 			return false;
 		}
 	}

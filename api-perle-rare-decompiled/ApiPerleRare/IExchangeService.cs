@@ -11,7 +11,7 @@ public interface IExchangeService
 
 	bool SendMail(string to, string subject, string contents, Action<EmailMessage> complete = null);
 
-	bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, Action<EmailMessage> complete = null);
+	bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, Action<EmailMessage> complete = null, string loginEmail = null);
 
 	int GetUnreadEmails(string email, string password);
 

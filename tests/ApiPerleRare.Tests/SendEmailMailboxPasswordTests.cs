@@ -63,13 +63,72 @@ public class SendEmailMailboxPasswordTests
 		Assert.True(string.IsNullOrWhiteSpace(email.SenderPassword));
 	}
 
+	[Fact]
+	public void Shared_from_address_logs_in_as_the_signed_in_conseiller()
+	{
+		Email email = new Email
+		{
+			SenderEmail = "support@perle-rare.com",
+			SenderName = "L'équipe Support",
+			To = "marta.clery@perle-rare.com",
+			Subject = "Facture d'honoraires"
+		};
+		string blocked = SendEmailUseCase.ApplyStoredMailboxPassword(email, 42, new FakeMailboxLookup("secret-mail"), out string loginEmail);
+		Assert.Null(blocked);
+		Assert.Equal("support@perle-rare.com", email.SenderEmail);
+		Assert.Equal("L'équipe Support", email.SenderName);
+		Assert.Equal("secret-mail", email.SenderPassword);
+		Assert.Equal("ada@perle-rare.com", loginEmail);
+	}
+
+	[Fact]
+	public void Shared_from_address_uses_its_own_mailbox_password()
+	{
+		Email email = new Email
+		{
+			SenderEmail = "support@perle-rare.com",
+			SenderName = "L'équipe Support"
+		};
+		string blocked = SendEmailUseCase.ApplyStoredMailboxPassword(
+			email,
+			42,
+			new FakeMailboxLookup("counselor-secret", "support@perle-rare.com", "support-secret"),
+			out string loginEmail);
+		Assert.Null(blocked);
+		Assert.Null(loginEmail);
+		Assert.Equal("support-secret", email.SenderPassword);
+		Assert.Equal("support@perle-rare.com", email.SenderEmail);
+		Assert.Equal("L'équipe Support", email.SenderName);
+	}
+
+	[Fact]
+	public void Exchange_failure_text_hides_the_raw_error()
+	{
+		Assert.Equal(
+			"L’authentification Exchange a échoué.",
+			ExchangeSendFailure.Message(new AggregateException(new Exception("401 Unauthorized")), "support@perle-rare.com"));
+		Assert.Equal(
+			"Le compte Exchange n’a pas le droit d’envoyer au nom de support@perle-rare.com.",
+			ExchangeSendFailure.Message(new Exception("The user account does not have the right to send mail on behalf of the specified sending account."), "support@perle-rare.com"));
+		Assert.Equal(
+			"La pièce jointe est trop volumineuse pour Exchange.",
+			ExchangeSendFailure.Message(new Exception("The message exceeds the maximum supported size."), null));
+		Assert.Equal("L’envoi Exchange a échoué.", ExchangeSendFailure.Message(new Exception("password=secret"), "support@perle-rare.com"));
+	}
+
 	private sealed class FakeMailboxLookup : IConseillerMailboxLookup
 	{
 		private readonly string _password;
 
-		public FakeMailboxLookup(string password)
+		private readonly string _sharedEmail;
+
+		private readonly string _sharedPassword;
+
+		public FakeMailboxLookup(string password, string sharedEmail = null, string sharedPassword = null)
 		{
 			_password = password;
+			_sharedEmail = sharedEmail;
+			_sharedPassword = sharedPassword;
 		}
 
 		public ConseillerMailbox GetByConseillerId(int conseillerId)
@@ -89,7 +148,17 @@ public class SendEmailMailboxPasswordTests
 
 		public ConseillerMailbox GetByEmail(string email)
 		{
-			return GetByConseillerId(0);
+			if (!string.IsNullOrWhiteSpace(_sharedEmail)
+				&& string.Equals((email ?? string.Empty).Trim(), _sharedEmail, StringComparison.OrdinalIgnoreCase))
+			{
+				return new ConseillerMailbox
+				{
+					Email = _sharedEmail,
+					Password = _sharedPassword,
+					DisplayName = "Support"
+				};
+			}
+			throw new Exception("Aucun conseiller pour cette adresse");
 		}
 	}
 }

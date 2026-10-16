@@ -32,7 +32,7 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 	{
 		try
 		{
-			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes);
+			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes, out string loginEmail);
 			if (blocked != null)
 			{
 				return blocked;
@@ -79,9 +79,14 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 					cc,
 					null,
 					attachments,
-					em.HighImportance);
+					em.HighImportance,
+					loginEmail: loginEmail);
 			}
 			return sent ? "OK" : "L’envoi Exchange a échoué.";
+		}
+		catch (ExchangeSendException ex)
+		{
+			return ex.Message;
 		}
 		catch (Exception ex)
 		{
@@ -91,6 +96,17 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 
 	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes)
 	{
+		return ApplyStoredMailboxPassword(em, conseillerId, mailboxes, out _);
+	}
+
+	/// <summary>
+	/// Fills the Exchange password. A shared From address (support@) must not
+	/// log in with the signed-in conseiller password: <paramref name="loginEmail"/>
+	/// is that mailbox, and <see cref="Email.SenderEmail"/> stays the visible From.
+	/// </summary>
+	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes, out string loginEmail)
+	{
+		loginEmail = null;
 		if (em == null || !string.IsNullOrWhiteSpace(em.SenderPassword) || !conseillerId.HasValue)
 		{
 			return null;
@@ -112,6 +128,25 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		{
 			return MissingMailboxPassword;
 		}
+		string requested = (em.SenderEmail ?? string.Empty).Trim();
+		string ownEmail = (mailbox.Email ?? string.Empty).Trim();
+		if (requested.Length > 0 && !string.Equals(requested, ownEmail, StringComparison.OrdinalIgnoreCase))
+		{
+			ConseillerMailbox shared = TryMailboxByEmail(mailboxes, requested);
+			if (shared != null && !string.IsNullOrWhiteSpace(shared.Password)
+				&& string.Equals((shared.Email ?? string.Empty).Trim(), requested, StringComparison.OrdinalIgnoreCase))
+			{
+				em.SenderPassword = shared.Password;
+				if (string.IsNullOrWhiteSpace(em.SenderName))
+				{
+					em.SenderName = shared.DisplayName;
+				}
+				return null;
+			}
+			loginEmail = ownEmail;
+			em.SenderPassword = mailbox.Password;
+			return null;
+		}
 		em.SenderPassword = mailbox.Password;
 		if (string.IsNullOrWhiteSpace(em.SenderEmail))
 		{
@@ -122,6 +157,22 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 			em.SenderName = mailbox.DisplayName;
 		}
 		return null;
+	}
+
+	private static ConseillerMailbox TryMailboxByEmail(IConseillerMailboxLookup mailboxes, string email)
+	{
+		if (mailboxes == null || string.IsNullOrWhiteSpace(email))
+		{
+			return null;
+		}
+		try
+		{
+			return mailboxes.GetByEmail(email.Trim());
+		}
+		catch (Exception)
+		{
+			return null;
+		}
 	}
 
 	internal static bool NeedsExchangePassword(string senderEmail)

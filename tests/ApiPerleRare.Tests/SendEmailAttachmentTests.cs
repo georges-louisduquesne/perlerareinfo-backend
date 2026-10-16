@@ -70,6 +70,37 @@ public class SendEmailAttachmentTests
 	}
 
 	[Fact]
+	public void Invoice_from_support_authenticates_as_the_signed_in_conseiller()
+	{
+		CapturingExchange exchange = new CapturingExchange();
+		SendEmailUseCase useCase = new SendEmailUseCase(exchange, new NoopLocalhostMail(), new StoredMailbox("secret"));
+		string result = useCase.Execute(new Email
+		{
+			SenderEmail = "support@perle-rare.com",
+			SenderName = "L'équipe Support",
+			To = "marta.clery@perle-rare.com",
+			Subject = "Facture d'honoraires de Thomas WOLFE",
+			HtmlContents = "<p>Bonjour Marta.</p>",
+			Attachments = new[]
+			{
+				new EmailAttachment
+				{
+					FileName = "Facture honoraires Thomas WOLFE.pdf",
+					ContentType = "application/pdf",
+					ContentBase64 = Convert.ToBase64String(new byte[] { 0x25, 0x50, 0x44, 0x46 })
+				}
+			}
+		}, 42);
+
+		Assert.Equal("OK", result);
+		Assert.Equal(1, exchange.SendCount);
+		Assert.Equal("support@perle-rare.com", exchange.LastSenderEmail);
+		Assert.Equal("ada@perle-rare.com", exchange.LastLoginEmail);
+		Assert.Equal("secret", exchange.LastPassword);
+		Assert.Equal("Facture honoraires Thomas WOLFE.pdf", exchange.LastAttachments[0].FileName);
+	}
+
+	[Fact]
 	public void Mail_without_attachment_still_sends()
 	{
 		CapturingExchange exchange = new CapturingExchange();
@@ -197,6 +228,12 @@ public class SendEmailAttachmentTests
 
 		public string[] LastCc { get; private set; }
 
+		public string LastSenderEmail { get; private set; }
+
+		public string LastLoginEmail { get; private set; }
+
+		public string LastPassword { get; private set; }
+
 		public TimeZoneInfo CurrentTimeZone => TimeZoneInfo.Utc;
 
 		public bool SendMail(string to, string subject, string contents, Action<EmailMessage> complete = null)
@@ -204,11 +241,14 @@ public class SendEmailAttachmentTests
 			throw new NotImplementedException();
 		}
 
-		public bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, Action<EmailMessage> complete = null)
+		public bool SendMail(string subject, string contents, string senderName, string senderEmail, string senderPassword, string[] to, string[] cc, string[] cci, MailAttachment[] attachments, bool highImportance, Action<EmailMessage> complete = null, string loginEmail = null)
 		{
 			SendCount++;
 			LastCc = cc;
 			LastAttachments = attachments;
+			LastSenderEmail = senderEmail;
+			LastLoginEmail = loginEmail;
+			LastPassword = senderPassword;
 			return true;
 		}
 
