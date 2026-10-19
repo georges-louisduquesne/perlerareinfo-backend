@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using ApiPerleRare.Application.Abstractions;
+using ApiPerleRare.Application.Annuaire;
 using ApiPerleRare.Application.Annonces;
 using ApiPerleRare.Application.Authentication;
 using ApiPerleRare.Application.Catalog;
@@ -227,6 +228,7 @@ public class Startup
 		services.AddScoped<IAddAppointmentUseCase, AddAppointmentUseCase>();
 		services.AddScoped<IFindAppointmentByEvenementUseCase, FindAppointmentByEvenementUseCase>();
 		services.AddScoped<IDeleteAppointmentByEvenementUseCase, DeleteAppointmentByEvenementUseCase>();
+		services.AddScoped<IAnnuairePartenairesStore, AnnuairePartenairesStore>();
 		services.AddScoped<ISearchUseCase, SearchUseCase>();
 		services.AddScoped<ITestService, TestService>();
 		services.AddScoped<ISearchService, SearchService>();
