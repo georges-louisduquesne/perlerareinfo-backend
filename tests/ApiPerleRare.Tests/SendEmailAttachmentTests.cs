@@ -70,10 +70,10 @@ public class SendEmailAttachmentTests
 	}
 
 	[Fact]
-	public void Invoice_from_support_authenticates_as_the_signed_in_conseiller()
+	public void Invoice_from_support_authenticates_as_the_support_mailbox_for_an_admin()
 	{
 		CapturingExchange exchange = new CapturingExchange();
-		SendEmailUseCase useCase = new SendEmailUseCase(exchange, new NoopLocalhostMail(), new StoredMailbox("secret"));
+		SendEmailUseCase useCase = new SendEmailUseCase(exchange, new NoopLocalhostMail(), new StoredMailbox("secret", "support@perle-rare.com", "support-secret"));
 		string result = useCase.Execute(new Email
 		{
 			SenderEmail = "support@perle-rare.com",
@@ -90,14 +90,32 @@ public class SendEmailAttachmentTests
 					ContentBase64 = Convert.ToBase64String(new byte[] { 0x25, 0x50, 0x44, 0x46 })
 				}
 			}
-		}, 42);
+		}, 42, callerIsAdmin: true);
 
 		Assert.Equal("OK", result);
 		Assert.Equal(1, exchange.SendCount);
 		Assert.Equal("support@perle-rare.com", exchange.LastSenderEmail);
-		Assert.Equal("ada@perle-rare.com", exchange.LastLoginEmail);
-		Assert.Equal("secret", exchange.LastPassword);
+		Assert.Null(exchange.LastLoginEmail);
+		Assert.Equal("support-secret", exchange.LastPassword);
 		Assert.Equal("Facture honoraires Thomas WOLFE.pdf", exchange.LastAttachments[0].FileName);
+	}
+
+	[Fact]
+	public void Invoice_from_support_is_refused_for_a_non_admin()
+	{
+		CapturingExchange exchange = new CapturingExchange();
+		SendEmailUseCase useCase = new SendEmailUseCase(exchange, new NoopLocalhostMail(), new StoredMailbox("secret", "support@perle-rare.com", "support-secret"));
+		string result = useCase.Execute(new Email
+		{
+			SenderEmail = "support@perle-rare.com",
+			SenderName = "L'équipe Support",
+			To = "marta.clery@perle-rare.com",
+			Subject = "Facture d'honoraires",
+			HtmlContents = "<p>Bonjour</p>"
+		}, 42, callerIsAdmin: false);
+
+		Assert.Equal(ExchangeSendFailure.Denied("support@perle-rare.com"), result);
+		Assert.Equal(0, exchange.SendCount);
 	}
 
 	[Fact]
@@ -172,9 +190,15 @@ public class SendEmailAttachmentTests
 	{
 		private readonly string _password;
 
-		public StoredMailbox(string password)
+		private readonly string _sharedEmail;
+
+		private readonly string _sharedPassword;
+
+		public StoredMailbox(string password, string sharedEmail = null, string sharedPassword = null)
 		{
 			_password = password;
+			_sharedEmail = sharedEmail;
+			_sharedPassword = sharedPassword;
 		}
 
 		public ConseillerMailbox GetByConseillerId(int conseillerId)
@@ -194,7 +218,17 @@ public class SendEmailAttachmentTests
 
 		public ConseillerMailbox GetByEmail(string email)
 		{
-			return GetByConseillerId(0);
+			if (!string.IsNullOrWhiteSpace(_sharedEmail)
+				&& string.Equals((email ?? string.Empty).Trim(), _sharedEmail, StringComparison.OrdinalIgnoreCase))
+			{
+				return new ConseillerMailbox
+				{
+					Email = _sharedEmail,
+					Password = _sharedPassword,
+					DisplayName = "Support"
+				};
+			}
+			throw new Exception("Aucun conseiller pour cette adresse");
 		}
 	}
 

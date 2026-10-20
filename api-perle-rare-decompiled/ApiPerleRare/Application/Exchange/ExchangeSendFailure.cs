@@ -18,8 +18,7 @@ internal static class ExchangeSendFailure
 			|| text.IndexOf("send mail on behalf", StringComparison.OrdinalIgnoreCase) >= 0
 			|| text.IndexOf("SendAs", StringComparison.OrdinalIgnoreCase) >= 0)
 		{
-			string who = string.IsNullOrWhiteSpace(fromEmail) ? "cette adresse" : fromEmail.Trim();
-			return "Le compte Exchange n’a pas le droit d’envoyer au nom de " + who + ".";
+			return Denied(fromEmail);
 		}
 		if (code == "ErrorMessageSizeExceeded"
 			|| (text.IndexOf("exceed", StringComparison.OrdinalIgnoreCase) >= 0
@@ -34,6 +33,12 @@ internal static class ExchangeSendFailure
 			return "L’authentification Exchange a échoué.";
 		}
 		return "L’envoi Exchange a échoué.";
+	}
+
+	internal static string Denied(string fromEmail)
+	{
+		string who = string.IsNullOrWhiteSpace(fromEmail) ? "cette adresse" : fromEmail.Trim();
+		return "Le compte Exchange n’a pas le droit d’envoyer au nom de " + who + ".";
 	}
 
 	private static Exception Unwrap(Exception ex)

@@ -15,6 +15,9 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 
 	internal const string UnreadableAttachment = "Impossible de lire une pièce jointe.";
 
+	/// <summary>Boîte partagée : les admins s’y connectent, ils n’envoient pas « au nom de ».</summary>
+	internal const string SupportFromAddress = "support@perle-rare.com";
+
 	private readonly IExchangeService _exchange;
 
 	private readonly ILocalhostMailService _localhostMail;
@@ -28,11 +31,11 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		_mailboxes = mailboxes;
 	}
 
-	public string Execute(Email em, int? conseillerId)
+	public string Execute(Email em, int? conseillerId, bool callerIsAdmin = false)
 	{
 		try
 		{
-			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes, out string loginEmail);
+			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes, callerIsAdmin, out string loginEmail);
 			if (blocked != null)
 			{
 				return blocked;
@@ -96,24 +99,38 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 
 	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes)
 	{
-		return ApplyStoredMailboxPassword(em, conseillerId, mailboxes, out _);
+		return ApplyStoredMailboxPassword(em, conseillerId, mailboxes, callerIsAdmin: false, out _);
+	}
+
+	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes, out string loginEmail)
+	{
+		return ApplyStoredMailboxPassword(em, conseillerId, mailboxes, callerIsAdmin: false, out loginEmail);
 	}
 
 	/// <summary>
-	/// Fills the Exchange password. A shared From address (support@) must not
-	/// log in with the signed-in conseiller password: <paramref name="loginEmail"/>
-	/// is that mailbox, and <see cref="Email.SenderEmail"/> stays the visible From.
+	/// Fills the Exchange password. <c>support@</c> is sent by opening that
+	/// mailbox (admins only). Another From address keeps the signed-in mailbox
+	/// as <paramref name="loginEmail"/> and the requested address as the visible From.
 	/// </summary>
-	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes, out string loginEmail)
+	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes, bool callerIsAdmin, out string loginEmail)
 	{
 		loginEmail = null;
-		if (em == null || !string.IsNullOrWhiteSpace(em.SenderPassword) || !conseillerId.HasValue)
+		if (em == null || !conseillerId.HasValue)
+		{
+			return null;
+		}
+		if (!string.IsNullOrWhiteSpace(em.SenderPassword) && !IsSupportFrom(em.SenderEmail))
 		{
 			return null;
 		}
 		if (!NeedsExchangePassword(em.SenderEmail))
 		{
 			return null;
+		}
+		if (IsSupportFrom(em.SenderEmail))
+		{
+			// Le mot de passe du conseiller ne doit pas ouvrir support@ ni servir à un envoi « au nom de ».
+			em.SenderPassword = null;
 		}
 		ConseillerMailbox mailbox = null;
 		try
@@ -132,6 +149,10 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		string ownEmail = (mailbox.Email ?? string.Empty).Trim();
 		if (requested.Length > 0 && !string.Equals(requested, ownEmail, StringComparison.OrdinalIgnoreCase))
 		{
+			if (IsSupportFrom(requested) && !callerIsAdmin)
+			{
+				return ExchangeSendFailure.Denied(requested);
+			}
 			ConseillerMailbox shared = TryMailboxByEmail(mailboxes, requested);
 			if (shared != null && !string.IsNullOrWhiteSpace(shared.Password)
 				&& string.Equals((shared.Email ?? string.Empty).Trim(), requested, StringComparison.OrdinalIgnoreCase))
@@ -142,6 +163,12 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 					em.SenderName = shared.DisplayName;
 				}
 				return null;
+			}
+			if (IsSupportFrom(requested))
+			{
+				// Pas de mot de passe pour support@ : ne pas ouvrir la boîte du conseiller
+				// et poser un From étranger. Exchange répond SendAsDenied.
+				return ExchangeSendFailure.Denied(requested);
 			}
 			loginEmail = ownEmail;
 			em.SenderPassword = mailbox.Password;
@@ -173,6 +200,11 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		{
 			return null;
 		}
+	}
+
+	internal static bool IsSupportFrom(string email)
+	{
+		return string.Equals((email ?? string.Empty).Trim(), SupportFromAddress, StringComparison.OrdinalIgnoreCase);
 	}
 
 	internal static bool NeedsExchangePassword(string senderEmail)

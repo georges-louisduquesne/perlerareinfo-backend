@@ -64,7 +64,7 @@ public class SendEmailMailboxPasswordTests
 	}
 
 	[Fact]
-	public void Shared_from_address_logs_in_as_the_signed_in_conseiller()
+	public void Non_admin_cannot_send_from_the_support_mailbox()
 	{
 		Email email = new Email
 		{
@@ -73,16 +73,39 @@ public class SendEmailMailboxPasswordTests
 			To = "marta.clery@perle-rare.com",
 			Subject = "Facture d'honoraires"
 		};
-		string blocked = SendEmailUseCase.ApplyStoredMailboxPassword(email, 42, new FakeMailboxLookup("secret-mail"), out string loginEmail);
-		Assert.Null(blocked);
+		string blocked = SendEmailUseCase.ApplyStoredMailboxPassword(
+			email,
+			42,
+			new FakeMailboxLookup("counselor-secret", "support@perle-rare.com", "support-secret"),
+			callerIsAdmin: false,
+			out string loginEmail);
+		Assert.Equal(ExchangeSendFailure.Denied("support@perle-rare.com"), blocked);
+		Assert.Null(loginEmail);
+		Assert.True(string.IsNullOrWhiteSpace(email.SenderPassword));
 		Assert.Equal("support@perle-rare.com", email.SenderEmail);
-		Assert.Equal("L'équipe Support", email.SenderName);
-		Assert.Equal("secret-mail", email.SenderPassword);
-		Assert.Equal("ada@perle-rare.com", loginEmail);
 	}
 
 	[Fact]
-	public void Shared_from_address_uses_its_own_mailbox_password()
+	public void Admin_does_not_send_on_behalf_of_support_without_that_mailbox_password()
+	{
+		Email email = new Email
+		{
+			SenderEmail = "support@perle-rare.com",
+			SenderName = "L'équipe Support"
+		};
+		string blocked = SendEmailUseCase.ApplyStoredMailboxPassword(
+			email,
+			42,
+			new FakeMailboxLookup("secret-mail"),
+			callerIsAdmin: true,
+			out string loginEmail);
+		Assert.Equal(ExchangeSendFailure.Denied("support@perle-rare.com"), blocked);
+		Assert.Null(loginEmail);
+		Assert.True(string.IsNullOrWhiteSpace(email.SenderPassword));
+	}
+
+	[Fact]
+	public void Admin_sends_from_the_support_mailbox_itself()
 	{
 		Email email = new Email
 		{
@@ -93,6 +116,7 @@ public class SendEmailMailboxPasswordTests
 			email,
 			42,
 			new FakeMailboxLookup("counselor-secret", "support@perle-rare.com", "support-secret"),
+			callerIsAdmin: true,
 			out string loginEmail);
 		Assert.Null(blocked);
 		Assert.Null(loginEmail);

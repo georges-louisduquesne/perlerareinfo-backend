@@ -150,7 +150,7 @@ public class ExchangeController : ControllerBase
 	public string SendEmail(Email em)
 	{
 		int? conseillerId = User.TryGetId(out int id) ? id : null;
-		return _sendEmail.Execute(em, conseillerId);
+		return _sendEmail.Execute(em, conseillerId, User.IsInRole("Admin"));
 	}
 
 	[Authorize]
