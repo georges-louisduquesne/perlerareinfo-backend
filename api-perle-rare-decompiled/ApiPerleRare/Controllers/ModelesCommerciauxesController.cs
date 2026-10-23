@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Modeles;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +29,50 @@ public class ModelesCommerciauxesController : ControllerBase
 		return await EFHelper<ModelesCommerciaux>.Select(query, where, orderby, take, skip, select);
 	}
 
-	[HttpGet("{id}")]
+	/// <summary>Liste sans les fichiers : une ligne par modèle classé, comme la page PHP.</summary>
+	[HttpGet("catalogue")]
+	public async Task<ActionResult<List<ModeleCatalogueRow>>> Catalogue()
+	{
+		List<ModeleCatalogueRow> rows = await _context.ModelesCommerciaux.AsNoTracking()
+			.Where((ModelesCommerciaux m) => m.McCategorie != null)
+			.OrderBy((ModelesCommerciaux m) => m.McCategorie)
+			.ThenBy((ModelesCommerciaux m) => m.McTitre)
+			.Select((ModelesCommerciaux m) => new ModeleCatalogueRow
+			{
+				Ref = m.McRef,
+				Categorie = m.McCategorie ?? 0,
+				CategorieNom = m.McCategorieNavigation.TmNom,
+				Titre = m.McTitre,
+				TitreAbr = m.McTitreAbr,
+				HasDoc = m.McFichierDoc != null,
+				HasPdf = m.McFichierPdf != null
+			})
+			.ToListAsync();
+		return rows;
+	}
+
+	[HttpGet("{id:int}/fichier/{kind}")]
+	public async Task<IActionResult> Fichier(int id, string kind)
+	{
+		if (!ModeleFichierNames.TryResolve(kind, out bool pdf))
+		{
+			return NotFound();
+		}
+		ModelesCommerciaux row = await _context.ModelesCommerciaux.AsNoTracking()
+			.FirstOrDefaultAsync((ModelesCommerciaux m) => m.McRef == id);
+		if (row == null)
+		{
+			return NotFound();
+		}
+		byte[] bytes = pdf ? row.McFichierPdf : row.McFichierDoc;
+		if (bytes == null || bytes.Length == 0)
+		{
+			return NotFound();
+		}
+		return File(bytes, ModeleFichierNames.ContentType(pdf), ModeleFichierNames.DownloadName(row.McTitreAbr, pdf));
+	}
+
+	[HttpGet("{id:int}")]
 	public async Task<ActionResult<ModelesCommerciaux>> GetModelesCommerciaux(int id)
 	{
 		ModelesCommerciaux modelesCommerciaux = await _context.ModelesCommerciaux.FindAsync(id);
