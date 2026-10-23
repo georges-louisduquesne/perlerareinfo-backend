@@ -1,3 +1,4 @@
+using System;
 using ApiPerleRare.Application.Modeles;
 using Xunit;
 
@@ -24,5 +25,21 @@ public class ModeleFichierNamesTests
 		Assert.Equal("modele.doc", ModeleFichierNames.DownloadName("   ", false));
 		Assert.Equal("application/pdf", ModeleFichierNames.ContentType(true));
 		Assert.Equal("application/msword", ModeleFichierNames.ContentType(false));
+	}
+
+	[Fact]
+	public void Catalogue_reads_file_flags_without_the_blobs()
+	{
+		Assert.Contains("MC_Fichier_doc IS NOT NULL", ModeleCatalogueQuery.Sql);
+		Assert.Contains("MC_Fichier_pdf IS NOT NULL", ModeleCatalogueQuery.Sql);
+		Assert.DoesNotContain("MC_Fichier_doc,", ModeleCatalogueQuery.Sql);
+		ModeleCatalogueRow row = ModeleCatalogueQuery.FromValues(40, 4, "Divers", "Candidature", "Candidature", 1, 0);
+		Assert.Equal(40, row.Ref);
+		Assert.Equal((short)4, row.Categorie);
+		Assert.Equal("Divers", row.CategorieNom);
+		Assert.True(row.HasDoc);
+		Assert.False(row.HasPdf);
+		Assert.False(ModeleCatalogueQuery.Flag(DBNull.Value));
+		Assert.True(ModeleCatalogueQuery.Flag(true));
 	}
 }

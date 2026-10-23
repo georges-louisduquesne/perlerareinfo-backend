@@ -21,6 +21,54 @@ public sealed class ModeleCatalogueRow
 	public bool HasPdf { get; set; }
 }
 
+public static class ModeleCatalogueQuery
+{
+	/// <summary>Présence des fichiers sans lire les blobs.</summary>
+	public const string Sql =
+		"SELECT m.MC_Ref, m.MC_Categorie, t.TM_Nom, m.MC_Titre, m.MC_Titre_abr, " +
+		"(m.MC_Fichier_doc IS NOT NULL), (m.MC_Fichier_pdf IS NOT NULL) " +
+		"FROM modeles_commerciaux m " +
+		"INNER JOIN types_modeles t ON t.TM_Ref = m.MC_Categorie " +
+		"WHERE m.MC_Categorie IS NOT NULL " +
+		"ORDER BY m.MC_Categorie, m.MC_Titre";
+
+	public static ModeleCatalogueRow FromValues(object refValue, object categorie, object nom, object titre, object abr, object hasDoc, object hasPdf)
+	{
+		return new ModeleCatalogueRow
+		{
+			Ref = Convert.ToInt32(refValue, CultureInfo.InvariantCulture),
+			Categorie = Convert.ToInt16(categorie, CultureInfo.InvariantCulture),
+			CategorieNom = Text(nom),
+			Titre = Text(titre),
+			TitreAbr = Text(abr),
+			HasDoc = Flag(hasDoc),
+			HasPdf = Flag(hasPdf)
+		};
+	}
+
+	public static bool Flag(object value)
+	{
+		if (value == null || value is DBNull)
+		{
+			return false;
+		}
+		if (value is bool bit)
+		{
+			return bit;
+		}
+		return Convert.ToInt64(value, CultureInfo.InvariantCulture) != 0;
+	}
+
+	private static string Text(object value)
+	{
+		if (value == null || value is DBNull)
+		{
+			return null;
+		}
+		return Convert.ToString(value, CultureInfo.InvariantCulture);
+	}
+}
+
 public static class ModeleFichierNames
 {
 	public static bool TryResolve(string kind, out bool pdf)

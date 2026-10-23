@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Modeles;
@@ -33,21 +35,37 @@ public class ModelesCommerciauxesController : ControllerBase
 	[HttpGet("catalogue")]
 	public async Task<ActionResult<List<ModeleCatalogueRow>>> Catalogue()
 	{
-		List<ModeleCatalogueRow> rows = await _context.ModelesCommerciaux.AsNoTracking()
-			.Where((ModelesCommerciaux m) => m.McCategorie != null)
-			.OrderBy((ModelesCommerciaux m) => m.McCategorie)
-			.ThenBy((ModelesCommerciaux m) => m.McTitre)
-			.Select((ModelesCommerciaux m) => new ModeleCatalogueRow
+		List<ModeleCatalogueRow> rows = new List<ModeleCatalogueRow>();
+		DbConnection conn = _context.Database.GetDbConnection();
+		bool openedHere = conn.State != ConnectionState.Open;
+		if (openedHere)
+		{
+			await conn.OpenAsync();
+		}
+		try
+		{
+			using DbCommand cmd = conn.CreateCommand();
+			cmd.CommandText = ModeleCatalogueQuery.Sql;
+			using DbDataReader reader = await cmd.ExecuteReaderAsync();
+			while (await reader.ReadAsync())
 			{
-				Ref = m.McRef,
-				Categorie = m.McCategorie ?? 0,
-				CategorieNom = m.McCategorieNavigation.TmNom,
-				Titre = m.McTitre,
-				TitreAbr = m.McTitreAbr,
-				HasDoc = m.McFichierDoc != null,
-				HasPdf = m.McFichierPdf != null
-			})
-			.ToListAsync();
+				rows.Add(ModeleCatalogueQuery.FromValues(
+					reader.GetValue(0),
+					reader.GetValue(1),
+					reader.GetValue(2),
+					reader.GetValue(3),
+					reader.GetValue(4),
+					reader.GetValue(5),
+					reader.GetValue(6)));
+			}
+		}
+		finally
+		{
+			if (openedHere)
+			{
+				await conn.CloseAsync();
+			}
+		}
 		return rows;
 	}
 
