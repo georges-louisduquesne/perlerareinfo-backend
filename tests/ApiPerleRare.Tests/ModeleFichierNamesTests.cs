@@ -22,6 +22,8 @@ public class ModeleFichierNamesTests
 	{
 		Assert.Equal("RIB signe.pdf", ModeleFichierNames.DownloadName("RIB signé", true));
 		Assert.Equal("MRA-E EN.doc", ModeleFichierNames.DownloadName("MRA-E EN", false));
+		Assert.Equal("Prépa compromis.doc", ModeleFichierNames.DownloadName("Prépa compromis", false));
+		Assert.Equal("RIB.doc", ModeleFichierNames.DownloadName("  RIB  ", false));
 		Assert.Equal("modele.doc", ModeleFichierNames.DownloadName("   ", false));
 		Assert.Equal("application/pdf", ModeleFichierNames.ContentType(true));
 		Assert.Equal("application/msword", ModeleFichierNames.ContentType(false));

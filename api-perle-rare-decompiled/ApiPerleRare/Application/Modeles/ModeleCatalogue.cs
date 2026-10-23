@@ -94,6 +94,27 @@ public static class ModeleFichierNames
 
 	public static string DownloadName(string abr, bool pdf)
 	{
+		return (pdf ? AsciiStem(abr) : LabelStem(abr)) + (pdf ? ".pdf" : ".doc");
+	}
+
+	/// <summary>Word : le libellé du titre abrégé, accents compris.</summary>
+	public static string LabelStem(string abr)
+	{
+		string raw = Collapse((abr ?? "").Trim());
+		StringBuilder sb = new StringBuilder();
+		foreach (char c in raw)
+		{
+			if (c < 32 || "\\/:*?\"<>|".IndexOf(c) >= 0)
+			{
+				continue;
+			}
+			sb.Append(c);
+		}
+		return Bound(sb.ToString().Trim());
+	}
+
+	private static string AsciiStem(string abr)
+	{
 		string raw = (abr ?? "").Trim().Normalize(NormalizationForm.FormD);
 		StringBuilder sb = new StringBuilder();
 		foreach (char c in raw)
@@ -107,15 +128,40 @@ public static class ModeleFichierNames
 				sb.Append(c);
 			}
 		}
-		string name = sb.ToString().Trim();
+		return Bound(sb.ToString().Trim());
+	}
+
+	private static string Collapse(string value)
+	{
+		StringBuilder sb = new StringBuilder();
+		bool space = false;
+		foreach (char c in value)
+		{
+			if (char.IsWhiteSpace(c))
+			{
+				space = sb.Length > 0;
+				continue;
+			}
+			if (space)
+			{
+				sb.Append(' ');
+				space = false;
+			}
+			sb.Append(c);
+		}
+		return sb.ToString();
+	}
+
+	private static string Bound(string name)
+	{
 		if (name.Length == 0)
 		{
-			name = "modele";
+			return "modele";
 		}
-		else if (name.Length > 80)
+		if (name.Length > 80)
 		{
 			name = name.Substring(0, 80).Trim();
 		}
-		return name + (pdf ? ".pdf" : ".doc");
+		return name.Length == 0 ? "modele" : name;
 	}
 }
