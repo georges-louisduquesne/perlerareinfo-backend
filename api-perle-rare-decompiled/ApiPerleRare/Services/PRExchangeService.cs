@@ -24,7 +24,14 @@ internal class PRExchangeService : IExchangeService
 
 	private readonly ExtendedPropertyDefinition _extendedPropEventId = new ExtendedPropertyDefinition(new Guid("{00020329-0000-0000-C000-000000000046}"), "ERefEvenement", MapiPropertyType.Integer);
 
-	private static readonly string[] RoomMailboxEmails = new string[2] { "grande_salle@perle-rare.com", "salon@perle-rare.com" };
+	internal static readonly (string Room, string Email)[] SalonRooms = new (string, string)[]
+	{
+		("panoramique", "grande_salle@perle-rare.com"),
+		("bis", "salon@perle-rare.com"),
+		("opera", "salon_opera@perle-rare.com")
+	};
+
+	private static readonly string[] RoomMailboxEmails = SalonRooms.Select(room => room.Email).ToArray();
 
 	public TimeZoneInfo CurrentTimeZone => _parisTimeZone;
 
@@ -230,13 +237,8 @@ internal class PRExchangeService : IExchangeService
 		DateTime windowStart = DateTime.SpecifyKind(start, DateTimeKind.Unspecified);
 		DateTime windowEnd = DateTime.SpecifyKind(end, DateTimeKind.Unspecified);
 		ExchangeService service = GetExchangeService(callerEmail, callerPassword);
-		(string Room, string Email)[] rooms = new (string, string)[]
-		{
-			("panoramique", "grande_salle@perle-rare.com"),
-			("bis", "salon@perle-rare.com")
-		};
 		List<SalonCalendarEvent> events = new List<SalonCalendarEvent>();
-		foreach ((string room, string email) in rooms)
+		foreach ((string room, string email) in SalonRooms)
 		{
 			events.AddRange(ReadSalonFreeBusy(service, room, email, windowStart, windowEnd));
 		}
