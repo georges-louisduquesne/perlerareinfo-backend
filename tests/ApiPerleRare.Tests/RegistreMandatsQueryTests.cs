@@ -10,6 +10,7 @@ public class RegistreMandatsQueryTests
 	{
 		Assert.Contains("FROM contacts_recherche", RegistreMandatsQuery.Sql);
 		Assert.Contains("C_Date <> '0000-00-00'", RegistreMandatsQuery.Sql);
+		Assert.Contains("C_NumeroMandat > 0", RegistreMandatsQuery.Sql);
 		Assert.Contains("DATE_FORMAT(C_Date, '%Y-%m-%d')", RegistreMandatsQuery.Sql);
 		Assert.Contains("ORDER BY C_NumeroMandat", RegistreMandatsQuery.Sql);
 		Assert.Contains("C_PaysRegion", RegistreMandatsQuery.Sql);
@@ -49,6 +50,7 @@ public class RegistreMandatsQueryTests
 		RegistreMandatRow row = RegistreMandatsQuery.FromValues(
 			63496, null, "", "0001-01-01", "SCHIEFFER", "AndrÃ©a", null, "", "PARIS", "FRANCE");
 		Assert.Null(row.Numero);
+		Assert.Null(RegistreMandatsQuery.FromValues(1, 0, "", "2020-01-02", "DUPONT", "", "", "", "", "").Numero);
 		Assert.Equal("", row.Mandat);
 		Assert.Equal("0001-01-01", row.Date);
 		Assert.Equal("Andréa", row.Prenom);

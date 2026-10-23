@@ -38,7 +38,7 @@ public static class RegistreMandatsQuery
 		"SELECT C_RefContact, C_NumeroMandat, C_Mandat, DATE_FORMAT(C_Date, '%Y-%m-%d'), " +
 		"C_NomFamille, C_Prenom, C_Adresse, C_CodePostal, C_Ville, C_PaysRegion " +
 		"FROM contacts_recherche " +
-		"WHERE C_Date <> '0000-00-00' " +
+		"WHERE C_Date <> '0000-00-00' AND C_NumeroMandat > 0 " +
 		"ORDER BY C_NumeroMandat";
 
 	public static RegistreMandatRow FromValues(
@@ -56,7 +56,7 @@ public static class RegistreMandatsQuery
 		return new RegistreMandatRow
 		{
 			Ref = ToInt(refValue),
-			Numero = ToIntOrNull(numero),
+			Numero = PositiveNumero(numero),
 			Mandat = Text(mandat),
 			Date = DateText(date),
 			Nom = Text(nom),
@@ -96,6 +96,16 @@ public static class RegistreMandatsQuery
 	{
 		int? n = ToIntOrNull(value);
 		return n ?? 0;
+	}
+
+	private static int? PositiveNumero(object value)
+	{
+		int? n = ToIntOrNull(value);
+		if (n == null || n <= 0)
+		{
+			return null;
+		}
+		return n;
 	}
 
 	private static int? ToIntOrNull(object value)
