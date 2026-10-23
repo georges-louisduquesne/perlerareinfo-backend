@@ -101,7 +101,7 @@ public class SendEmailAttachmentTests
 	}
 
 	[Fact]
-	public void Invoice_from_support_is_refused_for_a_non_admin()
+	public void Invoice_from_support_opens_that_mailbox_for_a_non_admin()
 	{
 		CapturingExchange exchange = new CapturingExchange();
 		SendEmailUseCase useCase = new SendEmailUseCase(exchange, new NoopLocalhostMail(), new StoredMailbox("secret", "support@perle-rare.com", "support-secret"));
@@ -114,8 +114,41 @@ public class SendEmailAttachmentTests
 			HtmlContents = "<p>Bonjour</p>"
 		}, 42, callerIsAdmin: false);
 
-		Assert.Equal(ExchangeSendFailure.Denied("support@perle-rare.com"), result);
-		Assert.Equal(0, exchange.SendCount);
+		Assert.Equal("OK", result);
+		Assert.Equal(1, exchange.SendCount);
+		Assert.Equal("support@perle-rare.com", exchange.LastSenderEmail);
+		Assert.Null(exchange.LastLoginEmail);
+		Assert.Equal("support-secret", exchange.LastPassword);
+	}
+
+	[Fact]
+	public void Invoice_from_support_uses_the_configured_mailbox_password()
+	{
+		CapturingExchange exchange = new CapturingExchange();
+		SendEmailUseCase useCase = new SendEmailUseCase(exchange, new NoopLocalhostMail(), new StoredMailbox("secret"), "from-config");
+		string result = useCase.Execute(new Email
+		{
+			SenderEmail = "support@perle-rare.com",
+			SenderName = "L'équipe Support",
+			To = "marta.clery@perle-rare.com",
+			Subject = "Facture d'honoraires",
+			HtmlContents = "<p>Bonjour</p>",
+			Attachments = new[]
+			{
+				new EmailAttachment
+				{
+					FileName = "Facture honoraires.pdf",
+					ContentType = "application/pdf",
+					ContentBase64 = Convert.ToBase64String(new byte[] { 0x25, 0x50, 0x44, 0x46 })
+				}
+			}
+		}, 42, callerIsAdmin: false);
+
+		Assert.Equal("OK", result);
+		Assert.Equal("support@perle-rare.com", exchange.LastSenderEmail);
+		Assert.Null(exchange.LastLoginEmail);
+		Assert.Equal("from-config", exchange.LastPassword);
+		Assert.Equal("Facture honoraires.pdf", exchange.LastAttachments[0].FileName);
 	}
 
 	[Fact]

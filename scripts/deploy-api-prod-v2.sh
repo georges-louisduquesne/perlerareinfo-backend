@@ -126,6 +126,8 @@ fi
 set -euo pipefail
 sudo -n mkdir -p $V2_DIR
 sudo -n rsync -a --delete --exclude 'appsettings*.json' --exclude 'logs/' $STAGING/ $V2_DIR/
+# The old API settings replace v2 appsettings. ConnectionStrings__ExchangeSupport
+# stays in the systemd drop-in (api-v2.perle-rare.info.service.d), not in git.
 sudo -n cp $PROD_DIR/appsettings.json $V2_DIR/appsettings.json
 sudo -n cp $PROD_DIR/appsettings.Production.json $V2_DIR/appsettings.Production.json
 sudo -n chown -R www-data:www-data $V2_DIR

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ApiPerleRare.Controllers;
+using ApiPerleRare.Helpers;
+using Microsoft.Extensions.Configuration;
 
 namespace ApiPerleRare.Application.Exchange;
 
@@ -15,14 +17,18 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 
 	internal const string UnreadableAttachment = "Impossible de lire une pièce jointe.";
 
-	/// <summary>Boîte partagée : les admins s’y connectent, ils n’envoient pas « au nom de ».</summary>
+	/// <summary>Boîte Exchange OVH. On s’y connecte, on n’envoie pas « au nom de ».</summary>
 	internal const string SupportFromAddress = "support@perle-rare.com";
+
+	internal const string MissingSupportMailboxPassword = "La boîte support@perle-rare.com n’a pas de mot de passe Exchange.";
 
 	private readonly IExchangeService _exchange;
 
 	private readonly ILocalhostMailService _localhostMail;
 
 	private readonly IConseillerMailboxLookup _mailboxes;
+
+	private readonly string _supportPassword;
 
 	public SendEmailUseCase(IExchangeService exchange, ILocalhostMailService localhostMail, IConseillerMailboxLookup mailboxes)
 	{
@@ -31,11 +37,24 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		_mailboxes = mailboxes;
 	}
 
+	public SendEmailUseCase(IExchangeService exchange, ILocalhostMailService localhostMail, IConseillerMailboxLookup mailboxes, IConfiguration configuration)
+		: this(exchange, localhostMail, mailboxes, SupportPasswordFrom(configuration))
+	{
+	}
+
+	internal SendEmailUseCase(IExchangeService exchange, ILocalhostMailService localhostMail, IConseillerMailboxLookup mailboxes, string supportPassword)
+	{
+		_exchange = exchange;
+		_localhostMail = localhostMail;
+		_mailboxes = mailboxes;
+		_supportPassword = supportPassword;
+	}
+
 	public string Execute(Email em, int? conseillerId, bool callerIsAdmin = false)
 	{
 		try
 		{
-			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes, callerIsAdmin, out string loginEmail);
+			string blocked = ApplyStoredMailboxPassword(em, conseillerId, _mailboxes, callerIsAdmin, out string loginEmail, _supportPassword);
 			if (blocked != null)
 			{
 				return blocked;
@@ -108,29 +127,29 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 	}
 
 	/// <summary>
-	/// Fills the Exchange password. <c>support@</c> is sent by opening that
-	/// mailbox (admins only). Another From address keeps the signed-in mailbox
-	/// as <paramref name="loginEmail"/> and the requested address as the visible From.
+	/// Fills the Exchange password. <c>support@</c> is opened as that mailbox.
+	/// Another From address keeps the signed-in mailbox as <paramref name="loginEmail"/>
+	/// and the requested address as the visible From.
 	/// </summary>
-	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes, bool callerIsAdmin, out string loginEmail)
+	internal static string ApplyStoredMailboxPassword(Email em, int? conseillerId, IConseillerMailboxLookup mailboxes, bool callerIsAdmin, out string loginEmail, string supportPassword = null)
 	{
 		loginEmail = null;
+		_ = callerIsAdmin;
 		if (em == null || !conseillerId.HasValue)
 		{
 			return null;
 		}
-		if (!string.IsNullOrWhiteSpace(em.SenderPassword) && !IsSupportFrom(em.SenderEmail))
+		if (IsSupportFrom(em.SenderEmail))
+		{
+			return ApplySupportMailbox(em, mailboxes, supportPassword);
+		}
+		if (!string.IsNullOrWhiteSpace(em.SenderPassword))
 		{
 			return null;
 		}
 		if (!NeedsExchangePassword(em.SenderEmail))
 		{
 			return null;
-		}
-		if (IsSupportFrom(em.SenderEmail))
-		{
-			// Le mot de passe du conseiller ne doit pas ouvrir support@ ni servir à un envoi « au nom de ».
-			em.SenderPassword = null;
 		}
 		ConseillerMailbox mailbox = null;
 		try
@@ -149,10 +168,6 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 		string ownEmail = (mailbox.Email ?? string.Empty).Trim();
 		if (requested.Length > 0 && !string.Equals(requested, ownEmail, StringComparison.OrdinalIgnoreCase))
 		{
-			if (IsSupportFrom(requested) && !callerIsAdmin)
-			{
-				return ExchangeSendFailure.Denied(requested);
-			}
 			ConseillerMailbox shared = TryMailboxByEmail(mailboxes, requested);
 			if (shared != null && !string.IsNullOrWhiteSpace(shared.Password)
 				&& string.Equals((shared.Email ?? string.Empty).Trim(), requested, StringComparison.OrdinalIgnoreCase))
@@ -163,12 +178,6 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 					em.SenderName = shared.DisplayName;
 				}
 				return null;
-			}
-			if (IsSupportFrom(requested))
-			{
-				// Pas de mot de passe pour support@ : ne pas ouvrir la boîte du conseiller
-				// et poser un From étranger. Exchange répond SendAsDenied.
-				return ExchangeSendFailure.Denied(requested);
 			}
 			loginEmail = ownEmail;
 			em.SenderPassword = mailbox.Password;
@@ -184,6 +193,51 @@ public sealed class SendEmailUseCase : ISendEmailUseCase
 			em.SenderName = mailbox.DisplayName;
 		}
 		return null;
+	}
+
+	/// <summary>
+	/// Opens support@ with its own password. A client-supplied password is ignored.
+	/// The configured mailbox password wins; a conseiller row with that address is the fallback.
+	/// </summary>
+	internal static string ApplySupportMailbox(Email em, IConseillerMailboxLookup mailboxes, string supportPassword)
+	{
+		em.SenderEmail = SupportFromAddress;
+		em.SenderPassword = null;
+		if (!string.IsNullOrWhiteSpace(supportPassword))
+		{
+			em.SenderPassword = supportPassword;
+			return null;
+		}
+		ConseillerMailbox shared = TryMailboxByEmail(mailboxes, SupportFromAddress);
+		if (shared != null && !string.IsNullOrWhiteSpace(shared.Password)
+			&& string.Equals((shared.Email ?? string.Empty).Trim(), SupportFromAddress, StringComparison.OrdinalIgnoreCase))
+		{
+			em.SenderPassword = shared.Password;
+			return null;
+		}
+		return MissingSupportMailboxPassword;
+	}
+
+	internal static string SupportPasswordFrom(IConfiguration configuration)
+	{
+		string raw = configuration?.GetConnectionString("ExchangeSupport");
+		if (string.IsNullOrWhiteSpace(raw))
+		{
+			return null;
+		}
+		try
+		{
+			ExchangeConnectionString account = new ExchangeConnectionString(raw);
+			if (!IsSupportFrom(account.Username) || string.IsNullOrWhiteSpace(account.Password))
+			{
+				return null;
+			}
+			return account.Password;
+		}
+		catch (Exception)
+		{
+			return null;
+		}
 	}
 
 	private static ConseillerMailbox TryMailboxByEmail(IConseillerMailboxLookup mailboxes, string email)

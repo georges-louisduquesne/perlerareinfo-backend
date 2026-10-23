@@ -72,6 +72,11 @@ internal class PRExchangeService : IExchangeService
 			{
 				html = "<html><head><style>html,body{font-family:Verdana,sans-serif;font-size:15px;line-height:1.5}</style></head><body>" + html + "</body></html>";
 			}
+			if (SendEmailUseCase.IsSupportFrom(senderEmail))
+			{
+				// support@ est la boîte authentifiée. Un loginEmail différent poserait un From étranger.
+				loginEmail = null;
+			}
 			bool foreignFrom = !string.IsNullOrWhiteSpace(loginEmail)
 				&& !string.Equals(loginEmail.Trim(), (senderEmail ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
 			bool serviceAccount = foreignFrom

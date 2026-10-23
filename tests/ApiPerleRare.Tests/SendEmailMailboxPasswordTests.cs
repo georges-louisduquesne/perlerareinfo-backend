@@ -64,12 +64,13 @@ public class SendEmailMailboxPasswordTests
 	}
 
 	[Fact]
-	public void Non_admin_cannot_send_from_the_support_mailbox()
+	public void Support_mailbox_is_opened_directly_for_a_non_admin()
 	{
 		Email email = new Email
 		{
 			SenderEmail = "support@perle-rare.com",
 			SenderName = "L'équipe Support",
+			SenderPassword = "from-client",
 			To = "marta.clery@perle-rare.com",
 			Subject = "Facture d'honoraires"
 		};
@@ -79,14 +80,37 @@ public class SendEmailMailboxPasswordTests
 			new FakeMailboxLookup("counselor-secret", "support@perle-rare.com", "support-secret"),
 			callerIsAdmin: false,
 			out string loginEmail);
-		Assert.Equal(ExchangeSendFailure.Denied("support@perle-rare.com"), blocked);
+		Assert.Null(blocked);
 		Assert.Null(loginEmail);
-		Assert.True(string.IsNullOrWhiteSpace(email.SenderPassword));
+		Assert.Equal("support-secret", email.SenderPassword);
+		Assert.Equal("support@perle-rare.com", email.SenderEmail);
+		Assert.NotEqual(ExchangeSendFailure.Denied("support@perle-rare.com"), blocked);
+	}
+
+	[Fact]
+	public void Configured_support_password_opens_the_mailbox_without_a_conseiller_row()
+	{
+		Email email = new Email
+		{
+			SenderEmail = " SUPPORT@perle-rare.com ",
+			SenderName = "L'équipe Support",
+			SenderPassword = "from-client"
+		};
+		string blocked = SendEmailUseCase.ApplyStoredMailboxPassword(
+			email,
+			42,
+			new FakeMailboxLookup("counselor-secret"),
+			callerIsAdmin: false,
+			out string loginEmail,
+			supportPassword: "from-config");
+		Assert.Null(blocked);
+		Assert.Null(loginEmail);
+		Assert.Equal("from-config", email.SenderPassword);
 		Assert.Equal("support@perle-rare.com", email.SenderEmail);
 	}
 
 	[Fact]
-	public void Admin_does_not_send_on_behalf_of_support_without_that_mailbox_password()
+	public void Support_send_without_a_mailbox_password_does_not_pretend_to_send_as()
 	{
 		Email email = new Email
 		{
@@ -99,9 +123,10 @@ public class SendEmailMailboxPasswordTests
 			new FakeMailboxLookup("secret-mail"),
 			callerIsAdmin: true,
 			out string loginEmail);
-		Assert.Equal(ExchangeSendFailure.Denied("support@perle-rare.com"), blocked);
+		Assert.Equal(SendEmailUseCase.MissingSupportMailboxPassword, blocked);
 		Assert.Null(loginEmail);
 		Assert.True(string.IsNullOrWhiteSpace(email.SenderPassword));
+		Assert.NotEqual(ExchangeSendFailure.Denied("support@perle-rare.com"), blocked);
 	}
 
 	[Fact]
