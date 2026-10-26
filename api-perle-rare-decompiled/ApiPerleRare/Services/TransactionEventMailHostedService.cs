@@ -85,6 +85,7 @@ public class TransactionEventMailHostedService : IHostedService, IDisposable
 				Type = e.ETypeEvenement,
 				EventName = e.ENomContact,
 				Comment = e.ETexte,
+				When = e.EDate,
 				ContactId = e.ERefContact
 			}).Take(20).ToList();
 		if (pending.Count == 0)
@@ -100,6 +101,7 @@ public class TransactionEventMailHostedService : IHostedService, IDisposable
 			return;
 		}
 		Dictionary<uint, ContactLabel> contacts = LoadContacts(db, pending);
+		Dictionary<string, string> people = LoadPeople(db, contacts.Values);
 		int sent = 0;
 		int position = cursor.Value;
 		foreach (PendingEvent item in pending)
@@ -111,8 +113,8 @@ public class TransactionEventMailHostedService : IHostedService, IDisposable
 			}
 			int missionId = contact?.MissionId ?? 0;
 			string family = contact?.FamilyName;
-			string subject = TransactionEventMail.Subject(item.Type, missionId, TransactionEventMail.ClientName(item.EventName, family));
-			string body = TransactionEventMail.HtmlBody(item.Comment);
+			string subject = TransactionEventMail.Subject(item.Type, missionId, TransactionEventMail.ClientName(item.EventName, family), item.When);
+			string body = TransactionEventMail.HtmlBody(item.Comment, Person(people, contact?.NegotiatorLogin), Person(people, contact?.AdvisorLogin));
 			bool ok;
 			try
 			{
@@ -176,8 +178,70 @@ public class TransactionEventMailHostedService : IHostedService, IDisposable
 			{
 				Id = c.CRefContact,
 				MissionId = c.CIdTypeMission,
-				FamilyName = c.CNomFamille
+				FamilyName = c.CNomFamille,
+				NegotiatorLogin = c.CNegociateur,
+				AdvisorLogin = c.CNomFamilleConseiller
 			}).ToDictionary((ContactLabel c) => c.Id);
+	}
+
+	private static Dictionary<string, string> LoadPeople(ApplicationDbContext db, IEnumerable<ContactLabel> contacts)
+	{
+		List<string> logins = new List<string>();
+		foreach (ContactLabel contact in contacts)
+		{
+			AddLogin(logins, contact.NegotiatorLogin);
+			AddLogin(logins, contact.AdvisorLogin);
+		}
+		Dictionary<string, string> people = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		if (logins.Count == 0)
+		{
+			return people;
+		}
+		var rows = (from p in db.ConseillersPersonnels.AsNoTracking()
+			where logins.Contains(p.CpLogin)
+			select new
+			{
+				p.CpLogin,
+				p.CpPrenom,
+				p.CpNomFamille
+			}).ToList();
+		foreach (var row in rows)
+		{
+			string login = (row.CpLogin ?? "").Trim();
+			if (login.Length == 0 || people.ContainsKey(login))
+			{
+				continue;
+			}
+			people[login] = TransactionEventMail.PersonName(row.CpPrenom, row.CpNomFamille);
+		}
+		return people;
+	}
+
+	private static void AddLogin(List<string> logins, string login)
+	{
+		string trimmed = (login ?? "").Trim();
+		if (trimmed.Length == 0)
+		{
+			return;
+		}
+		for (int i = 0; i < logins.Count; i++)
+		{
+			if (string.Equals(logins[i], trimmed, StringComparison.OrdinalIgnoreCase))
+			{
+				return;
+			}
+		}
+		logins.Add(trimmed);
+	}
+
+	private static string Person(Dictionary<string, string> people, string login)
+	{
+		string trimmed = (login ?? "").Trim();
+		if (trimmed.Length == 0 || people == null || !people.TryGetValue(trimmed, out string name))
+		{
+			return "";
+		}
+		return name;
 	}
 
 	private static int? ReadCursor(ApplicationDbContext db)
@@ -246,6 +310,8 @@ public class TransactionEventMailHostedService : IHostedService, IDisposable
 
 		public string Comment { get; set; }
 
+		public DateTime When { get; set; }
+
 		public uint? ContactId { get; set; }
 	}
 
@@ -256,5 +322,9 @@ public class TransactionEventMailHostedService : IHostedService, IDisposable
 		public int MissionId { get; set; }
 
 		public string FamilyName { get; set; }
+
+		public string NegotiatorLogin { get; set; }
+
+		public string AdvisorLogin { get; set; }
 	}
 }

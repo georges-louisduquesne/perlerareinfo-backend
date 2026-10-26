@@ -1,3 +1,4 @@
+using System;
 using ApiPerleRare.ScheduledTasks;
 using Xunit;
 
@@ -60,10 +61,28 @@ public class TransactionEventMailTests
 	}
 
 	[Fact]
-	public void Body_is_the_comment_as_html()
+	public void Appointment_date_closes_the_subject_of_signing_meetings()
 	{
-		Assert.Equal("Offre 395000€ &lt; 430000€<br>suite", TransactionEventMail.HtmlBody("Offre 395000€ < 430000€\nsuite"));
-		Assert.Equal("", TransactionEventMail.HtmlBody(null));
+		DateTime when = new DateTime(2026, 11, 6, 11, 0, 0);
+		Assert.Equal("RV COMPROMIS DAHAN le 06/11/26 à 11:00", TransactionEventMail.Subject("RV COMPROMIS", 1, "DAHAN", when));
+		Assert.Equal("RV SIGNATURE BAIL DAHAN le 06/11/26 à 11:00", TransactionEventMail.Subject("RV ACTE AUTHENT.", 2, "DAHAN", when));
+		Assert.Equal("OFFRE DAHAN", TransactionEventMail.Subject("OFFRE", 1, "DAHAN", when));
+		Assert.Equal("RV ACTE AUTHENT. le 23/10/26 à 00:00", TransactionEventMail.Subject("RV ACTE AUTHENT.", 1, "", new DateTime(2026, 10, 23, 0, 0, 0)));
+	}
+
+	[Fact]
+	public void Person_name_is_first_name_then_uppercase_last_name()
+	{
+		Assert.Equal("Marie DUPONT", TransactionEventMail.PersonName(" Marie ", "dupont"));
+		Assert.Equal("MARTIN", TransactionEventMail.PersonName(" ", "Martin"));
+		Assert.Equal("", TransactionEventMail.PersonName(null, null));
+	}
+
+	[Fact]
+	public void Body_is_the_comment_then_negotiator_and_advisor()
+	{
+		Assert.Equal("Offre 395000€ &lt; 430000€<br>suite<br>Négociateur : Marie DUPONT<br>Conseiller : Paul MARTIN", TransactionEventMail.HtmlBody("Offre 395000€ < 430000€\nsuite", "Marie DUPONT", "Paul MARTIN"));
+		Assert.Equal("Négociateur : <br>Conseiller : ", TransactionEventMail.HtmlBody(null, null, "  "));
 	}
 
 	[Fact]
