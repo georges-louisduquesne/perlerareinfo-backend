@@ -21,6 +21,7 @@ using ApiPerleRare.Infrastructure.Mail;
 using ApiPerleRare.Infrastructure.Yanport;
 using ApiPerleRare.YanportModels;
 using ApiPerleRare.Models;
+using ApiPerleRare.ScheduledTasks;
 using ApiPerleRare.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -253,6 +254,10 @@ public class Startup
 			if (ScheduledTasksEnabled(Environment.GetEnvironmentVariable("PR_SCHEDULED_TASKS")))
 			{
 				services.AddHostedService<TimedHostedService>();
+			}
+			if (TransactionEventMail.Enabled(Environment.GetEnvironmentVariable("PR_TRANSACTION_EVENT_MAIL")))
+			{
+				services.AddHostedService<TransactionEventMailHostedService>();
 			}
 		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
