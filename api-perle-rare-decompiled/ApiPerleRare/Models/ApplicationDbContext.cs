@@ -612,7 +612,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ContactIntermediaire e) => e.CNomIntermediaire).IsRequired().HasMaxLength(50)
 				.HasColumnName("C_NomIntermediaire");
 			entity.Property((ContactIntermediaire e) => e.CPasDeMails).HasColumnName("C_PasDeMails");
-			entity.Property((ContactIntermediaire e) => e.CPhoto).HasMaxLength(300).HasColumnName("C_Photo");
+			entity.Property((ContactIntermediaire e) => e.CPhoto).HasMaxLength(500).HasColumnName("C_Photo");
 			entity.Property((ContactIntermediaire e) => e.CPrenom).IsRequired().HasMaxLength(30)
 				.HasColumnName("C_Prenom");
 			entity.Property((ContactIntermediaire e) => e.CQualiteRelation).IsRequired().HasMaxLength(50)

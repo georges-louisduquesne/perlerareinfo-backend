@@ -19,7 +19,12 @@ public class AgentPhotoUrlTests
 	{
 		Assert.False(AgentPhotoUrl.TryNormalize("", out _, out string empty));
 		Assert.False(AgentPhotoUrl.TryNormalize("ftp://cdn.example.com/a.jpg", out _, out _));
-		Assert.False(AgentPhotoUrl.TryNormalize("https://cdn.example.com/" + new string('a', 300), out _, out _));
+		string prefix = "https://cdn.example.com/";
+		string atMax = prefix + new string('a', AgentPhotoUrl.MaxLength - prefix.Length);
+		Assert.Equal(500, AgentPhotoUrl.MaxLength);
+		Assert.True(AgentPhotoUrl.TryNormalize(atMax, out string kept, out _));
+		Assert.Equal(atMax, kept);
+		Assert.False(AgentPhotoUrl.TryNormalize(atMax + "a", out _, out _));
 		Assert.Contains("http", empty);
 	}
 }

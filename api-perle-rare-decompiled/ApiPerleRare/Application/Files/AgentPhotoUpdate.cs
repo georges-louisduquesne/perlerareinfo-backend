@@ -17,7 +17,7 @@ public sealed class AgentPhotoResult
 }
 
 /// <summary>
-/// Enregistre ou retire l’URL de contact_intermediaire.C_Photo (varchar 300).
+/// Enregistre ou retire l’URL de contact_intermediaire.C_Photo (varchar 500).
 /// Pas de téléchargement : la fiche agent stocke le lien, pas un fichier logos/.
 /// </summary>
 public sealed class UpdateAgentPhotoUseCase
@@ -62,7 +62,7 @@ public sealed class UpdateAgentPhotoUseCase
 
 internal static class AgentPhotoUrl
 {
-	public const int MaxLength = 300;
+	public const int MaxLength = 500;
 
 	public static bool TryNormalize(string raw, out string url, out string error)
 	{
