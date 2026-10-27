@@ -19,6 +19,14 @@ public class PersonLookupReaderTests
 	}
 
 	[Fact]
+	public void La_recherche_Google_a_le_temps_d_aboutir()
+	{
+		Assert.Equal(120, PersonLookupController.HttpTimeoutSeconds);
+		Assert.Equal(90, PersonLookupController.GoogleSearchTimeoutSeconds);
+		Assert.True(PersonLookupController.HttpTimeoutSeconds > PersonLookupController.GoogleSearchTimeoutSeconds);
+	}
+
+	[Fact]
 	public void Lit_le_jeton_Apify_dans_le_fichier_ou_un_profil()
 	{
 		Assert.Equal("abc", PersonLookupController.TokenFromAuthJson("{\"token\":\" abc \",\"username\":\"x\"}"));

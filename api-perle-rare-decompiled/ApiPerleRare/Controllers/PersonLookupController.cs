@@ -27,6 +27,12 @@ public class PersonLookupController : ControllerBase
 {
 	private readonly IConfiguration _configuration;
 
+	/// <summary>Le client HTTP doit couvrir la recherche Google (90 s) plus la marge.</summary>
+	internal const int HttpTimeoutSeconds = 120;
+
+	/// <summary>run-sync Google : 20 s coupait la requête avant les résultats.</summary>
+	internal const int GoogleSearchTimeoutSeconds = 90;
+
 	public PersonLookupController(IConfiguration configuration)
 	{
 		_configuration = configuration;
@@ -54,7 +60,7 @@ public class PersonLookupController : ControllerBase
 			Console.WriteLine("PersonLookup: jeton Apify absent.");
 			return Ok(PersonLookupReader.Unavailable());
 		}
-		using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(55) };
+		using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds) };
 		try
 		{
 			var lightTask = RunActor(http, token, "automly~linkedin-people-search-scraper", new
@@ -73,7 +79,7 @@ public class PersonLookupController : ControllerBase
 				searchLanguage = "fr",
 				saveHtml = false,
 				saveHtmlToKeyValueStore = false,
-			}, 20, 1024, cancellationToken);
+			}, GoogleSearchTimeoutSeconds, 1024, cancellationToken);
 
 			var people = PersonLookupReader.ReadLinkedIn(await lightTask);
 			var exact = people.Where(person => PersonLookupReader.IsExactPersonName(prenom, nom, person.Name)).ToList();
