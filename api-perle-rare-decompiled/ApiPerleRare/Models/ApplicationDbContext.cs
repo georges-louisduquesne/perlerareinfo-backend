@@ -51,6 +51,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
 	public virtual DbSet<Formulaires> Formulaires { get; set; }
 
+	public virtual DbSet<FormulairesCandidats> FormulairesCandidats { get; set; }
+
 	public virtual DbSet<HistoriqueAnnonces> HistoriqueAnnonces { get; set; }
 
 	public virtual DbSet<HistoriqueAspiration> HistoriqueAspiration { get; set; }
@@ -890,6 +892,33 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.HasOne((Formulaires d) => d.FRefNegociateurNavigation).WithMany((ConseillersPersonnels p) => p.Formulaires).HasForeignKey((Formulaires d) => d.FRefNegociateur)
 				.OnDelete(DeleteBehavior.SetNull)
 				.HasConstraintName("formulaires_ibfk_1");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<FormulairesCandidats> entity)
+		{
+			entity.HasKey((FormulairesCandidats e) => e.FcRef).HasName("PRIMARY");
+			entity.ToTable("formulaires_candidats").HasCharSet("utf8mb4").UseCollation("utf8mb4_unicode_ci");
+			entity.HasIndex((FormulairesCandidats e) => e.FcMessageId, "UK_formulaires_candidats_message").IsUnique();
+			entity.HasIndex((FormulairesCandidats e) => e.FcStatut, "IX_formulaires_candidats_statut");
+			entity.Property((FormulairesCandidats e) => e.FcRef).HasColumnName("FC_Ref");
+			entity.Property((FormulairesCandidats e) => e.FcMessageId).IsRequired().HasMaxLength(255).HasColumnName("FC_MessageId");
+			entity.Property((FormulairesCandidats e) => e.FcDate).HasColumnType("datetime").HasColumnName("FC_Date");
+			entity.Property((FormulairesCandidats e) => e.FcFrom).IsRequired().HasMaxLength(255).HasColumnName("FC_From");
+			entity.Property((FormulairesCandidats e) => e.FcSubject).IsRequired().HasMaxLength(255).HasColumnName("FC_Subject");
+			entity.Property((FormulairesCandidats e) => e.FcPrenom).IsRequired().HasMaxLength(80).HasColumnName("FC_Prenom");
+			entity.Property((FormulairesCandidats e) => e.FcNom).IsRequired().HasMaxLength(80).HasColumnName("FC_Nom");
+			entity.Property((FormulairesCandidats e) => e.FcTel).IsRequired().HasMaxLength(40).HasColumnName("FC_Tel");
+			entity.Property((FormulairesCandidats e) => e.FcEmail).IsRequired().HasMaxLength(150).HasColumnName("FC_Email");
+			entity.Property((FormulairesCandidats e) => e.FcVille).IsRequired().HasMaxLength(150).HasColumnName("FC_Ville");
+			entity.Property((FormulairesCandidats e) => e.FcLinkedin).IsRequired().HasMaxLength(300).HasColumnName("FC_Linkedin");
+			entity.Property((FormulairesCandidats e) => e.FcPourquoi).IsRequired().HasColumnType("text").HasColumnName("FC_Pourquoi");
+			entity.Property((FormulairesCandidats e) => e.FcDelai).IsRequired().HasMaxLength(20).HasColumnName("FC_Delai");
+			entity.Property((FormulairesCandidats e) => e.FcCorps).IsRequired().HasColumnType("mediumtext").HasColumnName("FC_Corps");
+			entity.Property((FormulairesCandidats e) => e.FcStatut).HasDefaultValueSql("'1'").HasColumnName("FC_Statut");
+			entity.Property((FormulairesCandidats e) => e.FcCauseRejet).HasMaxLength(20).HasColumnName("FC_CauseRejet");
+			entity.Property((FormulairesCandidats e) => e.FcRefAdmin).HasColumnName("FC_RefAdmin");
+			entity.Property((FormulairesCandidats e) => e.FcRefConseiller).HasColumnName("FC_RefConseiller");
+			entity.Property((FormulairesCandidats e) => e.FcDateTraitement).HasColumnType("datetime").HasColumnName("FC_DateTraitement");
+			entity.Ignore((FormulairesCandidats e) => e.Correspondances);
 		});
 		modelBuilder.Entity(delegate(EntityTypeBuilder<HistoriqueAnnonces> entity)
 		{

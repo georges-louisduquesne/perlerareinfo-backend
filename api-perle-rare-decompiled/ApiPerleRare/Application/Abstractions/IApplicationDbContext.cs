@@ -32,6 +32,7 @@ public interface IApplicationDbContext
 	DbSet<Erreur> Erreur { get; }
 	DbSet<Evenements> Evenements { get; }
 	DbSet<Formulaires> Formulaires { get; }
+	DbSet<FormulairesCandidats> FormulairesCandidats { get; }
 	DbSet<HistoriqueAnnonces> HistoriqueAnnonces { get; }
 	DbSet<HistoriqueAspiration> HistoriqueAspiration { get; }
 	DbSet<HistoriqueInterDirect> HistoriqueInterDirect { get; }
