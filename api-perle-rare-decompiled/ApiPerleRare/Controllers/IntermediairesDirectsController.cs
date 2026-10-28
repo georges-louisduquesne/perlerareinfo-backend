@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -113,6 +114,40 @@ public class IntermediairesDirectsController : ControllerBase
 		return intermediairesDirects;
 	}
 
+	/// <summary>Historique agence (actor_logs + actor_search), dont les changements de réseau.</summary>
+	[HttpGet("{id}/ActorHistory")]
+	public ActionResult<AgencyActorHistoryItem[]> GetActorHistory(uint id)
+	{
+		MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
+		if (c.State != ConnectionState.Open)
+		{
+			c.Open();
+		}
+		var items = new List<AgencyActorHistoryItem>();
+		using (MySqlCommand cmd = c.CreateCommand())
+		{
+			cmd.CommandText = @"SELECT al.AL_Action AS Action, asr.AS_Date AS Date, asr.AS_Actor AS Actor, al.AL_Champs AS Champs
+FROM actor_logs al
+INNER JOIN actor_search asr ON asr.AS_Id = al.AL_RefAS
+WHERE al.AL_RefIntermediaire = @id AND al.AL_RefCtcInter = 0
+ORDER BY asr.AS_Date ASC, al.AL_Id ASC";
+			cmd.Parameters.AddWithValue("@id", id);
+			using MySqlDataReader reader = cmd.ExecuteReader();
+			while (reader.Read())
+			{
+				object champs = reader.IsDBNull(3) ? null : reader.GetValue(3);
+				items.Add(new AgencyActorHistoryItem
+				{
+					Action = reader.IsDBNull(0) ? "" : reader.GetString(0),
+					Date = reader.IsDBNull(1) ? DateTime.MinValue : reader.GetDateTime(1),
+					Actor = reader.IsDBNull(2) ? "" : reader.GetString(2),
+					Champs = champs == null || champs is DBNull ? "" : Convert.ToString(champs)
+				});
+			}
+		}
+		return items.ToArray();
+	}
+
 	[HttpPost("{id}/logo")]
 	[Authorize(Roles = "Admin")]
 	public async Task<IActionResult> ImportLogo(uint id, AgencyLogoImportRequest request)
@@ -150,10 +185,11 @@ public class IntermediairesDirectsController : ControllerBase
 		{
 			return BadRequest();
 		}
-		long? previousYanportId = await _context.IntermediairesDirects.AsNoTracking()
+		var previous = await _context.IntermediairesDirects.AsNoTracking()
 			.Where((IntermediairesDirects e) => e.IRefIntermediaire == id)
-			.Select((IntermediairesDirects e) => (long?)e.IIdYanport)
+			.Select((IntermediairesDirects e) => new { e.IIdYanport, e.IRefGroupe, e.IGroupeEventuel })
 			.FirstOrDefaultAsync();
+		long? previousYanportId = previous == null ? null : previous.IIdYanport;
 		_context.Entry(intermediairesDirects).State = EntityState.Modified;
 		// Le logo ne passe que par POST/DELETE …/logo. Sinon la fiche ouverte réécrit
 		// l’ancien I_Logo et un logo effacé en base ne peut plus être remplacé.
@@ -174,7 +210,59 @@ public class IntermediairesDirectsController : ControllerBase
 		{
 			_yanportLinks.Enqueue(id, previousYanportId.Value, intermediairesDirects.IIdYanport);
 		}
+		if (previous != null && AgencyNetworkHistory.Changed(previous.IRefGroupe, previous.IGroupeEventuel, intermediairesDirects.IRefGroupe, intermediairesDirects.IGroupeEventuel))
+		{
+			try
+			{
+				RecordAgencyNetworkHistory(id, previous.IRefGroupe, previous.IGroupeEventuel, intermediairesDirects.IRefGroupe, intermediairesDirects.IGroupeEventuel);
+			}
+			catch (Exception)
+			{
+				// Le rattachement est déjà enregistré : un échec d’historique ne doit pas le masquer.
+			}
+		}
 		return NoContent();
+	}
+
+	private void RecordAgencyNetworkHistory(uint agencyId, uint? beforeId, string beforeName, uint? afterId, string afterName)
+	{
+		MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
+		if (c.State != ConnectionState.Open)
+		{
+			c.Open();
+		}
+		string actor = (this.GetUserLogin() ?? "").Trim();
+		if (actor.Length == 0)
+		{
+			actor = "fiche-agence";
+		}
+		if (actor.Length > 250)
+		{
+			actor = actor.Substring(0, 250);
+		}
+		string champs = AgencyNetworkHistory.ChampsJson(beforeId, beforeName, afterId, afterName);
+		long searchId;
+		using (MySqlCommand cmd = c.CreateCommand())
+		{
+			cmd.CommandText = @"INSERT INTO actor_search (AS_Date, AS_Actor, AS_nbAjouts, AS_nbModifs, AS_nbDesactives)
+VALUES (NOW(), @actor, 0, 0, 0)";
+			cmd.Parameters.AddWithValue("@actor", actor);
+			cmd.ExecuteNonQuery();
+		}
+		using (MySqlCommand cmd = c.CreateCommand())
+		{
+			cmd.CommandText = "SELECT LAST_INSERT_ID()";
+			searchId = Convert.ToInt64(cmd.ExecuteScalar());
+		}
+		using (MySqlCommand cmd = c.CreateCommand())
+		{
+			cmd.CommandText = @"INSERT INTO actor_logs (AL_RefAS, AL_Action, AL_RefCtcInter, AL_RefIntermediaire, AL_Nom, AL_Prenom, AL_Champs)
+VALUES (@searchId, 'modif', 0, @agencyId, '', '', @champs)";
+			cmd.Parameters.AddWithValue("@searchId", searchId);
+			cmd.Parameters.AddWithValue("@agencyId", agencyId);
+			cmd.Parameters.AddWithValue("@champs", champs);
+			cmd.ExecuteNonQuery();
+		}
 	}
 
 	[HttpPost]
