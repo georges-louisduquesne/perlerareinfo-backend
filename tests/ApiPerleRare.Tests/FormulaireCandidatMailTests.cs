@@ -102,8 +102,15 @@ Délai de remplissage du formulaire : 00:03:35
 		FormulairesCandidats form = FormulaireCandidatMail.Parse("<id-2>", new DateTime(2026, 10, 27, 9, 48, 52), "from", FormulaireCandidatMail.SubjectMarker, JulienBody);
 		ConseillersPersonnels created = FormulaireCandidatAttribution.CreateConseiller(form, new DateOnly(2026, 10, 27));
 		Assert.Equal("Candidat", created.CpStatut);
-		Assert.True(created.CpAdmin);
+		Assert.False(created.CpAdmin);
+		Assert.False(created.CpNegociateur);
+		Assert.Equal((sbyte)0, created.CpDispo);
+		Assert.False(created.CpDispoMission);
 		Assert.Equal((sbyte)1, created.CpActif);
+		Assert.Contains("CP_Admin = 0", FormulaireCandidatAttribution.PersistOffFlagsSql);
+		Assert.Contains("CP_Negociateur = 0", FormulaireCandidatAttribution.PersistOffFlagsSql);
+		Assert.Contains("CP_Dispo = 0", FormulaireCandidatAttribution.PersistOffFlagsSql);
+		Assert.Contains("CP_DispoMission = 0", FormulaireCandidatAttribution.PersistOffFlagsSql);
 		Assert.Equal("Julien", created.CpPrenom);
 		Assert.Equal("Diemer", created.CpNomFamille);
 		Assert.Equal("0646087134", created.CpTelPersonnel);
@@ -124,6 +131,24 @@ Délai de remplissage du formulaire : 00:03:35
 		Assert.Equal("CTHIERIET", task.CptQui);
 		Assert.Equal("", task.CptEtat);
 		Assert.Equal(new DateOnly(2026, 10, 27), task.CptDateRealisation);
+	}
+
+	[Fact]
+	public void MarkNotStaff_turns_admin_negociateur_and_both_dispos_off()
+	{
+		var row = new ConseillersPersonnels
+		{
+			CpAdmin = true,
+			CpNegociateur = true,
+			CpDispo = 1,
+			CpDispoMission = true
+		};
+		FormulaireCandidatAttribution.MarkNotStaff(row);
+		Assert.False(row.CpAdmin);
+		Assert.False(row.CpNegociateur);
+		Assert.Equal((sbyte)0, row.CpDispo);
+		Assert.False(row.CpDispoMission);
+		FormulaireCandidatAttribution.MarkNotStaff(null);
 	}
 
 	[Fact]

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
+using ApiPerleRare.ScheduledTasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -219,8 +220,17 @@ public class ConseillersPersonnelsController : ControllerBase
 			{
 				conseillersPersonnels2.CpVille = "";
 			}
+			bool candidat = string.Equals((conseillersPersonnels.CpStatut ?? "").Trim(), "Candidat", StringComparison.OrdinalIgnoreCase);
+			if (candidat)
+			{
+				FormulaireCandidatAttribution.MarkNotStaff(conseillersPersonnels);
+			}
 			_context.ConseillersPersonnels.Add(conseillersPersonnels);
 			await _context.SaveChangesAsync();
+			if (candidat)
+			{
+				await _context.Database.ExecuteSqlRawAsync(FormulaireCandidatAttribution.PersistOffFlagsSql, conseillersPersonnels.CpRefConseiller);
+			}
 			return CreatedAtAction("GetConseillersPersonnels", new
 			{
 				id = conseillersPersonnels.CpRefConseiller

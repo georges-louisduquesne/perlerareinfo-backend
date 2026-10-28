@@ -8,10 +8,29 @@ namespace ApiPerleRare.ScheduledTasks;
 
 /// <summary>
 /// Attribution d’un formulaire candidat : fiche Candidat, évènement MAIL IN, alerte A appeler.
-/// CP_Admin = 1, comme demandé. Les recruteurs du 2e tableau excluent le statut Candidat.
+/// La fiche n’est ni admin, ni négociateur, ni disponible (y compris mission).
+/// Les recruteurs du 2e tableau excluent le statut Candidat.
 /// </summary>
 internal static class FormulaireCandidatAttribution
 {
+	/// <summary>
+	/// CP_Dispo et CP_DispoMission valent 1 par défaut en base. EF n’écrit pas le 0
+	/// (valeur par défaut du type) et MariaDB remet « Dispo ». Cet UPDATE force les quatre interrupteurs.
+	/// </summary>
+	internal const string PersistOffFlagsSql = "UPDATE conseillers_personnels SET CP_Admin = 0, CP_Negociateur = 0, CP_Dispo = 0, CP_DispoMission = 0 WHERE CP_RefConseiller = {0}";
+
+	internal static void MarkNotStaff(ConseillersPersonnels row)
+	{
+		if (row == null)
+		{
+			return;
+		}
+		row.CpAdmin = false;
+		row.CpNegociateur = false;
+		row.CpDispo = 0;
+		row.CpDispoMission = false;
+	}
+
 	internal const string EventType = "MAIL IN";
 
 	internal const string EventComment = "formulaire réseaux sociaux";
@@ -82,7 +101,7 @@ internal static class FormulaireCandidatAttribution
 			CpCommentaire = Cut(Latin1(Commentaire(form.FcLinkedin, form.FcPourquoi)), 2000),
 			CpStatut = "Candidat",
 			CpActif = 1,
-			CpAdmin = true,
+			CpAdmin = false,
 			CpDispo = 0,
 			CpDispoMission = false,
 			CpNegociateur = false,

@@ -114,6 +114,7 @@ public class FormulairesCandidatsController : ControllerBase
 		await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx = await _context.Database.BeginTransactionAsync();
 		_context.ConseillersPersonnels.Add(created);
 		await _context.SaveChangesAsync();
+		await _context.Database.ExecuteSqlRawAsync(FormulaireCandidatAttribution.PersistOffFlagsSql, created.CpRefConseiller);
 		_context.ConseillersPersonnelsEvenements.Add(FormulaireCandidatAttribution.CreateEvent(form, created.CpRefConseiller));
 		_context.ConseillersPersonnelsTaches.Add(FormulaireCandidatAttribution.CreateTask(created.CpRefConseiller, admin.CpLogin, now));
 		form.FcStatut = FormulaireCandidatMail.StatutAttribue;
