@@ -47,6 +47,8 @@ public class ConseillersPersonnels
 
 	public string CpMelPerso { get; set; }
 
+	public string CpLinkedIn { get; set; }
+
 	public string CpPhoto { get; set; }
 
 	public DateOnly CpDateDebut { get; set; }
