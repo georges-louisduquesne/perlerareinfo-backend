@@ -18,7 +18,9 @@ public class ConseillersPersonnelsTaches
 
 	public string CptEtat { get; set; }
 
-	public DateOnly CptDateRealisation { get; set; }
+	public DateTime CptDateRealisation { get; set; }
+
+	public string CptAppointmentId { get; set; }
 
 	public string CptLien { get; set; }
 

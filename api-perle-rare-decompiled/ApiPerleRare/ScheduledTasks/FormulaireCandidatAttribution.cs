@@ -140,7 +140,7 @@ internal static class FormulaireCandidatAttribution
 		{
 			CptRefConseiller = conseillerRef,
 			CptDateCreation = DateOnly.FromDateTime(now),
-			CptDateRealisation = CallDate(now),
+			CptDateRealisation = CallDate(now).ToDateTime(TimeOnly.MinValue),
 			CptType = TaskType,
 			CptQui = Cut(adminLogin, 100),
 			CptCom = TaskComment,

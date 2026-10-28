@@ -130,7 +130,8 @@ Délai de remplissage du formulaire : 00:03:35
 		Assert.Equal("CANDIDAT", task.CptCom);
 		Assert.Equal("CTHIERIET", task.CptQui);
 		Assert.Equal("", task.CptEtat);
-		Assert.Equal(new DateOnly(2026, 10, 27), task.CptDateRealisation);
+		Assert.Equal(new DateTime(2026, 10, 27), task.CptDateRealisation);
+		Assert.Null(task.CptAppointmentId);
 	}
 
 	[Fact]
