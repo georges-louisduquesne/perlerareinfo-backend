@@ -11,9 +11,8 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5002
 # Imports / notifications stay on api.perle-rare.info.service (same database, tasks are not coordinated).
 Environment=PR_SCHEDULED_TASKS=off
-# Mail support@ -> ct/gld/mn when OFFRE, OFFRE ACCEPTEE, OFFRE REFUSEE, RV COMPROMIS or RV ACTE AUTHENT. is created.
-# Demo does not set this. First start records the current max event id and does not backfill.
-Environment=PR_TRANSACTION_EVENT_MAIL=on
+# Mails OFFRE, compromis et acte : envoyés par le site. Ne pas remettre ce job à on.
+Environment=PR_TRANSACTION_EVENT_MAIL=off
 # Same host as the current API: a shared session cookie name makes each API overwrite the other's session.
 Environment=PR_SESSION_COOKIE=.PerleRare.v2.Session
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false

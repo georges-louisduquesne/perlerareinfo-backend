@@ -4,8 +4,8 @@ using System.Globalization;
 namespace ApiPerleRare.ScheduledTasks;
 
 /// <summary>
-/// Mail interne à la création d'un évènement de transaction.
-/// Mission 2 = L (location), 4 = B (location bailleur) : libellés dossier / bail.
+/// Ancien mail interne à la création d'un évènement de transaction.
+/// Ces envois partent du site. <see cref="Enabled"/> reste faux : le job ne redémarre pas.
 /// </summary>
 internal static class TransactionEventMail
 {
@@ -31,7 +31,8 @@ internal static class TransactionEventMail
 
 	internal static bool Enabled(string value)
 	{
-		return string.Equals(value?.Trim(), "on", StringComparison.OrdinalIgnoreCase);
+		// Le site envoie OFFRE, compromis et acte. Aucune valeur, y compris "on", ne relance le job.
+		return false && string.Equals(value?.Trim(), "on", StringComparison.OrdinalIgnoreCase);
 	}
 
 	internal static bool Watches(string eventType)

@@ -15,8 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace ApiPerleRare.Services;
 
 /// <summary>
-/// Activé seulement par <c>PR_TRANSACTION_EVENT_MAIL=on</c> (API v2 prod).
-/// Au premier passage, le curseur se cale sur le dernier évènement : pas de rattrapage.
+/// Plus enregistré : les mails partent du site. <c>PR_TRANSACTION_EVENT_MAIL</c> ne le relance pas.
 /// </summary>
 public class TransactionEventMailHostedService : IHostedService, IDisposable
 {

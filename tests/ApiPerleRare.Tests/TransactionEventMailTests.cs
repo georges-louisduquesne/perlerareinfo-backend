@@ -10,8 +10,8 @@ public class TransactionEventMailTests
 	[InlineData(null, false)]
 	[InlineData("", false)]
 	[InlineData("off", false)]
-	[InlineData(" ON ", true)]
-	public void Job_runs_only_when_explicitly_on(string value, bool expected)
+	[InlineData(" ON ", false)]
+	public void Job_stays_off_because_the_site_sends(string value, bool expected)
 	{
 		Assert.Equal(expected, TransactionEventMail.Enabled(value));
 	}
