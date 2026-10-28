@@ -486,7 +486,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnelsTaches e) => e.CptCom).IsRequired().HasMaxLength(300)
 				.HasColumnName("CPT_Com");
 			entity.Property((ConseillersPersonnelsTaches e) => e.CptDateCreation).HasColumnName("CPT_Date_Creation");
-			entity.Property((ConseillersPersonnelsTaches e) => e.CptDateRealisation).HasColumnName("CPT_Date_Realisation");
+			entity.Property((ConseillersPersonnelsTaches e) => e.CptDateRealisation).HasColumnType("datetime").HasColumnName("CPT_Date_Realisation");
 			entity.Property((ConseillersPersonnelsTaches e) => e.CptEtat).IsRequired().HasMaxLength(20)
 				.HasColumnName("CPT_Etat");
 			entity.Property((ConseillersPersonnelsTaches e) => e.CptLien).IsRequired().HasMaxLength(300)
@@ -496,6 +496,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnelsTaches e) => e.CptRefConseiller).HasColumnName("CPT_RefConseiller");
 			entity.Property((ConseillersPersonnelsTaches e) => e.CptType).IsRequired().HasMaxLength(20)
 				.HasColumnName("CPT_Type");
+			entity.Property((ConseillersPersonnelsTaches e) => e.CptAppointmentId).HasMaxLength(512).HasColumnName("CPT_AppointmentId");
 			entity.HasOne((ConseillersPersonnelsTaches d) => d.CptRefConseillerNavigation).WithMany((ConseillersPersonnels p) => p.ConseillersPersonnelsTaches).HasForeignKey((ConseillersPersonnelsTaches d) => d.CptRefConseiller)
 				.HasConstraintName("FK_conseillers_personnels_taches_conseillers_personnels");
 		});
