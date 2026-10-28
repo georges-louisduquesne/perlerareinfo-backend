@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using ApiPerleRare.ScheduledTasks;
@@ -21,9 +22,12 @@ public class ConseillersPersonnelsController : ControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
-	public ConseillersPersonnelsController(ApplicationDbContext context)
+	private readonly ImportConseillerPhotoUseCase _photo;
+
+	public ConseillersPersonnelsController(ApplicationDbContext context, ImportConseillerPhotoUseCase photo)
 	{
 		_context = context;
+		_photo = photo;
 	}
 
 	private static readonly string[] RestrictedFilterTokens = new string[7] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire" };
@@ -164,6 +168,8 @@ public class ConseillersPersonnelsController : ControllerBase
 		}
 		_context.Entry(conseillersPersonnels).State = EntityState.Modified;
 		_context.Entry(conseillersPersonnels).Property(x => x.CpMotDePasse).IsModified = false;
+		// Le portrait ne passe que par POST/DELETE …/photo.
+		_context.Entry(conseillersPersonnels).Property(x => x.CpPhoto).IsModified = false;
 		try
 		{
 			await _context.SaveChangesAsync();
@@ -177,6 +183,39 @@ public class ConseillersPersonnelsController : ControllerBase
 			throw;
 		}
 		return NoContent();
+	}
+
+	[HttpPost("{id}/photo")]
+	[Authorize(Roles = "Admin")]
+	public async Task<IActionResult> SetPhoto(uint id, ConseillerPhotoRequest request)
+	{
+		try
+		{
+			string storedPath = request?.Path;
+			ConseillerPhotoResult result = string.IsNullOrWhiteSpace(storedPath)
+				? await _photo.ExecuteSet(id, request?.Url, HttpContext.RequestAborted)
+				: await _photo.ExecuteAdopt(id, storedPath, HttpContext.RequestAborted);
+			return Ok(result);
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { errors = ex.Message });
+		}
+	}
+
+	[HttpDelete("{id}/photo")]
+	[Authorize(Roles = "Admin")]
+	public async Task<IActionResult> ClearPhoto(uint id)
+	{
+		try
+		{
+			await _photo.ExecuteClear(id, HttpContext.RequestAborted);
+			return NoContent();
+		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { errors = ex.Message });
+		}
 	}
 
 	[Authorize(Roles = "Admin")]
