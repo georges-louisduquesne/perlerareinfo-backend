@@ -42,6 +42,8 @@ public class SearchService : ISearchService
 		public bool JoinMode { get; set; }
 
 		public int HasAccessFieldIndex { get; set; }
+
+		public int InactiveFieldIndex { get; set; } = -1;
 	}
 
 	[Flags]
@@ -265,16 +267,18 @@ public class SearchService : ISearchService
 		_configs = new List<SearchConfig>();
 		rgx_field = new Regex("@(?<field>(?:[a-zA-Z]+\\.)?[a-zA-Z_][a-zA-Z_0-9]*)");
 		rgx_urlPage = new Regex("perle-rare\\.info/index\\.php\\?page=(?<page>\\w+)(?:&(?<extra>.+))?$");
-		SearchConfig b1 = AddConfig("B1", "Conseiller", "https://perle-rare.info/index.php?page=conseillers_personnels_form&ref=@id", "conseillers_personnels", "@CP_Prenom @CP_NomFamille", SearchConfigRights.Admin, "CP_RefConseiller", new string[2] { "CP_NomFamille", "CP_TelPersonnel" }, "CP_Statut='Agent Commercial' OR CP_Statut='Associé'", "CP_RefConseiller", null, null, null, SearchQueryType.Equal, "#505569");
+		SearchConfig b1 = AddConfig("B1", "Conseiller", "https://perle-rare.info/index.php?page=conseillers_personnels_form&ref=@id", "conseillers_personnels", "@CP_Prenom @CP_NomFamille", SearchConfigRights.Admin, "CP_RefConseiller", new string[2] { "CP_NomFamille", "CP_TelPersonnel" }, "CP_Statut='Agent Commercial' OR CP_Statut='Associé'", "CP_RefConseiller", null, null, null, SearchQueryType.Equal, "#505569", "", "CASE WHEN CP_Actif=1 THEN 0 ELSE 1 END");
 		SearchConfig b2 = AddConfig("B2", "Client actif", "https://perle-rare.info/index.php?page=contacts_recherche_form&ref=@id", "contacts_recherche", "@C_Prenom @C_NomFamille (négo: @C_Negociateur)", SearchConfigRights.Tous, "C_RefContact", new string[9] { "C_NomFamille", "C_TelPersonnel1", "C_TelPersonnel2", "C_TelProfessionnel1", "C_TelProfessionnel2", "C_TelMobile1", "C_TelMobile2", "C_Mel1", "C_Mel2" }, "C_Statut='CLIENT ACTIF'", "C_RefContact", null, null, null, SearchQueryType.Equal, "#72AC7A", "C_Apporteur=@conseillerid OR C_2emeApporteur=@conseillerid OR C_Negociateur=@conseillerid OR C_2emeNegociateur=@conseillerid OR C_NomFamilleConseiller=@conseillerid OR C_2emeConseiller=@conseillerid OR @isAdmin=1");
 		SearchConfig b3 = AddConfig("B3", "Prospect actif", "https://perle-rare.info/index.php?page=contacts_recherche_form&ref=@id", "contacts_recherche", "@C_Prenom @C_NomFamille (négo: @C_Negociateur)", SearchConfigRights.Tous, "C_RefContact", new string[9] { "C_NomFamille", "C_TelPersonnel1", "C_TelPersonnel2", "C_TelProfessionnel1", "C_TelProfessionnel2", "C_TelMobile1", "C_TelMobile2", "C_Mel1", "C_Mel2" }, "C_Statut='PROSPECT ACTIF'", "C_RefContact", null, null, null, SearchQueryType.Equal, "#F3AD4D", "C_Apporteur=@conseillerid OR C_2emeApporteur=@conseillerid OR C_Negociateur=@conseillerid OR C_2emeNegociateur=@conseillerid OR C_NomFamilleConseiller=@conseillerid OR C_2emeConseiller=@conseillerid OR @isAdmin=1");
 		SearchConfig b3bis = AddConfig("B3bis", "Collaborateur actif", "https://perle-rare.info/index.php?popup=interlocuteur&intermed_ref=@id.I_RefIntermediaire&ref_ctcinter=@id", "contact_intermediaire ci", "@ci.C_Prenom @ci.C_Nom (agence: @ci.C_NomIntermediaire)", SearchConfigRights.Tous, "ci.C_RefCtcInter", new string[3] { "ci.C_Nom", "ci.C_Tel", "ci.C_Mel" }, "ci.C_Statut='Actif' AND id.I_Actif=1", "ci.C_RefCtcInter", "intermediaires_directs id", "ci.C_RefIntermediaire=id.I_RefIntermediaire", "id.I_RefIntermediaire");
 		SearchConfig b4 = AddConfig("B4", "Agence active", "https://perle-rare.info/index.php?popup=inter_direct&ref=@id", "intermediaires_directs", "@I_NomIntermediaire (@I_Adresse1 @I_CodePostal @I_Ville)", SearchConfigRights.Tous, "I_RefIntermediaire", new string[3] { "I_NomIntermediaire", "I_Telephone", "I_Telephone2" }, "I_Actif=1", "I_RefIntermediaire");
 		SearchConfig b5 = AddConfig("B5", "Réseau d'agences actif", "https://perle-rare.info/index.php?popup=inter_indirect&ref=@id", "intermediaires_indirects", "@I2_NomInterm_indirect @I2_Categorie", SearchConfigRights.Tous, "I2_RefInterm_indirect", new string[1] { "I2_NomInterm_indirect" }, "I2_Actif=1", "I2_RefInterm_indirect");
 		SearchConfig b6 = AddConfig("B6", "Client inactif", "https://perle-rare.info/index.php?page=contacts_recherche_form&ref=@id", "contacts_recherche", "@C_Prenom @C_NomFamille (négo: @C_Negociateur)", SearchConfigRights.Tous, "C_RefContact", new string[9] { "C_NomFamille", "C_TelPersonnel1", "C_TelPersonnel2", "C_TelProfessionnel1", "C_TelProfessionnel2", "C_TelMobile1", "C_TelMobile2", "C_Mel1", "C_Mel2" }, "C_Statut='CLIENT MORT'", "C_RefContact", null, null, null, SearchQueryType.Equal, "#72AC7A4C", "C_Apporteur=@conseillerid OR C_2emeApporteur=@conseillerid OR C_Negociateur=@conseillerid OR C_2emeNegociateur=@conseillerid OR C_NomFamilleConseiller=@conseillerid OR C_2emeConseiller=@conseillerid OR @isAdmin=1");
-		SearchConfig b7 = AddConfig("B7", "Candidat", "https://perle-rare.info/index.php?page=conseillers_personnels_form&ref=@id", "conseillers_personnels", "@CP_Prenom @CP_NomFamille", SearchConfigRights.Admin, "CP_RefConseiller", new string[2] { "CP_NomFamille", "CP_TelPersonnel" }, "CP_Statut='Candidat'", "CP_RefConseiller", null, null, null, SearchQueryType.Equal, "#5A819E");
+		SearchConfig b7 = AddConfig("B7", "Candidat", "https://perle-rare.info/index.php?page=conseillers_personnels_form&ref=@id", "conseillers_personnels", "@CP_Prenom @CP_NomFamille", SearchConfigRights.Admin, "CP_RefConseiller", new string[2] { "CP_NomFamille", "CP_TelPersonnel" }, "CP_Statut='Candidat'", "CP_RefConseiller", null, null, null, SearchQueryType.Equal, "#5A819E", "", "CASE WHEN CP_Actif=1 THEN 0 ELSE 1 END");
 		SearchConfig b8 = AddConfig("B8", "Prospect inactif", "https://perle-rare.info/index.php?page=contacts_recherche_form&ref=@id", "contacts_recherche", "@C_Prenom @C_NomFamille (négo: @C_Negociateur)", SearchConfigRights.Tous, "C_RefContact", new string[9] { "C_NomFamille", "C_TelPersonnel1", "C_TelPersonnel2", "C_TelProfessionnel1", "C_TelProfessionnel2", "C_TelMobile1", "C_TelMobile2", "C_Mel1", "C_Mel2" }, "C_Statut='PROSPECT MORT'", "C_RefContact", null, null, null, SearchQueryType.Equal, "#F3AD4D4C", "C_Apporteur=@conseillerid OR C_2emeApporteur=@conseillerid OR C_Negociateur=@conseillerid OR C_2emeNegociateur=@conseillerid OR C_NomFamilleConseiller=@conseillerid OR C_2emeConseiller=@conseillerid OR @isAdmin=1");
 		SearchConfig b9 = AddConfig("B9", "Agence inactive", "https://perle-rare.info/index.php?popup=inter_direct&ref=@id", "intermediaires_directs", "@I_NomIntermediaire (@I_Adresse1 @I_CodePostal @I_Ville)", SearchConfigRights.Tous, "I_RefIntermediaire", new string[3] { "I_NomIntermediaire", "I_Telephone", "I_Telephone2" }, "I_Actif=0", "I_RefIntermediaire");
+		SearchConfig b32 = AddConfig("B32", "Collaborateur inactif", "https://perle-rare.info/index.php?popup=interlocuteur&intermed_ref=@id.I_RefIntermediaire&ref_ctcinter=@id", "contact_intermediaire ci", "@ci.C_Prenom @ci.C_Nom (agence: @ci.C_NomIntermediaire)", SearchConfigRights.Tous, "ci.C_RefCtcInter", new string[3] { "ci.C_Nom", "ci.C_Tel", "ci.C_Mel" }, "ci.C_Statut='Inactif'", "ci.C_RefCtcInter", "intermediaires_directs id", "ci.C_RefIntermediaire=id.I_RefIntermediaire", "id.I_RefIntermediaire");
+		SearchConfig b35 = AddConfig("B35", "Réseau d'agences inactif", "https://perle-rare.info/index.php?popup=inter_indirect&ref=@id", "intermediaires_indirects", "@I2_NomInterm_indirect @I2_Categorie", SearchConfigRights.Tous, "I2_RefInterm_indirect", new string[1] { "I2_NomInterm_indirect" }, "I2_Actif=0", "I2_RefInterm_indirect");
 		SearchConfig b10 = AddConfig("B10", "Bien", "https://perle-rare.info/index.php?page=contacts_recherche_form&ref=@id", "biens b", "@b.B_Adresse @b.B_CP @e.E_TypeEvenement @e.E_Date pour le client @e.E_NomContact", SearchConfigRights.Tous, "e.E_RefContact", new string[1] { "b.B_Adresse" }, "", "e.E_RefContact", "evenements e", "e.E_RefBien=b.B_Ref", "e.E_RefEvenement");
 		SearchConfig b11 = AddConfig(b1, "B11", SearchQueryType.StartsWith);
 		SearchConfig b12 = AddConfig(b2, "B12", SearchQueryType.StartsWith);
@@ -286,6 +290,8 @@ public class SearchService : ISearchService
 		SearchConfig b17 = AddConfig(b7, "B17", SearchQueryType.StartsWith);
 		SearchConfig b18 = AddConfig(b8, "B18", SearchQueryType.StartsWith);
 		SearchConfig b19 = AddConfig(b9, "B19", SearchQueryType.StartsWith);
+		SearchConfig b33 = AddConfig(b32, "B33", SearchQueryType.StartsWith);
+		SearchConfig b36 = AddConfig(b35, "B36", SearchQueryType.StartsWith);
 		SearchConfig b20 = AddConfig(b10, "B20", SearchQueryType.StartsWith);
 		SearchConfig b21 = AddConfig(b1, "B21", SearchQueryType.Contains);
 		SearchConfig b22 = AddConfig(b2, "B22", SearchQueryType.Contains);
@@ -297,11 +303,13 @@ public class SearchService : ISearchService
 		SearchConfig b27 = AddConfig(b7, "B27", SearchQueryType.Contains);
 		SearchConfig b28 = AddConfig(b8, "B28", SearchQueryType.Contains);
 		SearchConfig b29 = AddConfig(b9, "B29", SearchQueryType.Contains);
+		SearchConfig b34 = AddConfig(b32, "B34", SearchQueryType.Contains);
+		SearchConfig b37 = AddConfig(b35, "B37", SearchQueryType.Contains);
 		SearchConfig b30 = AddConfig(b10, "B30", SearchQueryType.Contains);
 		SearchConfig b31 = AddConfig("B31", "Client ou prospect", "https://perle-rare.info/index.php?page=contacts_recherche_form&ref=@id", "contacts_recherche", "@C_Prenom @C_NomFamille (négo: @C_Negociateur)", SearchConfigRights.Tous, "C_RefContact", new string[3] { "C_Remarques", "C_Condition_Com", "C_Recherche_Com" }, "(C_Apporteur=@conseillerid OR C_2emeApporteur=@conseillerid OR C_Negociateur=@conseillerid OR C_2emeNegociateur=@conseillerid OR C_NomFamilleConseiller=@conseillerid OR C_2emeConseiller=@conseillerid OR @isAdmin=1) AND C_Statut='PROSPECT MORT'", "C_RefContact", null, null, null, SearchQueryType.Contains);
 	}
 
-	private static SearchConfig AddConfig(string categoryId, string category, string url, string tableName, string output, SearchConfigRights rights, string id, string[] fieldsToFilter, string where, string orderByDesc, string joinTableName = null, string joinOn = null, string joinId = null, SearchQueryType searchQueryType = SearchQueryType.Equal, string defaultColor = "#FFFFFF", string hasAccess = "")
+	private static SearchConfig AddConfig(string categoryId, string category, string url, string tableName, string output, SearchConfigRights rights, string id, string[] fieldsToFilter, string where, string orderByDesc, string joinTableName = null, string joinOn = null, string joinId = null, SearchQueryType searchQueryType = SearchQueryType.Equal, string defaultColor = "#FFFFFF", string hasAccess = "", string inactiveFlagSql = null)
 	{
 		List<string> fields = new List<string>();
 		fields.Add(id);
@@ -316,6 +324,12 @@ public class SearchService : ISearchService
 		{
 			fields.Add("(" + hasAccess + ") AS HasAccess");
 			hasAccessFieldIndex = fields.Count - 1;
+		}
+		int inactiveFieldIndex = -1;
+		if (!string.IsNullOrWhiteSpace(inactiveFlagSql))
+		{
+			fields.Add("(" + inactiveFlagSql + ") AS IsInactive");
+			inactiveFieldIndex = fields.Count - 1;
 		}
 		if (joinTableName != null && joinId == null)
 		{
@@ -354,7 +368,8 @@ public class SearchService : ISearchService
 			IdField = id,
 			DefaultColor = defaultColor,
 			JoinMode = (joinId != null),
-			HasAccessFieldIndex = hasAccessFieldIndex
+			HasAccessFieldIndex = hasAccessFieldIndex,
+			InactiveFieldIndex = inactiveFieldIndex
 		};
 		_configs.Add(searchConfig);
 		return searchConfig;
@@ -379,7 +394,8 @@ public class SearchService : ISearchService
 			IdField = model.IdField,
 			DefaultColor = model.DefaultColor,
 			JoinMode = model.JoinMode,
-			HasAccessFieldIndex = model.HasAccessFieldIndex
+			HasAccessFieldIndex = model.HasAccessFieldIndex,
+			InactiveFieldIndex = model.InactiveFieldIndex
 		};
 		_configs.Add(searchConfig);
 		return searchConfig;
@@ -583,19 +599,75 @@ public class SearchService : ISearchService
 		cmd.Parameters.AddWithValue("@isAdmin", (!mustFilter) ? 1 : 0);
 	}
 
+	internal static bool CategoryMarksInactive(string category)
+	{
+		return !string.IsNullOrEmpty(category) && category.IndexOf("inacti", StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+
+	internal static string InactiveCategoryLabel(string category, bool rowInactive)
+	{
+		if (rowInactive && !CategoryMarksInactive(category))
+		{
+			return category + " inactif";
+		}
+		return category;
+	}
+
+	internal static bool IsInactiveFlag(object value)
+	{
+		if (value == null || value is DBNull)
+		{
+			return false;
+		}
+		if (value is bool flag)
+		{
+			return flag;
+		}
+		try
+		{
+			return Convert.ToInt32(value, CultureInfo.InvariantCulture) != 0;
+		}
+		catch (Exception)
+		{
+			return false;
+		}
+	}
+
+	internal static string SelectSql(string categoryId)
+	{
+		SearchConfig config = _configs.FirstOrDefault((SearchConfig c) => c.CategoryId == categoryId);
+		return config?.Select;
+	}
+
+	internal static int InactiveFieldIndexOf(string categoryId)
+	{
+		return _configs.First((SearchConfig c) => c.CategoryId == categoryId).InactiveFieldIndex;
+	}
+
+	private static bool ReaderInactive(MySqlDataReader reader, int index)
+	{
+		if (index < 0 || reader.IsDBNull(index))
+		{
+			return false;
+		}
+		return IsInactiveFlag(reader.GetValue(index));
+	}
+
 	private static SelectResult BuildResult(MySqlDataReader reader, SearchConfig config, SearchQuery query)
 	{
 		bool hasAccess = config.HasAccessFieldIndex <= 0 || reader.GetBoolean(config.HasAccessFieldIndex);
+		bool rowInactive = ReaderInactive(reader, config.InactiveFieldIndex);
 		string url = config.Url.Eval(reader);
 		return new SelectResult
 		{
 			CategoryId = config.CategoryId,
-			Category = config.Category,
+			Category = InactiveCategoryLabel(config.Category, rowInactive),
 			Color = config.Color,
 			Id = reader.GetInt32(0),
 			Description = config.Output.Eval(reader, query, config.SearchQueryType),
 			Url = (hasAccess ? url : "#"),
-			Url2 = (hasAccess ? GetRightUrl(url) : "#")
+			Url2 = (hasAccess ? GetRightUrl(url) : "#"),
+			Inactive = rowInactive || CategoryMarksInactive(config.Category)
 		};
 	}
 

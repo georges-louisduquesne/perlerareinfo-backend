@@ -15,4 +15,7 @@ public class SelectResult
 	public string Color { get; set; }
 
 	public string Url2 { get; set; }
+
+	/// <summary>Agence, agent, prospect, client, réseau, conseiller ou candidat inactif.</summary>
+	public bool Inactive { get; set; }
 }
