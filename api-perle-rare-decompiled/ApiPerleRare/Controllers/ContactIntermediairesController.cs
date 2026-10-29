@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Agents;
 using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
@@ -94,6 +95,93 @@ ORDER BY asr.AS_Date ASC, al.AL_Id ASC";
 			}
 		}
 		return items.ToArray();
+	}
+
+	/// <summary>Texte libre Historique. Null si aucune saisie admin (l’écran reprend alors l’audit).</summary>
+	[HttpGet("{id}/historique")]
+	public ActionResult<AgentHistoriqueBody> GetHistorique(uint id)
+	{
+		if (!ContactIntermediaireExists(id))
+		{
+			return NotFound();
+		}
+		try
+		{
+			return new AgentHistoriqueBody
+			{
+				Text = ReadAgentHistorique(id)
+			};
+		}
+		catch (MySqlException)
+		{
+			return new AgentHistoriqueBody
+			{
+				Text = null
+			};
+		}
+	}
+
+	/// <summary>Enregistre le texte Historique. Réservé aux admins.</summary>
+	[HttpPut("{id}/historique")]
+	[Authorize(Roles = "Admin")]
+	public IActionResult PutHistorique(uint id, AgentHistoriqueBody body)
+	{
+		if (!ContactIntermediaireExists(id))
+		{
+			return NotFound();
+		}
+		string incoming = body?.Text ?? "";
+		string stored;
+		try
+		{
+			stored = ReadAgentHistorique(id);
+		}
+		catch (MySqlException)
+		{
+			return BadRequest(new { errors = "Historique indisponible" });
+		}
+		string next = AgentHistoriqueEdit.Resolve(User.IsInRole("Admin"), incoming, stored);
+		try
+		{
+			WriteAgentHistorique(id, next ?? "");
+		}
+		catch (MySqlException)
+		{
+			return BadRequest(new { errors = "Historique indisponible" });
+		}
+		return NoContent();
+	}
+
+	private string ReadAgentHistorique(uint id)
+	{
+		MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
+		if (c.State != ConnectionState.Open)
+		{
+			c.Open();
+		}
+		using MySqlCommand cmd = c.CreateCommand();
+		cmd.CommandText = "SELECT C_Historique FROM contact_intermediaire WHERE C_RefCtcInter = @id";
+		cmd.Parameters.AddWithValue("@id", id);
+		object value = cmd.ExecuteScalar();
+		if (value == null || value == DBNull.Value)
+		{
+			return null;
+		}
+		return Convert.ToString(value);
+	}
+
+	private void WriteAgentHistorique(uint id, string text)
+	{
+		MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
+		if (c.State != ConnectionState.Open)
+		{
+			c.Open();
+		}
+		using MySqlCommand cmd = c.CreateCommand();
+		cmd.CommandText = "UPDATE contact_intermediaire SET C_Historique = @text WHERE C_RefCtcInter = @id";
+		cmd.Parameters.AddWithValue("@text", text ?? "");
+		cmd.Parameters.AddWithValue("@id", id);
+		cmd.ExecuteNonQuery();
 	}
 
 	[HttpPost("{id}/photo")]
