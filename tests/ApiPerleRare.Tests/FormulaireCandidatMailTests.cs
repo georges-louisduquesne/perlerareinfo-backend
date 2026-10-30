@@ -102,6 +102,7 @@ Délai de remplissage du formulaire : 00:03:35
 		FormulairesCandidats form = FormulaireCandidatMail.Parse("<id-2>", new DateTime(2026, 10, 27, 9, 48, 52), "from", FormulaireCandidatMail.SubjectMarker, JulienBody);
 		ConseillersPersonnels created = FormulaireCandidatAttribution.CreateConseiller(form, new DateOnly(2026, 10, 27));
 		Assert.Equal("Candidat", created.CpStatut);
+		Assert.Equal("LinkedIn", created.CpOrigine);
 		Assert.False(created.CpAdmin);
 		Assert.False(created.CpNegociateur);
 		Assert.Equal((sbyte)0, created.CpDispo);

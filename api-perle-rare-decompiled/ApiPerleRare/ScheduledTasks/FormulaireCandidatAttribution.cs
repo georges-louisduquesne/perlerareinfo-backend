@@ -39,6 +39,8 @@ internal static class FormulaireCandidatAttribution
 
 	internal const string TaskComment = "CANDIDAT";
 
+	internal const string ConseillerOrigine = "LinkedIn";
+
 	internal static readonly DateOnly EmptyDate = new DateOnly(1970, 1, 1);
 
 	internal static bool IsRecruteur(sbyte? actif, bool admin, string statut, string prenom, string nom, string login)
@@ -100,6 +102,7 @@ internal static class FormulaireCandidatAttribution
 			CpMelPerso = email,
 			CpCommentaire = Cut(Latin1(Commentaire(form.FcLinkedin, form.FcPourquoi)), 2000),
 			CpStatut = "Candidat",
+			CpOrigine = ConseillerOrigine,
 			CpActif = 1,
 			CpAdmin = false,
 			CpDispo = 0,
