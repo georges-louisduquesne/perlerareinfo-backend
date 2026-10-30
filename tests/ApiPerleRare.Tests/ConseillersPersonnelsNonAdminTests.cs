@@ -23,6 +23,7 @@ public class ConseillersPersonnelsNonAdminTests
 		CpCp = 75001,
 		CpVille = "PARIS",
 		CpCommentaire = "rh",
+		CpOrigine = "LinkedIn",
 		CpCv = "cv.pdf",
 		CpDispoMission = true
 	};
@@ -46,6 +47,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal(0, cp.CpCp);
 		Assert.Null(cp.CpVille);
 		Assert.Null(cp.CpCommentaire);
+		Assert.Null(cp.CpOrigine);
 		Assert.Null(cp.CpCv);
 		Assert.True(cp.CpDispoMission);
 	}
@@ -62,6 +64,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal("anna@perso.fr", cp.CpMelPerso);
 		Assert.Equal("https://www.linkedin.com/in/anna", cp.CpLinkedIn);
 		Assert.Equal("1 rue X", cp.CpAdresse);
+		Assert.Equal("LinkedIn", cp.CpOrigine);
 		Assert.Equal(75001, cp.CpCp);
 	}
 
@@ -75,6 +78,7 @@ public class ConseillersPersonnelsNonAdminTests
 	[InlineData("CP_PieceIdentite ne null")]
 	[InlineData("CP_Commentaire eq 'x'")]
 	[InlineData("CP_LinkedIn eq 'x'")]
+	[InlineData("CP_Origine eq 'LinkedIn'")]
 	public void Filters_probing_restricted_fields_are_detected(string expression)
 	{
 		Assert.True(ConseillersPersonnelsController.UsesRestrictedField(expression));

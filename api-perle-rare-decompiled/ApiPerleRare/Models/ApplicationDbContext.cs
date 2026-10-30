@@ -87,6 +87,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
 	public virtual DbSet<Origines> Origines { get; set; }
 
+	public virtual DbSet<OriginesCandidats> OriginesCandidats { get; set; }
+
 	public virtual DbSet<Pap> Pap { get; set; }
 
 	public virtual DbSet<PhotosAnnonces> PhotosAnnonces { get; set; }
@@ -415,6 +417,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 				.HasColumnName("CP_Adresse");
 			entity.Property((ConseillersPersonnels e) => e.CpAutoLogin).HasMaxLength(15).HasColumnName("CP_AutoLogin");
 			entity.Property((ConseillersPersonnels e) => e.CpCommentaire).HasMaxLength(2000).HasColumnName("CP_Commentaire");
+			entity.Property((ConseillersPersonnels e) => e.CpOrigine).HasMaxLength(50).HasColumnName("CP_Origine");
 			entity.Property((ConseillersPersonnels e) => e.CpCp).HasColumnName("CP_CP");
 			entity.Property((ConseillersPersonnels e) => e.CpCv).HasMaxLength(100).HasColumnName("CP_CV");
 			entity.Property((ConseillersPersonnels e) => e.CpDateContrat).HasColumnName("CP_DateContrat");
@@ -1281,6 +1284,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.HasKey((Origines e) => e.ONom).HasName("PRIMARY");
 			entity.ToTable("origines").HasCharSet("latin1").UseCollation("latin1_swedish_ci");
 			entity.Property((Origines e) => e.ONom).HasMaxLength(50).HasColumnName("O_Nom");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<OriginesCandidats> entity)
+		{
+			entity.HasKey((OriginesCandidats e) => e.OcNom).HasName("PRIMARY");
+			entity.ToTable("origines_candidats").HasCharSet("latin1").UseCollation("latin1_swedish_ci");
+			entity.Property((OriginesCandidats e) => e.OcNom).HasMaxLength(50).HasColumnName("OC_Nom");
 		});
 		modelBuilder.Entity(delegate(EntityTypeBuilder<Pap> entity)
 		{

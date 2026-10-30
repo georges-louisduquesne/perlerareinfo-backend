@@ -77,6 +77,8 @@ public class ConseillersPersonnels
 
 	public string CpCommentaire { get; set; }
 
+	public string CpOrigine { get; set; }
+
 	public string CpCv { get; set; }
 
 	public string CpNumrsac { get; set; }

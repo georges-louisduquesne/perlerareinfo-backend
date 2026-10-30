@@ -30,7 +30,7 @@ public class ConseillersPersonnelsController : ControllerBase
 		_photo = photo;
 	}
 
-	private static readonly string[] RestrictedFilterTokens = new string[8] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin" };
+	private static readonly string[] RestrictedFilterTokens = new string[9] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "origine" };
 
 	private bool IsAdmin => User.IsInRole("Admin");
 
@@ -62,6 +62,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			cp.CpCp = 0;
 			cp.CpVille = null;
 			cp.CpCommentaire = null;
+			cp.CpOrigine = null;
 			cp.CpCv = null;
 		}
 	}
@@ -167,6 +168,10 @@ public class ConseillersPersonnelsController : ControllerBase
 		{
 			return BadRequest();
 		}
+		if (string.IsNullOrWhiteSpace(conseillersPersonnels.CpOrigine))
+		{
+			conseillersPersonnels.CpOrigine = null;
+		}
 		_context.Entry(conseillersPersonnels).State = EntityState.Modified;
 		_context.Entry(conseillersPersonnels).Property(x => x.CpMotDePasse).IsModified = false;
 		// Le portrait ne passe que par POST/DELETE …/photo.
@@ -259,6 +264,10 @@ public class ConseillersPersonnelsController : ControllerBase
 			if (conseillersPersonnels2.CpVille == null)
 			{
 				conseillersPersonnels2.CpVille = "";
+			}
+			if (string.IsNullOrWhiteSpace(conseillersPersonnels.CpOrigine))
+			{
+				conseillersPersonnels.CpOrigine = null;
 			}
 			bool candidat = string.Equals((conseillersPersonnels.CpStatut ?? "").Trim(), "Candidat", StringComparison.OrdinalIgnoreCase);
 			if (candidat)

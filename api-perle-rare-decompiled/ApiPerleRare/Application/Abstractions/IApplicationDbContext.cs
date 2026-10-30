@@ -50,6 +50,7 @@ public interface IApplicationDbContext
 	DbSet<Notifications> Notifications { get; }
 	DbSet<Organisation> Organisation { get; }
 	DbSet<Origines> Origines { get; }
+	DbSet<OriginesCandidats> OriginesCandidats { get; }
 	DbSet<Pap> Pap { get; }
 	DbSet<PhotosAnnonces> PhotosAnnonces { get; }
 	DbSet<Property> Property { get; }
