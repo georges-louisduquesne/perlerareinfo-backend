@@ -30,7 +30,7 @@ public class ConseillersPersonnelsController : ControllerBase
 		_photo = photo;
 	}
 
-	private static readonly string[] RestrictedFilterTokens = new string[9] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "origine" };
+	private static readonly string[] RestrictedFilterTokens = new string[10] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "googlebusinessprofile", "origine" };
 
 	private bool IsAdmin => User.IsInRole("Admin");
 
@@ -58,6 +58,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			cp.CpDateNaissance = null;
 			cp.CpMelPerso = null;
 			cp.CpLinkedIn = null;
+			cp.CpGoogleBusinessProfile = null;
 			cp.CpAdresse = null;
 			cp.CpCp = 0;
 			cp.CpVille = null;

@@ -49,6 +49,8 @@ public class ConseillersPersonnels
 
 	public string CpLinkedIn { get; set; }
 
+	public string CpGoogleBusinessProfile { get; set; }
+
 	public string CpPhoto { get; set; }
 
 	public DateOnly CpDateDebut { get; set; }
