@@ -474,6 +474,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnelsEvenements e) => e.CpeRefConseiller).HasColumnName("CPE_RefConseiller");
 			entity.Property((ConseillersPersonnelsEvenements e) => e.CpeStatut).HasDefaultValueSql("'1'").HasColumnName("CPE_Statut");
 			entity.Property((ConseillersPersonnelsEvenements e) => e.CpeTypeEvenement).HasMaxLength(50).HasColumnName("CPE_TypeEvenement");
+			entity.Property((ConseillersPersonnelsEvenements e) => e.CpeAppointmentId).HasMaxLength(512).HasColumnName("CPE_AppointmentId");
 			entity.HasOne((ConseillersPersonnelsEvenements d) => d.CpeRefConseillerNavigation).WithMany((ConseillersPersonnels p) => p.ConseillersPersonnelsEvenements).HasForeignKey((ConseillersPersonnelsEvenements d) => d.CpeRefConseiller)
 				.OnDelete(DeleteBehavior.Cascade)
 				.HasConstraintName("FK_conseillers_personnels_evenements_conseillers_personnels");

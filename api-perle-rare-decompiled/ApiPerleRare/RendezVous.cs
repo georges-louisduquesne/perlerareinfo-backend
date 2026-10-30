@@ -34,6 +34,9 @@ public class RendezVous
 	public int ERefEvenement { get; set; }
 
 	[DataMember]
+	public int CpeRefEvenement { get; set; }
+
+	[DataMember]
 	public int ReminderMinutesBeforeStart { get; set; }
 
 	[DataMember]

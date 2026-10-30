@@ -162,6 +162,14 @@ public class ExchangeController : ControllerBase
 	}
 
 	[Authorize]
+	[HttpGet]
+	[Route("FindAppointmentFromCpeRefEvenement/{cpeRefEvenement}")]
+	public Task<FindAppointmentFromERefEvenementResponse> FindAppointmentFromCpeRefEvenement(int cpeRefEvenement)
+	{
+		return _findAppointment.ExecuteForCandidat(this.GetUserId(), cpeRefEvenement);
+	}
+
+	[Authorize]
 	[HttpDelete]
 	[Route("DeleteAppointmentFromERefEvenement/{eRefEvenement}")]
 	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointmentFromERefEvenement(int eRefEvenement)
@@ -175,6 +183,22 @@ public class ExchangeController : ControllerBase
 	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointmentFromERefEvenement(int eRefEvenement, int conseillerId)
 	{
 		return _deleteAppointment.ExecuteIfAllowed(conseillerId, eRefEvenement, this.GetUserId(), User.IsInRole("Admin"));
+	}
+
+	[Authorize]
+	[HttpDelete]
+	[Route("DeleteAppointmentFromCpeRefEvenement/{cpeRefEvenement}")]
+	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointmentFromCpeRefEvenement(int cpeRefEvenement)
+	{
+		return _deleteAppointment.ExecuteForCandidat(this.GetUserId(), cpeRefEvenement);
+	}
+
+	[Authorize]
+	[HttpDelete]
+	[Route("DeleteAppointmentFromCpeRefEvenement/{cpeRefEvenement}/{conseillerId}")]
+	public Task<DeleteAppointmentFromERefEvenementResponse> DeleteAppointmentFromCpeRefEvenement(int cpeRefEvenement, int conseillerId)
+	{
+		return _deleteAppointment.ExecuteForCandidatIfAllowed(conseillerId, cpeRefEvenement, this.GetUserId(), User.IsInRole("Admin"));
 	}
 
 	[Authorize]

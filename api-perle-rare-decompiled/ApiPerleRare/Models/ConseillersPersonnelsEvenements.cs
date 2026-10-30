@@ -18,5 +18,7 @@ public class ConseillersPersonnelsEvenements
 
 	public sbyte CpeStatut { get; set; }
 
+	public string CpeAppointmentId { get; set; }
+
 	public virtual ConseillersPersonnels CpeRefConseillerNavigation { get; set; }
 }

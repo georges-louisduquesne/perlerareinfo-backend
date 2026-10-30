@@ -171,6 +171,31 @@ public sealed class AddAppointmentUseCase : IAddAppointmentUseCase
 
 	public async Task<AddAppointmentResponse> ExecuteForOrganizer(int conseillerId, RendezVous rendezVous, int callerId, bool callerIsAdmin)
 	{
+		int cpeId = rendezVous?.CpeRefEvenement ?? 0;
+		if (cpeId > 0)
+		{
+			if (!callerIsAdmin && conseillerId != callerId)
+			{
+				return new AddAppointmentResponse
+				{
+					Error = "Agenda non autorisé pour ce conseiller."
+				};
+			}
+			AddAppointmentResponse cpeResult = await Execute(conseillerId, rendezVous);
+			if (!string.IsNullOrEmpty(cpeResult.Error) || callerId == conseillerId)
+			{
+				return cpeResult;
+			}
+			try
+			{
+				ConseillerMailbox callerBox = await _mailboxes.GetByConseillerIdAsync(callerId);
+				await _exchange.DeleteAppointmentFromCpeRefEvenement(callerBox.Email, callerBox.Password, cpeId);
+			}
+			catch
+			{
+			}
+			return cpeResult;
+		}
 		int eventId = rendezVous?.ERefEvenement ?? 0;
 		if (!await AgendaMailboxGuard.CanWrite(_db, _mailboxes, _exchange, conseillerId, eventId, callerId, callerIsAdmin))
 		{
@@ -202,7 +227,14 @@ public sealed class AddAppointmentUseCase : IAddAppointmentUseCase
 		{
 			ConseillerMailbox cp = await _mailboxes.GetByConseillerIdAsync(conseillerId);
 			AddAppointmentRes res = await _exchange.AddAppointment(cp.Email, cp.Password, rendezVous);
-			await PersistAppointmentId(rendezVous?.ERefEvenement ?? 0, res?.Id, conseillerId);
+			if ((rendezVous?.CpeRefEvenement ?? 0) > 0)
+			{
+				await PersistCpeAppointmentId(rendezVous.CpeRefEvenement, res?.Id);
+			}
+			else
+			{
+				await PersistAppointmentId(rendezVous?.ERefEvenement ?? 0, res?.Id, conseillerId);
+			}
 			return new AddAppointmentResponse
 			{
 				Id = res.Id,
@@ -235,6 +267,21 @@ public sealed class AddAppointmentUseCase : IAddAppointmentUseCase
 		{
 			row.ERefConseiller = (uint)conseillerId;
 		}
+		await _db.SaveChangesAsync();
+	}
+
+	private async Task PersistCpeAppointmentId(int eventId, string appointmentId)
+	{
+		if (eventId <= 0 || string.IsNullOrWhiteSpace(appointmentId))
+		{
+			return;
+		}
+		ConseillersPersonnelsEvenements row = await _db.ConseillersPersonnelsEvenements.FirstOrDefaultAsync((e) => e.CpeRefEvenement == eventId);
+		if (row == null)
+		{
+			return;
+		}
+		row.CpeAppointmentId = appointmentId;
 		await _db.SaveChangesAsync();
 	}
 }
@@ -279,6 +326,63 @@ public sealed class FindAppointmentByEvenementUseCase : IFindAppointmentByEvenem
 					appointmentId = row?.EAppointmentId;
 				}
 				RendezVous rdv = await _exchange.FindAppointmentFromERefEvenement(cp.Email, cp.Password, eRefEvenement, appointmentId);
+				if (rdv != null)
+				{
+					return new FindAppointmentFromERefEvenementResponse
+					{
+						Error = null,
+						Appointment = rdv
+					};
+				}
+			}
+			catch (Exception ex)
+			{
+				lastError = ex.ToString();
+			}
+		}
+		return new FindAppointmentFromERefEvenementResponse
+		{
+			Error = lastError,
+			Appointment = null
+		};
+	}
+
+	public async Task<FindAppointmentFromERefEvenementResponse> ExecuteForCandidat(int callerId, int cpeRefEvenement)
+	{
+		if (cpeRefEvenement <= 0)
+		{
+			return new FindAppointmentFromERefEvenementResponse
+			{
+				Error = null,
+				Appointment = null
+			};
+		}
+		ConseillersPersonnelsEvenements row = await _db.ConseillersPersonnelsEvenements.AsNoTracking()
+			.FirstOrDefaultAsync((e) => e.CpeRefEvenement == cpeRefEvenement);
+		string storedId = row?.CpeAppointmentId;
+		List<int> mailboxIds = new List<int>();
+		if (callerId > 0)
+		{
+			mailboxIds.Add(callerId);
+		}
+		List<int> admins = await _db.ConseillersPersonnels.AsNoTracking()
+			.Where((c) => c.CpAdmin && c.CpActif == (sbyte)1)
+			.Select((c) => (int)c.CpRefConseiller)
+			.ToListAsync();
+		foreach (int adminId in admins)
+		{
+			if (!mailboxIds.Contains(adminId))
+			{
+				mailboxIds.Add(adminId);
+			}
+		}
+		string lastError = null;
+		foreach (int mailboxId in mailboxIds)
+		{
+			try
+			{
+				ConseillerMailbox cp = await _mailboxes.GetByConseillerIdAsync(mailboxId);
+				RendezVous rdv = await _exchange.FindAppointmentFromCpeRefEvenement(cp.Email, cp.Password, cpeRefEvenement, storedId);
 				if (rdv != null)
 				{
 					return new FindAppointmentFromERefEvenementResponse
@@ -362,6 +466,52 @@ public sealed class DeleteAppointmentByEvenementUseCase : IDeleteAppointmentByEv
 			return new DeleteAppointmentFromERefEvenementResponse
 			{
 				Error = ex.ToString()
+			};
+		}
+	}
+
+	public Task<DeleteAppointmentFromERefEvenementResponse> ExecuteForCandidat(int conseillerId, int cpeRefEvenement)
+	{
+		return DeleteCandidat(conseillerId, cpeRefEvenement);
+	}
+
+	public async Task<DeleteAppointmentFromERefEvenementResponse> ExecuteForCandidatIfAllowed(int conseillerId, int cpeRefEvenement, int callerId, bool callerIsAdmin)
+	{
+		if (!callerIsAdmin && conseillerId != callerId)
+		{
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = "Agenda non autorisé pour ce conseiller.",
+				IsDeleted = false
+			};
+		}
+		return await DeleteCandidat(conseillerId, cpeRefEvenement);
+	}
+
+	private async Task<DeleteAppointmentFromERefEvenementResponse> DeleteCandidat(int conseillerId, int cpeRefEvenement)
+	{
+		try
+		{
+			ConseillersPersonnelsEvenements row = await _db.ConseillersPersonnelsEvenements.FirstOrDefaultAsync((e) => e.CpeRefEvenement == cpeRefEvenement);
+			ConseillerMailbox cp = await _mailboxes.GetByConseillerIdAsync(conseillerId);
+			bool deleted = await _exchange.DeleteAppointmentFromCpeRefEvenement(cp.Email, cp.Password, cpeRefEvenement, row?.CpeAppointmentId);
+			if (deleted && row != null && !string.IsNullOrEmpty(row.CpeAppointmentId))
+			{
+				row.CpeAppointmentId = null;
+				await _db.SaveChangesAsync();
+			}
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = null,
+				IsDeleted = deleted
+			};
+		}
+		catch (Exception ex)
+		{
+			return new DeleteAppointmentFromERefEvenementResponse
+			{
+				Error = ex.ToString(),
+				IsDeleted = false
 			};
 		}
 	}

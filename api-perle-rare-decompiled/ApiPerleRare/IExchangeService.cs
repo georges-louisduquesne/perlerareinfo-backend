@@ -27,7 +27,11 @@ public interface IExchangeService
 
 	Task<RendezVous> FindAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement, string appointmentId = null);
 
+	Task<RendezVous> FindAppointmentFromCpeRefEvenement(string cpMel, string cpMelMotDePasse, int cpeRefEvenement, string appointmentId = null);
+
 	Task<bool> DeleteAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement, string appointmentId = null);
+
+	Task<bool> DeleteAppointmentFromCpeRefEvenement(string cpMel, string cpMelMotDePasse, int cpeRefEvenement, string appointmentId = null);
 
 	Task<bool> DeleteAppointmentById(string cpMel, string cpMelMotDePasse, string appointmentId);
 }

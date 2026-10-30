@@ -39,6 +39,8 @@ public interface IAddAppointmentUseCase
 public interface IFindAppointmentByEvenementUseCase
 {
 	Task<FindAppointmentFromERefEvenementResponse> Execute(int conseillerId, int eRefEvenement);
+
+	Task<FindAppointmentFromERefEvenementResponse> ExecuteForCandidat(int callerId, int cpeRefEvenement);
 }
 
 public interface IDeleteAppointmentByEvenementUseCase
@@ -48,4 +50,8 @@ public interface IDeleteAppointmentByEvenementUseCase
 	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteIfAllowed(int conseillerId, int eRefEvenement, int callerId, bool callerIsAdmin);
 
 	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteByAppointmentId(int conseillerId, string appointmentId, int callerId, bool callerIsAdmin);
+
+	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteForCandidat(int conseillerId, int cpeRefEvenement);
+
+	Task<DeleteAppointmentFromERefEvenementResponse> ExecuteForCandidatIfAllowed(int conseillerId, int cpeRefEvenement, int callerId, bool callerIsAdmin);
 }

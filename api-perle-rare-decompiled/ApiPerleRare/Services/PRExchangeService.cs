@@ -24,6 +24,8 @@ internal class PRExchangeService : IExchangeService
 
 	private readonly ExtendedPropertyDefinition _extendedPropEventId = new ExtendedPropertyDefinition(new Guid("{00020329-0000-0000-C000-000000000046}"), "ERefEvenement", MapiPropertyType.Integer);
 
+	private readonly ExtendedPropertyDefinition _extendedPropCpeEventId = new ExtendedPropertyDefinition(new Guid("{00020329-0000-0000-C000-000000000046}"), "CPE_RefEvenement", MapiPropertyType.Integer);
+
 	internal static readonly (string Room, string Email)[] SalonRooms = new (string, string)[]
 	{
 		("panoramique", "grande_salle@perle-rare.com"),
@@ -372,9 +374,11 @@ internal class PRExchangeService : IExchangeService
 		Appointment appointment = null;
 		Appointment staleCopy = null;
 		bool updated = false;
-		if (rendezVous.ERefEvenement != 0)
+		int markId = rendezVous.CpeRefEvenement != 0 ? rendezVous.CpeRefEvenement : rendezVous.ERefEvenement;
+		ExtendedPropertyDefinition markProperty = rendezVous.CpeRefEvenement != 0 ? _extendedPropCpeEventId : _extendedPropEventId;
+		if (markId != 0)
 		{
-			Item existing = await FindItem(service, rendezVous.ERefEvenement, calendarId);
+			Item existing = await FindMarkedItem(service, markProperty, markId, calendarId);
 			if (existing != null)
 			{
 				Appointment bound = await Appointment.Bind(service, existing.Id, new PropertySet(BasePropertySet.FirstClassProperties, AppointmentSchema.Organizer));
@@ -400,7 +404,11 @@ internal class PRExchangeService : IExchangeService
 		appointment.End = rendezVous.End;
 		appointment.Location = rendezVous.Location;
 		appointment.ReminderMinutesBeforeStart = rendezVous.ReminderMinutesBeforeStart;
-		if (rendezVous.ERefEvenement != 0)
+		if (rendezVous.CpeRefEvenement != 0)
+		{
+			appointment.SetExtendedProperty(_extendedPropCpeEventId, rendezVous.CpeRefEvenement);
+		}
+		else if (rendezVous.ERefEvenement != 0)
 		{
 			appointment.SetExtendedProperty(_extendedPropEventId, rendezVous.ERefEvenement);
 		}
@@ -512,12 +520,17 @@ internal class PRExchangeService : IExchangeService
 		return FindItem(service, eRefEvenement, new FolderId(WellKnownFolderName.Calendar), loadProperties);
 	}
 
-	public async Task<Item> FindItem(ExchangeService service, int eRefEvenement, FolderId calendarId, bool loadProperties = false)
+	public Task<Item> FindItem(ExchangeService service, int eRefEvenement, FolderId calendarId, bool loadProperties = false)
+	{
+		return FindMarkedItem(service, _extendedPropEventId, eRefEvenement, calendarId, loadProperties);
+	}
+
+	private async Task<Item> FindMarkedItem(ExchangeService service, ExtendedPropertyDefinition property, int eventId, FolderId calendarId, bool loadProperties = false)
 	{
 		PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
 		CalendarFolder calendar = CalendarFolder.Bind(service, calendarId, ps).Result;
 		ItemView view = new ItemView(1);
-		SearchFilter.IsEqualTo filter = new SearchFilter.IsEqualTo(_extendedPropEventId, eRefEvenement);
+		SearchFilter.IsEqualTo filter = new SearchFilter.IsEqualTo(property, eventId);
 		FindItemsResults<Item> res = await calendar.FindItems(filter, view);
 		if (loadProperties && res.Count() > 0)
 		{
@@ -557,6 +570,41 @@ internal class PRExchangeService : IExchangeService
 			OptionalAttendees = GetAttendees(app.OptionalAttendees),
 			Location = app.Location,
 			ERefEvenement = eRefEvenement,
+			HtmlBody = app.Body?.Text
+		};
+	}
+
+	public async Task<RendezVous> FindAppointmentFromCpeRefEvenement(string email, string password, int cpeRefEvenement, string appointmentId = null)
+	{
+		ExchangeService service = GetExchangeService(email, password);
+		Item first = await FindMarkedItem(service, _extendedPropCpeEventId, cpeRefEvenement, new FolderId(WellKnownFolderName.Calendar), loadProperties: true);
+		if (first == null && !string.IsNullOrWhiteSpace(appointmentId))
+		{
+			try
+			{
+				PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
+				first = await Appointment.Bind(service, new ItemId(appointmentId), ps);
+			}
+			catch (ServiceResponseException)
+			{
+				return null;
+			}
+		}
+		if (first == null)
+		{
+			return null;
+		}
+		Appointment app = (Appointment)first;
+		return new RendezVous
+		{
+			Subject = app.Subject,
+			Start = app.Start,
+			End = app.End,
+			ReminderMinutesBeforeStart = app.ReminderMinutesBeforeStart,
+			RequiredAttendees = GetAttendees(app.RequiredAttendees),
+			OptionalAttendees = GetAttendees(app.OptionalAttendees),
+			Location = app.Location,
+			CpeRefEvenement = cpeRefEvenement,
 			HtmlBody = app.Body?.Text
 		};
 	}
@@ -656,7 +704,7 @@ internal class PRExchangeService : IExchangeService
 	{
 		ExchangeService service = GetExchangeService(email, password);
 		FolderId calendarId = new FolderId(WellKnownFolderName.Calendar, new Mailbox(email));
-		bool deleted = await DeleteInCalendar(service, email, eRefEvenement, calendarId, appointmentId);
+		bool deleted = await DeleteInCalendar(service, email, eRefEvenement, calendarId, appointmentId, _extendedPropEventId);
 		foreach (string roomEmail in RoomMailboxEmails)
 		{
 			if (string.Equals(roomEmail, email, StringComparison.OrdinalIgnoreCase))
@@ -666,7 +714,7 @@ internal class PRExchangeService : IExchangeService
 			try
 			{
 				FolderId roomCalendar = new FolderId(WellKnownFolderName.Calendar, new Mailbox(roomEmail));
-				if (await DeleteInCalendar(service, roomEmail, eRefEvenement, roomCalendar, null))
+				if (await DeleteInCalendar(service, roomEmail, eRefEvenement, roomCalendar, null, _extendedPropEventId))
 				{
 					deleted = true;
 				}
@@ -674,6 +722,32 @@ internal class PRExchangeService : IExchangeService
 			catch
 			{
 				// La salle n'est pas toujours accessible ; l'annulation organisateur la libère.
+			}
+		}
+		return deleted;
+	}
+
+	public async Task<bool> DeleteAppointmentFromCpeRefEvenement(string email, string password, int cpeRefEvenement, string appointmentId = null)
+	{
+		ExchangeService service = GetExchangeService(email, password);
+		FolderId calendarId = new FolderId(WellKnownFolderName.Calendar, new Mailbox(email));
+		bool deleted = await DeleteInCalendar(service, email, cpeRefEvenement, calendarId, appointmentId, _extendedPropCpeEventId);
+		foreach (string roomEmail in RoomMailboxEmails)
+		{
+			if (string.Equals(roomEmail, email, StringComparison.OrdinalIgnoreCase))
+			{
+				continue;
+			}
+			try
+			{
+				FolderId roomCalendar = new FolderId(WellKnownFolderName.Calendar, new Mailbox(roomEmail));
+				if (await DeleteInCalendar(service, roomEmail, cpeRefEvenement, roomCalendar, null, _extendedPropCpeEventId))
+				{
+					deleted = true;
+				}
+			}
+			catch
+			{
 			}
 		}
 		return deleted;
@@ -711,10 +785,10 @@ internal class PRExchangeService : IExchangeService
 		return true;
 	}
 
-	private async Task<bool> DeleteInCalendar(ExchangeService service, string mailboxEmail, int eRefEvenement, FolderId calendarId, string appointmentId)
+	private async Task<bool> DeleteInCalendar(ExchangeService service, string mailboxEmail, int eventId, FolderId calendarId, string appointmentId, ExtendedPropertyDefinition property)
 	{
 		Appointment appointment = null;
-		Item first = await FindItem(service, eRefEvenement, calendarId);
+		Item first = await FindMarkedItem(service, property, eventId, calendarId);
 		PropertySet props = new PropertySet(BasePropertySet.FirstClassProperties, AppointmentSchema.Organizer, AppointmentSchema.IsMeeting);
 		if (first != null)
 		{

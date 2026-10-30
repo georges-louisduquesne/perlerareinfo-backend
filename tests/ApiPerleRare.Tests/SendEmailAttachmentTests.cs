@@ -354,7 +354,17 @@ public class SendEmailAttachmentTests
 			throw new NotImplementedException();
 		}
 
+		public System.Threading.Tasks.Task<RendezVous> FindAppointmentFromCpeRefEvenement(string cpMel, string cpMelMotDePasse, int cpeRefEvenement, string appointmentId = null)
+		{
+			throw new NotImplementedException();
+		}
+
 		public System.Threading.Tasks.Task<bool> DeleteAppointmentFromERefEvenement(string cpMel, string cpMelMotDePasse, int eRefEvenement, string appointmentId = null)
+		{
+			throw new NotImplementedException();
+		}
+
+		public System.Threading.Tasks.Task<bool> DeleteAppointmentFromCpeRefEvenement(string cpMel, string cpMelMotDePasse, int cpeRefEvenement, string appointmentId = null)
 		{
 			throw new NotImplementedException();
 		}
