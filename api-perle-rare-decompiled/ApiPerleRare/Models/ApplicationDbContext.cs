@@ -59,6 +59,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
 	public virtual DbSet<HistoriqueInterDirect> HistoriqueInterDirect { get; set; }
 
+	public virtual DbSet<HomePageLoads> HomePageLoads { get; set; }
+
 	public virtual DbSet<IntermediairesDirects> IntermediairesDirects { get; set; }
 
 	public virtual DbSet<IntermediairesDirectsYanport> IntermediairesDirectsYanport { get; set; }
@@ -980,6 +982,17 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((HistoriqueInterDirect e) => e.HidNbMaison).HasColumnName("HID_NbMaison");
 			entity.Property((HistoriqueInterDirect e) => e.HidRef).IsRequired().HasMaxLength(14)
 				.HasColumnName("HID_Ref");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<HomePageLoads> entity)
+		{
+			entity.HasKey((HomePageLoads e) => e.HplRef).HasName("PRIMARY");
+			entity.ToTable("home_page_loads");
+			entity.HasIndex((HomePageLoads e) => e.HplMeasuredAt, "IX_home_page_loads_measured");
+			entity.HasIndex((HomePageLoads e) => e.HplRefConseiller, "IX_home_page_loads_conseiller");
+			entity.Property((HomePageLoads e) => e.HplRef).HasColumnName("HPL_Ref");
+			entity.Property((HomePageLoads e) => e.HplRefConseiller).HasColumnName("HPL_RefConseiller");
+			entity.Property((HomePageLoads e) => e.HplDurationMs).HasColumnName("HPL_DurationMs");
+			entity.Property((HomePageLoads e) => e.HplMeasuredAt).HasColumnType("datetime").HasColumnName("HPL_MeasuredAt");
 		});
 		modelBuilder.Entity(delegate(EntityTypeBuilder<IntermediairesDirects> entity)
 		{

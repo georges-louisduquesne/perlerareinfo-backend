@@ -36,6 +36,7 @@ public interface IApplicationDbContext
 	DbSet<HistoriqueAnnonces> HistoriqueAnnonces { get; }
 	DbSet<HistoriqueAspiration> HistoriqueAspiration { get; }
 	DbSet<HistoriqueInterDirect> HistoriqueInterDirect { get; }
+	DbSet<HomePageLoads> HomePageLoads { get; }
 	DbSet<IntermediairesDirects> IntermediairesDirects { get; }
 	DbSet<IntermediairesDirectsYanport> IntermediairesDirectsYanport { get; }
 	DbSet<IntermediairesIndirects> IntermediairesIndirects { get; }
