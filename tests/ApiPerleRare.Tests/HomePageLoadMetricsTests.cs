@@ -26,6 +26,26 @@ public class HomePageLoadMetricsTests
 	}
 
 	[Fact]
+	public void SegmentAggregate_splits_admin()
+	{
+		var rows = new (int, bool)[]
+		{
+			(1000, false),
+			(3000, true),
+			(2000, false),
+		};
+		var all = HomePageLoadMetrics.SegmentAggregate(rows, null);
+		Assert.Equal(2000, all.AverageMs);
+		Assert.Equal(3, all.Count);
+		var nonAdmin = HomePageLoadMetrics.SegmentAggregate(rows, false);
+		Assert.Equal(1500, nonAdmin.AverageMs);
+		Assert.Equal(2, nonAdmin.Count);
+		var admin = HomePageLoadMetrics.SegmentAggregate(rows, true);
+		Assert.Equal(3000, admin.AverageMs);
+		Assert.Equal(1, admin.Count);
+	}
+
+	[Fact]
 	public void FormatPrenomNom_matches_front()
 	{
 		Assert.Equal("Julien DIEMER", HomePageLoadMetrics.FormatPrenomNom("Julien", "Diemer"));

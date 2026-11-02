@@ -30,6 +30,21 @@ public class HomePageLoadController : ControllerBase
 		public int DurationMs { get; set; }
 	}
 
+	private sealed class LoadRow
+	{
+		public long Ref { get; init; }
+
+		public int DurationMs { get; init; }
+
+		public DateTime MeasuredAt { get; init; }
+
+		public string Prenom { get; init; }
+
+		public string Nom { get; init; }
+
+		public bool IsAdmin { get; init; }
+	}
+
 	[HttpPost]
 	public async Task<IActionResult> Report([FromBody] ReportBody body)
 	{
@@ -58,32 +73,67 @@ public class HomePageLoadController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<IActionResult> Cockpit()
 	{
-		double averageMs = await _context.HomePageLoads.AsNoTracking()
-			.AverageAsync((HomePageLoads row) => (double?)row.HplDurationMs) ?? 0;
-		int sampleCount = await _context.HomePageLoads.AsNoTracking().CountAsync();
-		var recent = await (from row in _context.HomePageLoads.AsNoTracking()
+		List<LoadRow> rows = await LoadRowsQuery().ToListAsync();
+		return Ok(new
+		{
+			all = BuildSegment(rows, null),
+			nonAdmin = BuildSegment(rows, false),
+			admin = BuildSegment(rows, true),
+		});
+	}
+
+	private IQueryable<LoadRow> LoadRowsQuery()
+	{
+		return from row in _context.HomePageLoads.AsNoTracking()
 			join cp in _context.ConseillersPersonnels.AsNoTracking()
 				on row.HplRefConseiller equals cp.CpRefConseiller into people
 			from cp in people.DefaultIfEmpty()
-			orderby row.HplRef descending
-			select new
+			select new LoadRow
 			{
-				row.HplDurationMs,
-				row.HplMeasuredAt,
-				cp.CpPrenom,
-				cp.CpNomFamille,
-			}).Take(HomePageLoadMetrics.CockpitRecentCount).ToListAsync();
-		return Ok(new
+				Ref = row.HplRef,
+				DurationMs = row.HplDurationMs,
+				MeasuredAt = row.HplMeasuredAt,
+				Prenom = cp.CpPrenom,
+				Nom = cp.CpNomFamille,
+				IsAdmin = cp != null && cp.CpAdmin,
+			};
+	}
+
+	private static object BuildSegment(IReadOnlyList<LoadRow> rows, bool? adminFilter)
+	{
+		IEnumerable<LoadRow> filtered = rows;
+		if (adminFilter == true)
+		{
+			filtered = filtered.Where((row) => row.IsAdmin);
+		}
+		else if (adminFilter == false)
+		{
+			filtered = filtered.Where((row) => !row.IsAdmin);
+		}
+		List<LoadRow> list = filtered.ToList();
+		(double averageMs, int sampleCount) = HomePageLoadMetrics.SegmentAggregate(
+			list.Select((row) => (row.DurationMs, row.IsAdmin)),
+			adminFilter);
+		var recent = list
+			.OrderByDescending((row) => row.Ref)
+			.Take(HomePageLoadMetrics.CockpitRecentCount)
+			.Select(MapRecent);
+		return new
 		{
 			averageMs = Math.Round(averageMs, 1),
 			sampleCount,
-			recent = recent.Select((row) => new
-			{
-				durationMs = row.HplDurationMs,
-				measuredAt = row.HplMeasuredAt,
-				userLabel = HomePageLoadMetrics.FormatPrenomNom(row.CpPrenom, row.CpNomFamille),
-			}),
-		});
+			recent,
+		};
+	}
+
+	private static object MapRecent(LoadRow row)
+	{
+		return new
+		{
+			durationMs = row.DurationMs,
+			measuredAt = row.MeasuredAt,
+			userLabel = HomePageLoadMetrics.FormatPrenomNom(row.Prenom, row.Nom),
+		};
 	}
 
 	private async Task PruneOldRowsAsync()

@@ -53,6 +53,34 @@ public static class HomePageLoadMetrics
 		return (double)sum / count;
 	}
 
+	/// <param name="adminFilter">null = tous, true = admin seulement, false = hors admin.</param>
+	public static (double AverageMs, int Count) SegmentAggregate(
+		IEnumerable<(int DurationMs, bool IsAdmin)> rows,
+		bool? adminFilter)
+	{
+		if (rows == null)
+		{
+			return (0, 0);
+		}
+		List<int> durations = new();
+		foreach ((int durationMs, bool isAdmin) in rows)
+		{
+			if (adminFilter == true && !isAdmin)
+			{
+				continue;
+			}
+			if (adminFilter == false && isAdmin)
+			{
+				continue;
+			}
+			if (durationMs >= 0)
+			{
+				durations.Add(durationMs);
+			}
+		}
+		return (Average(durations), durations.Count);
+	}
+
 	public static string FormatPrenomNom(string prenom, string nom)
 	{
 		string last = (nom ?? string.Empty).Trim().ToUpper(CultureInfo.GetCultureInfo("fr-FR"));
