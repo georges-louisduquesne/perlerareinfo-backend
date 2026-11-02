@@ -37,8 +37,7 @@ public class HomePageLoadController : ControllerBase
 		{
 			return BadRequest();
 		}
-		int userId = this.GetUserId();
-		if (userId <= 0)
+		if (!User.TryGetId(out int userId) || !HomePageLoadMetrics.CanRecordLoad(true, userId))
 		{
 			return Unauthorized();
 		}

@@ -43,6 +43,15 @@ public class HomePageLoadMetricsTests
 public class HomePageLoadControllerTests
 {
 	[Fact]
+	public void CanRecordLoad_accepts_ref_conseiller_zero()
+	{
+		Assert.True(HomePageLoadMetrics.CanRecordLoad(true, 0));
+		Assert.True(HomePageLoadMetrics.CanRecordLoad(true, 178));
+		Assert.False(HomePageLoadMetrics.CanRecordLoad(false, 0));
+		Assert.False(HomePageLoadMetrics.CanRecordLoad(true, -1));
+	}
+
+	[Fact]
 	public void Cockpit_is_admin_only()
 	{
 		var method = typeof(HomePageLoadController).GetMethod("Cockpit");

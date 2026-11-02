@@ -74,4 +74,10 @@ public static class HomePageLoadMetrics
 		}
 		return idsDescending.Skip(keep).ToArray();
 	}
+
+	/// <summary>CP_RefConseiller 0 (compte admin) est un identifiant valide.</summary>
+	public static bool CanRecordLoad(bool hasConseillerId, int conseillerId)
+	{
+		return hasConseillerId && conseillerId >= 0;
+	}
 }
