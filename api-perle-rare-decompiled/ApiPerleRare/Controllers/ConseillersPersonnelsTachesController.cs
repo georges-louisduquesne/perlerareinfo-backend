@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Candidats;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -106,6 +107,28 @@ public class ConseillersPersonnelsTachesController : ControllerBase
 		{
 			Exception ex2 = ex;
 			return BadRequest(ex2.ToString());
+		}
+	}
+
+	/// <summary>Tâches ouvertes liées à un conseiller au statut Candidat (accueil admin, cartes candidats).</summary>
+	[HttpGet("Home")]
+	public async Task<ActionResult<IEnumerable<ConseillersPersonnelsTaches>>> GetHomeCandidatTaches()
+	{
+		try
+		{
+			IQueryable<ConseillersPersonnelsTaches> query = HomeCandidatAccueilQueries.OpenTachesForCandidats(
+				_context.ConseillersPersonnelsTaches.AsNoTracking(),
+				_context.ConseillersPersonnels.AsNoTracking());
+			List<ConseillersPersonnelsTaches> res = await query.ToListAsync();
+			foreach (ConseillersPersonnelsTaches cr in res)
+			{
+				EncodingHelper.FixEncodingInStringProperties(cr);
+			}
+			return res;
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(ex.ToString());
 		}
 	}
 

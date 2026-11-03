@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Candidats;
 using ApiPerleRare.Application.Catalog;
+using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -24,6 +28,31 @@ public class ConseillersPersonnelsEvenementsController : QueryEntitiesController
 		: base(query)
 	{
 		_context = context;
+	}
+
+	/// <summary>RDV candidats actifs à partir d'aujourd'hui (catégorie RV).</summary>
+	[HttpGet("Home")]
+	public async Task<ActionResult<IEnumerable<ConseillersPersonnelsEvenements>>> GetHomeCandidatEvenements()
+	{
+		try
+		{
+			DateTime today = DateTime.Today;
+			IQueryable<ConseillersPersonnelsEvenements> query = HomeCandidatAccueilQueries.UpcomingRdvForCandidats(
+				_context.ConseillersPersonnelsEvenements.AsNoTracking(),
+				_context.ConseillersPersonnels.AsNoTracking(),
+				_context.ConseillersPersonnelsTypesEvenements.AsNoTracking(),
+				today);
+			List<ConseillersPersonnelsEvenements> res = await query.ToListAsync();
+			foreach (ConseillersPersonnelsEvenements row in res)
+			{
+				EncodingHelper.FixEncodingInStringProperties(row);
+			}
+			return res;
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(ex.ToString());
+		}
 	}
 
 	[HttpGet("{id}")]
