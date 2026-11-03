@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
+using ApiPerleRare.Infrastructure.Yanport;
 using ApiPerleRare.Models;
 using ApiPerleRare.YanportModels;
 using Microsoft.AspNetCore.Authorization;
@@ -75,11 +76,14 @@ public class IntermediairesDirectsController : ControllerBase
 
 	private readonly AgencyYanportLinkJob _yanportLinks;
 
-	public IntermediairesDirectsController(ApplicationDbContext context, ImportAgencyLogoUseCase importLogo, AgencyYanportLinkJob yanportLinks)
+	private readonly IYanportService _yanport;
+
+	public IntermediairesDirectsController(ApplicationDbContext context, ImportAgencyLogoUseCase importLogo, AgencyYanportLinkJob yanportLinks, IYanportService yanport)
 	{
 		_context = context;
 		_importLogo = importLogo;
 		_yanportLinks = yanportLinks;
+		_yanport = yanport;
 	}
 
 	[HttpGet]
@@ -112,6 +116,30 @@ public class IntermediairesDirectsController : ControllerBase
 			return NotFound();
 		}
 		return intermediairesDirects;
+	}
+
+	/// <summary>Fiche agence Yanport (proxy serveur — l’API Yanport refuse les appels navigateur).</summary>
+	[HttpGet("YanportAgency/{yanportId}")]
+	public ActionResult GetYanportAgency(string yanportId)
+	{
+		if (!YanportAgencyApi.TryParseId(yanportId, out long id))
+		{
+			return BadRequest();
+		}
+		if (!_yanport.IsConfigure)
+		{
+			return StatusCode(503);
+		}
+		string json = _yanport.Get(0, YanportAgencyApi.AgencyUrl(id));
+		if (json == YanportServiceConstant.NotFound)
+		{
+			return NotFound();
+		}
+		if (json == YanportServiceConstant.Error500 || string.IsNullOrWhiteSpace(json))
+		{
+			return StatusCode(502);
+		}
+		return Content(json, "application/json");
 	}
 
 	/// <summary>Historique agence (actor_logs + actor_search), dont les changements de réseau.</summary>
