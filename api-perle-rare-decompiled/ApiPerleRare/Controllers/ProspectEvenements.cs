@@ -32,6 +32,8 @@ public class ProspectEvenements
 
 	public string EConseiller_Prenom { get; set; }
 
+	public string EConseiller_Nom { get; set; }
+
 	public string EConseiller_PS { get; set; }
 
 	public string EAppointmentId { get; set; }

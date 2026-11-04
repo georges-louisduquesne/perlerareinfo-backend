@@ -63,8 +63,9 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			ENomContact = e.ENomContact,
 			ERefContact = e.ERefContact,
 			CNegociateur = e.ERefContactNavigation.CNegociateur,
-			EConseiller = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpNomFamille : null),
+			EConseiller = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpLogin : null),
 			EConseiller_Prenom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPrenom : null),
+			EConseiller_Nom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpNomFamille : null),
 			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null),
 			EAppointmentId = e.EAppointmentId
 		});
