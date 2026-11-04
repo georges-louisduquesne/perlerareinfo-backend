@@ -249,6 +249,10 @@ public class Startup
 				options.Cookie.Name = sessionCookie.Trim();
 			}
 		});
+		if (FormulairesCandidatsMailJob.Enabled(Environment.GetEnvironmentVariable(FormulairesCandidatsMailJob.EnvVar)))
+		{
+			services.AddHostedService<FormulairesCandidatsMailHostedService>();
+		}
 		if (!IsLocalSafe)
 		{
 			services.AddHostedService<QueuedHostedService>();

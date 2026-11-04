@@ -28,6 +28,9 @@ public class HomePageLoadController : ControllerBase
 	public class ReportBody
 	{
 		public int DurationMs { get; set; }
+
+		/// <summary>JSON v1 optionnel (télémétrie fine accueil).</summary>
+		public string Breakdown { get; set; }
 	}
 
 	private sealed class LoadRow
@@ -43,6 +46,8 @@ public class HomePageLoadController : ControllerBase
 		public string Nom { get; init; }
 
 		public bool IsAdmin { get; init; }
+
+		public string Breakdown { get; init; }
 	}
 
 	[HttpPost]
@@ -58,11 +63,13 @@ public class HomePageLoadController : ControllerBase
 		}
 		int durationMs = HomePageLoadMetrics.ClampDurationMs(body.DurationMs);
 		DateTime measuredAt = DateTime.UtcNow;
+		string breakdown = HomePageLoadBreakdown.NormalizeForStorage(body.Breakdown);
 		_context.HomePageLoads.Add(new HomePageLoads
 		{
 			HplRefConseiller = (uint)userId,
 			HplDurationMs = durationMs,
 			HplMeasuredAt = measuredAt,
+			HplBreakdown = breakdown,
 		});
 		await _context.SaveChangesAsync();
 		await PruneOldRowsAsync();
@@ -96,6 +103,7 @@ public class HomePageLoadController : ControllerBase
 				Prenom = cp.CpPrenom,
 				Nom = cp.CpNomFamille,
 				IsAdmin = cp != null && cp.CpAdmin,
+				Breakdown = row.HplBreakdown,
 			};
 	}
 
@@ -133,7 +141,25 @@ public class HomePageLoadController : ControllerBase
 			durationMs = row.DurationMs,
 			measuredAt = row.MeasuredAt,
 			userLabel = HomePageLoadMetrics.FormatPrenomNom(row.Prenom, row.Nom),
+			breakdownSummary = HomePageLoadBreakdown.FormatSummary(row.Breakdown),
+			breakdown = ParseBreakdownJson(row.Breakdown),
 		};
+	}
+
+	private static object ParseBreakdownJson(string stored)
+	{
+		if (string.IsNullOrWhiteSpace(stored))
+		{
+			return null;
+		}
+		try
+		{
+			return System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(stored);
+		}
+		catch (System.Text.Json.JsonException)
+		{
+			return null;
+		}
 	}
 
 	private async Task PruneOldRowsAsync()

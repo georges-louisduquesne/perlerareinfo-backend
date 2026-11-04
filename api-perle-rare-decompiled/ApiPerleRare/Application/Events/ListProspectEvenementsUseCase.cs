@@ -63,6 +63,8 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			ENomContact = e.ENomContact,
 			ERefContact = e.ERefContact,
 			CNegociateur = e.ERefContactNavigation.CNegociateur,
+			EConseiller = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpNomFamille : null),
+			EConseiller_Prenom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPrenom : null),
 			EConseiller_PS = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPhotoSignature : null),
 			EAppointmentId = e.EAppointmentId
 		});
@@ -92,7 +94,12 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			{
 				continue;
 			}
-			row.CNegociateur_PS = _users.GetConseiller(row.CNegociateur)?.CpPhotoSignature;
+			ConseillersPersonnels cp = _users.GetConseiller(row.CNegociateur);
+			if (cp != null)
+			{
+				row.CNegociateur_PS = cp.CpPhotoSignature;
+				row.CNegociateur_Prenom = cp.CpPrenom;
+			}
 		}
 	}
 }

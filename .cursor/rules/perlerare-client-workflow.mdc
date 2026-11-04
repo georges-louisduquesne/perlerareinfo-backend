@@ -78,7 +78,7 @@ Autorise la démo seulement. Sync (§1), tout poussé, tests verts (les scripts 
 - Ancienne API `api.perle-rare.info` : `/var/www/api.perle-rare.info`, `api.perle-rare.info.service` (Aspose, mobile, imports de nuit). Jamais écrire, redémarrer, reconfigurer.
 - MariaDB : SELECT par défaut. `UPDATE` / `ALTER` / `INSERT` / `DELETE` → ordre **écrit**, script dans `infra/ovh/sql/`, sauvegarde + retour arrière, test à blanc en SELECT. Jamais `DROP` / `TRUNCATE`.
 - Secrets JWT / DB / Yanport / Exchange : jamais tout seul, jamais affichés.
-- Yanport / mails : **un seul** process qui écrit (`PR_SCHEDULED_TASKS=off` sur la v2).
+- Yanport / mails : **un seul** process qui écrit (`PR_SCHEDULED_TASKS=off` sur la v2). Exception : **formulaires candidats** = job `FormulairesCandidatsMail` (`PR_FORMULAIRES_CANDIDATS_MAIL=on` sur v2 et démo, `ConnectionStrings:ExchangeContact` requis).
 
 ## 6. Repères
 

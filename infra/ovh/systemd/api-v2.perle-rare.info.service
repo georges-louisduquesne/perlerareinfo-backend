@@ -11,6 +11,10 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5002
 # Imports / notifications stay on api.perle-rare.info.service (same database, tasks are not coordinated).
 Environment=PR_SCHEDULED_TASKS=off
+# Formulaires candidats (contact@) : job dédié, pas le bundle TimedHostedService de l'API v1.
+Environment=PR_FORMULAIRES_CANDIDATS_MAIL=on
+# Mot de passe contact@ : drop-in /etc/systemd/system/api-v2.perle-rare.info.service.d/exchange-contact.conf
+# Environment=ConnectionStrings__ExchangeContact=Server=ex2.mail.ovh.net;Username=contact@perle-rare.com;Password=...
 # Mails OFFRE, compromis et acte : envoyés par le site. Ne pas remettre ce job à on.
 Environment=PR_TRANSACTION_EVENT_MAIL=off
 # Same host as the current API: a shared session cookie name makes each API overwrite the other's session.

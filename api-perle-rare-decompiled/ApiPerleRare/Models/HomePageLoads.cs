@@ -11,4 +11,7 @@ public class HomePageLoads
 	public int HplDurationMs { get; set; }
 
 	public DateTime HplMeasuredAt { get; set; }
+
+	/// <summary>JSON v1 (télémétrie fine), voir HomePageLoadBreakdown.</summary>
+	public string HplBreakdown { get; set; }
 }

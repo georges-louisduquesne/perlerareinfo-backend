@@ -993,6 +993,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((HomePageLoads e) => e.HplRefConseiller).HasColumnName("HPL_RefConseiller");
 			entity.Property((HomePageLoads e) => e.HplDurationMs).HasColumnName("HPL_DurationMs");
 			entity.Property((HomePageLoads e) => e.HplMeasuredAt).HasColumnType("datetime").HasColumnName("HPL_MeasuredAt");
+			entity.Property((HomePageLoads e) => e.HplBreakdown).HasMaxLength(2048).HasColumnName("HPL_Breakdown");
 		});
 		modelBuilder.Entity(delegate(EntityTypeBuilder<IntermediairesDirects> entity)
 		{

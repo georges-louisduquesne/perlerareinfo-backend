@@ -1,0 +1,7 @@
+# Drop-in systemd (hors git) — mot de passe contact@ pour le job FormulairesCandidatsMail
+# Copier sur le VPS :
+#   /etc/systemd/system/api-v2.perle-rare.info.service.d/exchange-contact.conf
+# Puis : sudo systemctl daemon-reload && sudo systemctl restart api-v2.perle-rare.info.service
+#
+# [Service]
+# Environment=ConnectionStrings__ExchangeContact=Server=ex2.mail.ovh.net;Username=contact@perle-rare.com;Password=SECRET

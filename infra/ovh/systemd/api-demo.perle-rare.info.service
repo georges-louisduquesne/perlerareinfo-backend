@@ -9,6 +9,7 @@ ExecStart=/home/administrateur/api-client-demo/ApiPerleRare
 User=administrateur
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=PR_LOCAL_SAFE=1
+Environment=PR_FORMULAIRES_CANDIDATS_MAIL=on
 Environment=PR_DEMO_PATH_PREFIX=/api-demo
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false

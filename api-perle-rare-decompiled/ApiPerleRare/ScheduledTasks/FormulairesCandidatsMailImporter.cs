@@ -9,57 +9,49 @@ using Microsoft.Extensions.Logging;
 
 namespace ApiPerleRare.ScheduledTasks;
 
-/// <summary>
-/// Lit la boîte contact@ et enregistre les nouveaux formulaires de recrutement.
-/// Le mot de passe reste dans ConnectionStrings:ExchangeContact (hors git).
-/// </summary>
-public class FormulairesCandidatsMailScheduledTask : AbstractScheduledTask
+internal static class FormulairesCandidatsMailImporter
 {
-	private static DateTime _nextPollUtc = DateTime.MinValue;
-
-	private readonly IServiceScopeFactory _serviceScopeFactory;
-
-	private readonly IConfiguration _configuration;
-
-	private readonly ILogger<FormulairesCandidatsMailScheduledTask> _logger;
-
-	public FormulairesCandidatsMailScheduledTask(IServiceScopeFactory serviceScopeFactory, IConfiguration configuration, ILogger<FormulairesCandidatsMailScheduledTask> logger)
+	internal static bool TryGetMailbox(IConfiguration configuration, out ExchangeConnectionString mailbox, out string error)
 	{
-		_serviceScopeFactory = serviceScopeFactory;
-		_configuration = configuration;
-		_logger = logger;
-	}
-
-	public override string Execute(DateTime lastExecution)
-	{
-		if (DateTime.UtcNow < _nextPollUtc)
-		{
-			return "-";
-		}
-		_nextPollUtc = DateTime.UtcNow.AddMinutes(2);
-		string raw = _configuration.GetConnectionString("ExchangeContact");
+		mailbox = null;
+		error = null;
+		string raw = configuration.GetConnectionString("ExchangeContact");
 		if (string.IsNullOrWhiteSpace(raw))
 		{
-			return "ExchangeContact absent";
+			error = "ExchangeContact absent";
+			return false;
 		}
-		ExchangeConnectionString mailbox = new ExchangeConnectionString(raw);
-		if (string.IsNullOrWhiteSpace(mailbox.Username) || string.IsNullOrWhiteSpace(mailbox.Password) || string.IsNullOrWhiteSpace(mailbox.Server))
+		ExchangeConnectionString parsed = new ExchangeConnectionString(raw);
+		if (string.IsNullOrWhiteSpace(parsed.Username) || string.IsNullOrWhiteSpace(parsed.Password) || string.IsNullOrWhiteSpace(parsed.Server))
 		{
-			return "ExchangeContact incomplet";
+			error = "ExchangeContact incomplet";
+			return false;
+		}
+		mailbox = parsed;
+		return true;
+	}
+
+	internal static string RunOnce(IServiceScopeFactory scopeFactory, IConfiguration configuration, ILogger logger)
+	{
+		if (!TryGetMailbox(configuration, out ExchangeConnectionString mailbox, out string configError))
+		{
+			return configError;
 		}
 		try
 		{
-			int inserted = Import(mailbox);
+			using IServiceScope scope = scopeFactory.CreateScope();
+			using ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			int inserted = ImportMailbox(mailbox, db);
 			return "formulaires candidats +" + inserted;
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Import formulaires candidats échoué");
+			logger.LogError(ex, "Import formulaires candidats échoué");
 			return "erreur: " + ex.Message;
 		}
 	}
 
-	private int Import(ExchangeConnectionString mailbox)
+	internal static int ImportMailbox(ExchangeConnectionString mailbox, ApplicationDbContext db)
 	{
 		ExchangeService service = new ExchangeService(ExchangeVersion.Exchange2013_SP1);
 		service.Credentials = new WebCredentials(mailbox.Username, mailbox.Password, mailbox.Domain ?? "");
@@ -77,8 +69,6 @@ public class FormulairesCandidatsMailScheduledTask : AbstractScheduledTask
 			RequestedBodyType = BodyType.Text
 		};
 		service.LoadPropertiesForItems(found, props).GetAwaiter().GetResult();
-		using IServiceScope scope = _serviceScopeFactory.CreateScope();
-		using ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 		int inserted = 0;
 		foreach (Item item in found)
 		{
