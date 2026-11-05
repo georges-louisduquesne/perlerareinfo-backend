@@ -86,6 +86,7 @@ public class HomePageLoadController : ControllerBase
 			all = BuildSegment(rows, null),
 			nonAdmin = BuildSegment(rows, false),
 			admin = BuildSegment(rows, true),
+			daily = HomePageLoadMetrics.BuildDailyTrend(rows.Select((row) => (row.MeasuredAt, row.DurationMs, row.IsAdmin))),
 		});
 	}
 

@@ -58,6 +58,27 @@ public class HomePageLoadMetricsTests
 		long[] stale = HomePageLoadMetrics.SelectIdsToPrune(new long[] { 9, 8, 7, 6 }, 2);
 		Assert.Equal(new long[] { 7, 6 }, stale);
 	}
+
+	[Fact]
+	public void BuildDailyTrend_groups_by_paris_date_and_splits_admin()
+	{
+		DateTime day1Morning = new DateTime(2026, 11, 1, 8, 0, 0, DateTimeKind.Utc);
+		DateTime day1Evening = new DateTime(2026, 11, 1, 22, 0, 0, DateTimeKind.Utc);
+		DateTime day2 = new DateTime(2026, 11, 2, 12, 0, 0, DateTimeKind.Utc);
+		var rows = new (DateTime, int, bool)[]
+		{
+			(day1Morning, 1000, false),
+			(day1Evening, 3000, true),
+			(day2, 2000, false),
+		};
+		var daily = HomePageLoadMetrics.BuildDailyTrend(rows);
+		Assert.Equal(2, daily.Count);
+		Assert.Equal("2026-11-01", daily[0].Date);
+		Assert.Equal(1000, daily[0].NonAdminAverageMs);
+		Assert.Equal(3000, daily[0].AdminAverageMs);
+		Assert.Equal(2000, daily[1].NonAdminAverageMs);
+		Assert.Null(daily[1].AdminAverageMs);
+	}
 }
 
 public class HomePageLoadControllerTests

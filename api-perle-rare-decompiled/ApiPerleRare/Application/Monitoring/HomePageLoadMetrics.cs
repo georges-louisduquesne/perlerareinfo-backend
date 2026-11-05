@@ -108,4 +108,76 @@ public static class HomePageLoadMetrics
 	{
 		return hasConseillerId && conseillerId >= 0;
 	}
+
+	public sealed record HomePageLoadDailyPoint(
+		string Date,
+		double? NonAdminAverageMs,
+		int NonAdminCount,
+		double? AdminAverageMs,
+		int AdminCount);
+
+	public static IReadOnlyList<HomePageLoadDailyPoint> BuildDailyTrend(
+		IEnumerable<(DateTime MeasuredAtUtc, int DurationMs, bool IsAdmin)> rows)
+	{
+		if (rows == null)
+		{
+			return Array.Empty<HomePageLoadDailyPoint>();
+		}
+		Dictionary<string, DailyBucket> buckets = new(StringComparer.Ordinal);
+		foreach ((DateTime measuredAtUtc, int durationMs, bool isAdmin) in rows)
+		{
+			if (durationMs < 0)
+			{
+				continue;
+			}
+			string dateKey = ParisDateKey(measuredAtUtc);
+			if (!buckets.TryGetValue(dateKey, out DailyBucket? bucket))
+			{
+				bucket = new DailyBucket();
+				buckets[dateKey] = bucket;
+			}
+			if (isAdmin)
+			{
+				bucket.Admin.Add(durationMs);
+			}
+			else
+			{
+				bucket.NonAdmin.Add(durationMs);
+			}
+		}
+		return buckets
+			.OrderBy((pair) => pair.Key, StringComparer.Ordinal)
+			.Select((pair) => new HomePageLoadDailyPoint(
+				pair.Key,
+				pair.Value.NonAdmin.Count > 0 ? Math.Round(Average(pair.Value.NonAdmin), 1) : null,
+				pair.Value.NonAdmin.Count,
+				pair.Value.Admin.Count > 0 ? Math.Round(Average(pair.Value.Admin), 1) : null,
+				pair.Value.Admin.Count))
+			.ToList();
+	}
+
+	private sealed class DailyBucket
+	{
+		public List<int> NonAdmin { get; } = new();
+
+		public List<int> Admin { get; } = new();
+	}
+
+	private static string ParisDateKey(DateTime measuredAtUtc)
+	{
+		DateTime utc = measuredAtUtc.Kind == DateTimeKind.Utc
+			? measuredAtUtc
+			: DateTime.SpecifyKind(measuredAtUtc, DateTimeKind.Utc);
+		DateTime paris = TimeZoneInfo.ConvertTimeFromUtc(utc, ParisTimeZone());
+		return paris.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+	}
+
+	private static TimeZoneInfo ParisTimeZone()
+	{
+		if (TimeZoneInfo.TryFindSystemTimeZoneById("Europe/Paris", out TimeZoneInfo? paris))
+		{
+			return paris;
+		}
+		return TimeZoneInfo.FindSystemTimeZoneById("Romance Standard Time");
+	}
 }
