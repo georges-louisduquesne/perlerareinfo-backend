@@ -10,4 +10,7 @@ public class FindAppointmentFromERefEvenementResponse
 
 	[DataMember]
 	public RendezVous Appointment { get; set; }
+
+	[DataMember]
+	public string OrganizerEmail { get; set; }
 }

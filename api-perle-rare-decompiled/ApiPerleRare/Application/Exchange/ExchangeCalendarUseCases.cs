@@ -331,7 +331,8 @@ public sealed class FindAppointmentByEvenementUseCase : IFindAppointmentByEvenem
 					return new FindAppointmentFromERefEvenementResponse
 					{
 						Error = null,
-						Appointment = rdv
+						Appointment = rdv,
+						OrganizerEmail = cp.Email
 					};
 				}
 			}
@@ -388,7 +389,8 @@ public sealed class FindAppointmentByEvenementUseCase : IFindAppointmentByEvenem
 					return new FindAppointmentFromERefEvenementResponse
 					{
 						Error = null,
-						Appointment = rdv
+						Appointment = rdv,
+						OrganizerEmail = cp.Email
 					};
 				}
 			}
