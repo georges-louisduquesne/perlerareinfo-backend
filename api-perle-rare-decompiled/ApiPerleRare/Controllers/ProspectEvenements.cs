@@ -22,6 +22,8 @@ public class ProspectEvenements
 
 	public uint? ERefContact { get; set; }
 
+	public uint? ERefConseiller { get; set; }
+
 	public string CNegociateur { get; set; }
 
 	public string CNegociateur_PS { get; set; }

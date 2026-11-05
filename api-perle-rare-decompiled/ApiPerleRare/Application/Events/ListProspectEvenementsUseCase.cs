@@ -62,6 +62,7 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			ETexte = e.ETexte,
 			ENomContact = e.ENomContact,
 			ERefContact = e.ERefContact,
+			ERefConseiller = e.ERefConseiller,
 			CNegociateur = e.ERefContactNavigation.CNegociateur,
 			EConseiller = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpLogin : null),
 			EConseiller_Prenom = ((e.ERefConseillerNavigation != null) ? e.ERefConseillerNavigation.CpPrenom : null),
@@ -86,6 +87,10 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			if (!string.IsNullOrEmpty(row.CNegociateur))
 			{
 				logins.Add(row.CNegociateur);
+			}
+			if (!string.IsNullOrEmpty(row.EConseiller))
+			{
+				logins.Add(row.EConseiller);
 			}
 		}
 		_users.WarmConseillers(logins);
