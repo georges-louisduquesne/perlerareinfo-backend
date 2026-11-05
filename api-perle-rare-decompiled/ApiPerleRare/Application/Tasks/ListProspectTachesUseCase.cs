@@ -24,15 +24,13 @@ public sealed class ListProspectTachesUseCase : IListProspectTachesUseCase
 	public async System.Threading.Tasks.Task<SelectResult<ProspectTaches>> Execute(EntityQuery query, string userLogin, bool applyQuiFilter)
 	{
 		query ??= new EntityQuery();
-		IQueryable<Taches> taches = _context.Taches.AsNoTracking();
-		taches = taches.Where((Taches t) => t.TEtat == "");
 		DateTime dueBefore = AccueilTacheWindow.DueBefore(DateTime.Now);
-		taches = taches.Where((Taches t) => t.TDateRealisation < dueBefore);
-		taches = taches.Where((Taches t) => t.TRefContactNavigation.CStatut == "PROSPECT ACTIF" || t.TRefContactNavigation.CStatut == "PROSPECT MORT");
-		if (applyQuiFilter && !string.IsNullOrEmpty(userLogin))
-		{
-			taches = taches.Where((Taches t) => t.TQui == userLogin);
-		}
+		IQueryable<Taches> taches = HomeAccueilTachesQueries.ProspectAlertesAccueil(
+			_context.Taches.AsNoTracking(),
+			_context.ContactsRecherche.AsNoTracking(),
+			dueBefore,
+			userLogin,
+			applyQuiFilter);
 		IQueryable<ProspectTaches> tachesQuery = taches.Select((Taches t) => new ProspectTaches
 		{
 			TRef = t.TRef,
