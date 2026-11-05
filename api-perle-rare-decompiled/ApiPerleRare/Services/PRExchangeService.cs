@@ -527,7 +527,7 @@ internal class PRExchangeService : IExchangeService
 
 	private async Task<Item> FindMarkedItem(ExchangeService service, ExtendedPropertyDefinition property, int eventId, FolderId calendarId, bool loadProperties = false)
 	{
-		PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
+		PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, AppointmentSchema.Organizer, ItemSchema.Body);
 		CalendarFolder calendar = CalendarFolder.Bind(service, calendarId, ps).Result;
 		ItemView view = new ItemView(1);
 		SearchFilter.IsEqualTo filter = new SearchFilter.IsEqualTo(property, eventId);
@@ -582,7 +582,7 @@ internal class PRExchangeService : IExchangeService
 		{
 			try
 			{
-				PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, ItemSchema.Body);
+				PropertySet ps = new PropertySet(ItemSchema.Subject, AppointmentSchema.Start, AppointmentSchema.End, AppointmentSchema.Location, ItemSchema.ReminderMinutesBeforeStart, AppointmentSchema.RequiredAttendees, AppointmentSchema.OptionalAttendees, AppointmentSchema.Organizer, ItemSchema.Body);
 				first = await Appointment.Bind(service, new ItemId(appointmentId), ps);
 			}
 			catch (ServiceResponseException)
@@ -605,7 +605,8 @@ internal class PRExchangeService : IExchangeService
 			OptionalAttendees = GetAttendees(app.OptionalAttendees),
 			Location = app.Location,
 			CpeRefEvenement = cpeRefEvenement,
-			HtmlBody = app.Body?.Text
+			HtmlBody = app.Body?.Text,
+			AppointmentOrganizer = app.Organizer?.Address
 		};
 	}
 

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 
 namespace ApiPerleRare;
 
@@ -41,4 +42,8 @@ public class RendezVous
 
 	[DataMember]
 	public string LegacyFreeBusyStatus { get; set; }
+
+	/// <summary>Adresse brute de l’organisateur Exchange. N’est pas renvoyée au client : la réponse expose OrganizerEmail.</summary>
+	[JsonIgnore]
+	public string AppointmentOrganizer { get; set; }
 }

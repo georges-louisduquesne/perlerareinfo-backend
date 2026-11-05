@@ -390,7 +390,7 @@ public sealed class FindAppointmentByEvenementUseCase : IFindAppointmentByEvenem
 					{
 						Error = null,
 						Appointment = rdv,
-						OrganizerEmail = cp.Email
+						OrganizerEmail = CandidatAppointmentMailbox.AgendaMailbox(rdv.AppointmentOrganizer, cp.Email)
 					};
 				}
 			}
