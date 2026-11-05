@@ -105,6 +105,7 @@ public sealed class ListProspectEvenementsUseCase : IListProspectEvenementsUseCa
 			{
 				row.CNegociateur_PS = cp.CpPhotoSignature;
 				row.CNegociateur_Prenom = cp.CpPrenom;
+				row.CNegociateur_Nom = cp.CpNomFamille;
 			}
 		}
 	}

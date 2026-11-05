@@ -30,6 +30,8 @@ public class ProspectEvenements
 
 	public string CNegociateur_Prenom { get; set; }
 
+	public string CNegociateur_Nom { get; set; }
+
 	public string EConseiller { get; set; }
 
 	public string EConseiller_Prenom { get; set; }
