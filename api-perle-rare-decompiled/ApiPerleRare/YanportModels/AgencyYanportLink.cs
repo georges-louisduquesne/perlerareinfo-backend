@@ -9,12 +9,18 @@ namespace ApiPerleRare.YanportModels;
 /// L'import Yanport rattache les biens via intermediaires_directs_yanport,
 /// pas via intermediaires_directs.I_IdYanport. À la saisie ou au changement
 /// de cet id, on recopie la ligne (source « saisi ») et on rattache les biens
-/// déjà publiés dont le dealer porte cet id.
+/// déjà en base, publiés ou terminés, dont le dealer porte cet id.
 /// </summary>
 public static class AgencyYanportLink
 {
 	/// <summary>intermediaires_directs_yanport.I_Source est varchar(5).</summary>
 	public const string SaisieSource = "saisi";
+
+	/// <summary>
+	/// Le parcours de property pour un id dure une dizaine de secondes.
+	/// 120 s laisse la marge si le disque est chargé.
+	/// </summary>
+	public const int CommandTimeoutSeconds = 120;
 
 	public const string DeleteFieldRowSql =
 		"DELETE FROM intermediaires_directs_yanport WHERE I_RefIntermediaire=@agency AND I_YanportId=@yanport AND I_Source IN ('saisi','init')";
@@ -25,13 +31,13 @@ public static class AgencyYanportLink
 	public const string InsertPublishedLinksSql =
 		"INSERT INTO rel_property_inter_direct (P_PropertyId, I_RefIntermediaire) "
 		+ "SELECT p.P_PropertyId, @agency FROM property p "
-		+ "WHERE p.P_State=1 AND (p.P_Annonceurs LIKE @idComma OR p.P_Annonceurs LIKE @idBrace OR p.P_Annonceurs LIKE @idSpComma OR p.P_Annonceurs LIKE @idSpBrace) "
+		+ "WHERE (p.P_Annonceurs LIKE @idComma OR p.P_Annonceurs LIKE @idBrace OR p.P_Annonceurs LIKE @idSpComma OR p.P_Annonceurs LIKE @idSpBrace) "
 		+ "AND NOT EXISTS (SELECT 1 FROM rel_property_inter_direct r WHERE r.P_PropertyId=p.P_PropertyId AND r.I_RefIntermediaire=@agency)";
 
 	public const string DeletePublishedLinksSql =
 		"DELETE r FROM rel_property_inter_direct r "
 		+ "INNER JOIN property p ON p.P_PropertyId=r.P_PropertyId "
-		+ "WHERE r.I_RefIntermediaire=@agency AND p.P_State=1 "
+		+ "WHERE r.I_RefIntermediaire=@agency "
 		+ "AND (p.P_Annonceurs LIKE @idComma OR p.P_Annonceurs LIKE @idBrace OR p.P_Annonceurs LIKE @idSpComma OR p.P_Annonceurs LIKE @idSpBrace)";
 
 	public static bool ShouldRun(long previousYanportId, long nextYanportId)
@@ -95,6 +101,7 @@ public static class AgencyYanportLink
 	private static async Task<int> ExecuteAsync(MySqlConnection connection, string sql, uint agencyId, long yanportId)
 	{
 		using MySqlCommand cmd = connection.CreateCommand();
+		cmd.CommandTimeout = CommandTimeoutSeconds;
 		cmd.CommandText = sql;
 		cmd.Parameters.Add("@agency", MySqlDbType.UInt32).Value = agencyId;
 		cmd.Parameters.Add("@yanport", MySqlDbType.UInt64).Value = (ulong)yanportId;

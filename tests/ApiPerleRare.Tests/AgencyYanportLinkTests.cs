@@ -37,15 +37,16 @@ public class AgencyYanportLinkTests
 	}
 
 	[Fact]
-	public void Sql_only_rewrites_the_field_row_and_published_links()
+	public void Sql_links_published_and_ended_properties()
 	{
 		Assert.Equal(5, AgencyYanportLink.SaisieSource.Length);
+		Assert.Equal(120, AgencyYanportLink.CommandTimeoutSeconds);
 		Assert.Contains("I_Source IN ('saisi','init')", AgencyYanportLink.DeleteFieldRowSql);
 		Assert.DoesNotContain("email", AgencyYanportLink.DeleteFieldRowSql, StringComparison.OrdinalIgnoreCase);
 		Assert.DoesNotContain("tel", AgencyYanportLink.DeleteFieldRowSql, StringComparison.OrdinalIgnoreCase);
 		Assert.Contains("INSERT IGNORE INTO intermediaires_directs_yanport", AgencyYanportLink.InsertFieldRowSql);
-		Assert.Contains("p.P_State=1", AgencyYanportLink.InsertPublishedLinksSql);
-		Assert.Contains("p.P_State=1", AgencyYanportLink.DeletePublishedLinksSql);
+		Assert.DoesNotContain("P_State", AgencyYanportLink.InsertPublishedLinksSql, StringComparison.OrdinalIgnoreCase);
+		Assert.DoesNotContain("P_State", AgencyYanportLink.DeletePublishedLinksSql, StringComparison.OrdinalIgnoreCase);
 		Assert.Contains("@agency", AgencyYanportLink.InsertPublishedLinksSql);
 		Assert.Contains("@idComma", AgencyYanportLink.InsertPublishedLinksSql);
 		string[] sql = {
@@ -72,6 +73,8 @@ public class AgencyYanportLinkTests
 		Assert.Empty(queue.Items);
 		job.Enqueue(6236, 0, 5477959295355904L);
 		Assert.Single(queue.Items);
+		Assert.Equal("running", job.Snapshot(6236).State);
+		Assert.Equal("idle", job.Snapshot(1).State);
 	}
 
 	private sealed class RecordingQueue : IBackgroundTaskQueue

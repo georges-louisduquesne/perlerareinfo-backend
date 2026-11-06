@@ -142,6 +142,13 @@ public class IntermediairesDirectsController : ControllerBase
 		return Content(json, "application/json");
 	}
 
+	/// <summary>Rattachement des biens après saisie de l'Id Yanport : idle, running, done ou error.</summary>
+	[HttpGet("{id}/YanportLink")]
+	public ActionResult<AgencyYanportLinkProgress> GetYanportLink(uint id)
+	{
+		return _yanportLinks.Snapshot(id);
+	}
+
 	/// <summary>Historique agence (actor_logs + actor_search), dont les changements de réseau.</summary>
 	[HttpGet("{id}/ActorHistory")]
 	public ActionResult<AgencyActorHistoryItem[]> GetActorHistory(uint id)
