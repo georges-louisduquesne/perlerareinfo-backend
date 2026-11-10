@@ -54,6 +54,10 @@ public class Formulaires
 
 	public string FDateRdv { get; set; }
 
+	public string FTypeRv { get; set; }
+
+	public string FCal { get; set; }
+
 	public virtual ICollection<ContactsRecherche> ContactsRecherche { get; set; } = new List<ContactsRecherche>();
 
 	public virtual ConseillersPersonnels FRefNegociateurNavigation { get; set; }

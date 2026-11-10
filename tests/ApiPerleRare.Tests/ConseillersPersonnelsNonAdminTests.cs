@@ -19,14 +19,14 @@ public class ConseillersPersonnelsNonAdminTests
 		CpDateNaissance = new DateOnly(1980, 1, 2),
 		CpMelPerso = "anna@perso.fr",
 		CpLinkedIn = "https://www.linkedin.com/in/anna",
-		CpGoogleBusinessProfile = "https://g.page/r/anna",
 		CpAdresse = "1 rue X",
 		CpCp = 75001,
 		CpVille = "PARIS",
 		CpCommentaire = "rh",
 		CpOrigine = "LinkedIn",
 		CpCv = "cv.pdf",
-		CpDispoMission = true
+		CpDispoMission = true,
+		CpCalendrierCal = "https://cal.com/anna"
 	};
 
 	[Fact]
@@ -40,11 +40,11 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Null(cp.CpMotDePasse);
 		Assert.Null(cp.CpMelMotDePasse);
 		Assert.Null(cp.CpAutoLogin);
+		Assert.Null(cp.CpCalendrierCal);
 		Assert.Null(cp.CpPieceIdentite);
 		Assert.Null(cp.CpDateNaissance);
 		Assert.Null(cp.CpMelPerso);
 		Assert.Null(cp.CpLinkedIn);
-		Assert.Null(cp.CpGoogleBusinessProfile);
 		Assert.Null(cp.CpAdresse);
 		Assert.Equal(0, cp.CpCp);
 		Assert.Null(cp.CpVille);
@@ -63,9 +63,9 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Null(cp.CpMotDePasse);
 		Assert.Null(cp.CpMelMotDePasse);
 		Assert.Null(cp.CpAutoLogin);
+		Assert.Null(cp.CpCalendrierCal);
 		Assert.Equal("anna@perso.fr", cp.CpMelPerso);
 		Assert.Equal("https://www.linkedin.com/in/anna", cp.CpLinkedIn);
-		Assert.Equal("https://g.page/r/anna", cp.CpGoogleBusinessProfile);
 		Assert.Equal("1 rue X", cp.CpAdresse);
 		Assert.Equal("LinkedIn", cp.CpOrigine);
 		Assert.Equal(75001, cp.CpCp);
@@ -82,6 +82,7 @@ public class ConseillersPersonnelsNonAdminTests
 	[InlineData("CP_Commentaire eq 'x'")]
 	[InlineData("CP_LinkedIn eq 'x'")]
 	[InlineData("CP_googleBusinessProfile eq 'x'")]
+	[InlineData("CP_CalendrierCal eq 'x'")]
 	[InlineData("CP_Origine eq 'LinkedIn'")]
 	public void Filters_probing_restricted_fields_are_detected(string expression)
 	{

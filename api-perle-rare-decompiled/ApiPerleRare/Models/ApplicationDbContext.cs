@@ -418,6 +418,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpAdresse).IsRequired().HasMaxLength(100)
 				.HasColumnName("CP_Adresse");
 			entity.Property((ConseillersPersonnels e) => e.CpAutoLogin).HasMaxLength(15).HasColumnName("CP_AutoLogin");
+			entity.Property((ConseillersPersonnels e) => e.CpCalendrierCal).HasMaxLength(100).HasColumnName("CP_CalendrierCal");
 			entity.Property((ConseillersPersonnels e) => e.CpCommentaire).HasMaxLength(2000).HasColumnName("CP_Commentaire");
 			entity.Property((ConseillersPersonnels e) => e.CpOrigine).HasMaxLength(50).HasColumnName("CP_Origine");
 			entity.Property((ConseillersPersonnels e) => e.CpCp).HasColumnName("CP_CP");
@@ -442,7 +443,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpMelPerso).IsRequired().HasMaxLength(100)
 				.HasColumnName("CP_MelPerso");
 			entity.Property((ConseillersPersonnels e) => e.CpLinkedIn).HasMaxLength(100).HasColumnName("CP_LinkedIn");
-			entity.Property((ConseillersPersonnels e) => e.CpGoogleBusinessProfile).HasMaxLength(100).HasColumnName("CP_googleBusinessProfile");
 			entity.Property((ConseillersPersonnels e) => e.CpMelSignature).HasMaxLength(10000).HasColumnName("CP_MelSignature");
 			// Widened for soft-hash PBKDF2 strings (~90 chars). Apply docs/sql/widen-cp-mot-de-passe.sql before prod deploy.
 			entity.Property((ConseillersPersonnels e) => e.CpMotDePasse).HasMaxLength(255).HasColumnName("CP_MotDePasse");
@@ -879,6 +879,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((Formulaires e) => e.FCp).HasMaxLength(100).HasColumnName("F_CP");
 			entity.Property((Formulaires e) => e.FDate).HasColumnType("datetime").HasColumnName("F_Date");
 			entity.Property((Formulaires e) => e.FDateRdv).HasMaxLength(50).HasColumnName("F_DateRdv");
+			entity.Property((Formulaires e) => e.FTypeRv).HasMaxLength(120).HasColumnName("F_TypeRv");
+			entity.Property((Formulaires e) => e.FCal).HasMaxLength(255).HasColumnName("F_Cal");
 			entity.Property((Formulaires e) => e.FEmail).HasMaxLength(100).HasColumnName("F_Email");
 			entity.Property((Formulaires e) => e.FFichierContenu).HasMaxLength(255).HasColumnName("F_FichierContenu");
 			entity.Property((Formulaires e) => e.FIpAddress).HasMaxLength(30).HasColumnName("F_IpAddress");

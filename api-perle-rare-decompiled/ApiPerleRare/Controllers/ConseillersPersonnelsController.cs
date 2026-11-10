@@ -30,7 +30,7 @@ public class ConseillersPersonnelsController : ControllerBase
 		_photo = photo;
 	}
 
-	private static readonly string[] RestrictedFilterTokens = new string[10] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "googlebusinessprofile", "origine" };
+	private static readonly string[] RestrictedFilterTokens = new string[11] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "googlebusinessprofile", "calendriercal", "origine" };
 
 	private bool IsAdmin => User.IsInRole("Admin");
 
@@ -52,13 +52,13 @@ public class ConseillersPersonnelsController : ControllerBase
 		cp.CpMotDePasse = null;
 		cp.CpMelMotDePasse = null;
 		cp.CpAutoLogin = null;
+		cp.CpCalendrierCal = null;
 		if (!isSelf)
 		{
 			cp.CpPieceIdentite = null;
 			cp.CpDateNaissance = null;
 			cp.CpMelPerso = null;
 			cp.CpLinkedIn = null;
-			cp.CpGoogleBusinessProfile = null;
 			cp.CpAdresse = null;
 			cp.CpCp = 0;
 			cp.CpVille = null;
@@ -177,6 +177,8 @@ public class ConseillersPersonnelsController : ControllerBase
 		_context.Entry(conseillersPersonnels).Property(x => x.CpMotDePasse).IsModified = false;
 		// Le portrait ne passe que par POST/DELETE …/photo.
 		_context.Entry(conseillersPersonnels).Property(x => x.CpPhoto).IsModified = false;
+		// Le lien Cal est posé hors fiche : un enregistrement ne doit pas l'effacer.
+		_context.Entry(conseillersPersonnels).Property(x => x.CpCalendrierCal).IsModified = false;
 		try
 		{
 			await _context.SaveChangesAsync();

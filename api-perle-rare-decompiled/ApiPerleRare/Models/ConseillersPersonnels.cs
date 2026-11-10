@@ -49,8 +49,6 @@ public class ConseillersPersonnels
 
 	public string CpLinkedIn { get; set; }
 
-	public string CpGoogleBusinessProfile { get; set; }
-
 	public string CpPhoto { get; set; }
 
 	public DateOnly CpDateDebut { get; set; }
@@ -94,6 +92,8 @@ public class ConseillersPersonnels
 	public bool CpDispoMission { get; set; }
 
 	public string CpAutoLogin { get; set; }
+
+	public string CpCalendrierCal { get; set; }
 
 	public string CpPhotoSignature { get; set; }
 
