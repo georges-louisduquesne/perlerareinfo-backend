@@ -459,45 +459,27 @@ public class SearchService : ISearchService
 			string login = _userSessionService.Login;
 			bool mustFilter = _userSessionService.Filter;
 			List<List<SearchConfig>> tiers = ConsecutiveTiers(allowed, (SearchConfig c) => c.SearchQueryType);
-			Task<PrefetchedRows[]>[] pending = new Task<PrefetchedRows[]>[tiers.Count];
-			Task<PrefetchedRows[]> StartTier(int t) => pending[t] ??= Task.WhenAll(tiers[t].Select((SearchConfig c) =>
-				PrefetchAsync(connection, c, query, login, mustFilter, prefetch, ct)));
-			try
+			for (int t = 0; t < tiers.Count; t++)
 			{
-				for (int t = 0; t < tiers.Count; t++)
+				ct.ThrowIfCancellationRequested();
+				PrefetchedRows[] tierRows = PrefetchTierAsync(connection, tiers[t], query, login, mustFilter, prefetch, ct).GetAwaiter().GetResult();
+				List<SearchConfig> tier = tiers[t];
+				for (int i = 0; i < tier.Count && res.Count < query.Max; i++)
 				{
-					ct.ThrowIfCancellationRequested();
-					Task<PrefetchedRows[]> current = StartTier(t);
-					if (t + 1 < tiers.Count && StartsAhead(tiers[t + 1][0].SearchQueryType))
+					SearchConfig config2 = tier[i];
+					HashSet<int> ids = searchStore.Ids(config2.TableName);
+					if (!TakeFromPrefetch(tierRows[i], ids, res, query.Max - res.Count))
 					{
-						StartTier(t + 1);
-					}
-					PrefetchedRows[] tierRows = current.GetAwaiter().GetResult();
-					List<SearchConfig> tier = tiers[t];
-					for (int i = 0; i < tier.Count && res.Count < query.Max; i++)
-					{
-						SearchConfig config2 = tier[i];
-						HashSet<int> ids = searchStore.Ids(config2.TableName);
-						if (!TakeFromPrefetch(tierRows[i], ids, res, query.Max - res.Count))
+						if (connection.State != System.Data.ConnectionState.Open)
 						{
-							if (connection.State != System.Data.ConnectionState.Open)
-							{
-								connection.Open();
-							}
-							res.AddRange(Search(connection, config2, query, login, searchStore, mustFilter, query.Max - res.Count));
+							connection.Open();
 						}
-					}
-					if (res.Count >= query.Max)
-					{
-						break;
+						res.AddRange(Search(connection, config2, query, login, searchStore, mustFilter, query.Max - res.Count));
 					}
 				}
-			}
-			finally
-			{
-				foreach (Task<PrefetchedRows[]> task in pending)
+				if (res.Count >= query.Max)
 				{
-					task?.ContinueWith((Task<PrefetchedRows[]> x) => x.Exception, TaskContinuationOptions.OnlyOnFaulted);
+					break;
 				}
 			}
 		}
@@ -566,17 +548,31 @@ public class SearchService : ISearchService
 		return added >= need || !rows.Truncated;
 	}
 
-	private static async Task<PrefetchedRows> PrefetchAsync(MySqlConnection connection, SearchConfig config, SearchQuery query, string login, bool mustFilter, int limit, CancellationToken ct)
+	/// <summary>One cloned connection per tier — avoids opening dozens of MariaDB sessions per search.</summary>
+	internal const int PrefetchDbConnectionsPerTier = 1;
+
+	private static async Task<PrefetchedRows[]> PrefetchTierAsync(MySqlConnection connection, List<SearchConfig> tier, SearchQuery query, string login, bool mustFilter, int limit, CancellationToken ct)
+	{
+		PrefetchedRows[] results = new PrefetchedRows[tier.Count];
+		using MySqlConnection prefetchConnection = connection.Clone();
+		await prefetchConnection.OpenAsync(ct).ConfigureAwait(false);
+		for (int i = 0; i < tier.Count; i++)
+		{
+			ct.ThrowIfCancellationRequested();
+			results[i] = await PrefetchOnConnectionAsync(prefetchConnection, tier[i], query, login, mustFilter, limit, ct).ConfigureAwait(false);
+		}
+		return results;
+	}
+
+	private static async Task<PrefetchedRows> PrefetchOnConnectionAsync(MySqlConnection db, SearchConfig config, SearchQuery query, string login, bool mustFilter, int limit, CancellationToken ct)
 	{
 		PrefetchedRows rows = new PrefetchedRows();
-		using MySqlConnection c2 = connection.Clone();
-		await c2.OpenAsync(ct);
-		using MySqlCommand cmd = c2.CreateCommand();
+		using MySqlCommand cmd = db.CreateCommand();
 		cmd.CommandText = config.Select.Replace("*extrawhere*", "") + $" LIMIT {limit}";
 		AddSearchParameters(cmd, config, query, login, mustFilter);
-		using MySqlDataReader reader = await cmd.ExecuteReaderAsync(ct);
+		using MySqlDataReader reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
 		int read = 0;
-		while (await reader.ReadAsync(ct))
+		while (await reader.ReadAsync(ct).ConfigureAwait(false))
 		{
 			read++;
 			rows.Rows.Add((reader.GetInt32(0), BuildResult(reader, config, query)));

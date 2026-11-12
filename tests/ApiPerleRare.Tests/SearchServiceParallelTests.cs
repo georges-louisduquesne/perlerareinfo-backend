@@ -26,6 +26,12 @@ public class SearchServiceParallelTests
 	}
 
 	[Fact]
+	public void Prefetch_opens_one_db_connection_per_match_tier()
+	{
+		Assert.Equal(1, SearchService.PrefetchDbConnectionsPerTier);
+	}
+
+	[Fact]
 	public void Prefetch_skips_ids_already_taken_and_stops_at_need()
 	{
 		var rows = Prefetched(new[] { 9, 8, 7, 6 }, truncated: false);
