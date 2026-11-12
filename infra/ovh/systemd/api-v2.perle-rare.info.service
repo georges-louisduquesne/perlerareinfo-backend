@@ -9,6 +9,9 @@ ExecStart=/var/www/api-v2.perle-rare.info/ApiPerleRare
 User=www-data
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5002
+# MySqlConnector default pool is 100 per process. Keep v2 + current API + demo under max_connections.
+Environment=PR_DB_MAX_POOL=15
+Environment=PR_DB_POOL_IDLE_SECONDS=20
 # Imports / notifications stay on api.perle-rare.info.service (same database, tasks are not coordinated).
 Environment=PR_SCHEDULED_TASKS=off
 # Formulaires candidats (contact@) : job dédié, pas le bundle TimedHostedService de l'API v1.

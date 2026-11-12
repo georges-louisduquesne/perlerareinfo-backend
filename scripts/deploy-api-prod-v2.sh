@@ -130,6 +130,39 @@ sudo -n rsync -a --delete --exclude 'appsettings*.json' --exclude 'logs/' $STAGI
 # stays in the systemd drop-in (api-v2.perle-rare.info.service.d), not in git.
 sudo -n cp $PROD_DIR/appsettings.json $V2_DIR/appsettings.json
 sudo -n cp $PROD_DIR/appsettings.Production.json $V2_DIR/appsettings.Production.json
+# The copy carries the current API pool (25). v2 must stay at 15.
+sudo -n python3 - << 'PY'
+import json, re
+from pathlib import Path
+
+def set_pool(value, name, limit):
+    pattern = re.compile(r"(?i)(^|;)\s*" + re.escape(name) + r"\s*=[^;]*")
+    updated, count = pattern.subn(lambda m: m.group(1) + name + "=" + limit, value)
+    if count:
+        return updated
+    if value and not value.endswith(";"):
+        value += ";"
+    return value + name + "=" + limit
+
+for path in (Path("/var/www/api-v2.perle-rare.info/appsettings.json"), Path("/var/www/api-v2.perle-rare.info/appsettings.Production.json")):
+    raw = path.read_bytes()
+    text = raw.decode("utf-8-sig")
+    data = json.loads(text)
+    cs = data.get("ConnectionStrings", {}).get("PerleRareDB")
+    if not isinstance(cs, str) or not cs:
+        raise SystemExit(f"missing PerleRareDB in {path}")
+    new = set_pool(set_pool(cs, "Maximum Pool Size", "15"), "Connection Idle Timeout", "20")
+    old_enc = json.dumps(cs, ensure_ascii=False)
+    new_enc = json.dumps(new, ensure_ascii=False)
+    if text.count(old_enc) != 1:
+        raise SystemExit(f"cannot rewrite PerleRareDB in {path}")
+    updated = text.replace(old_enc, new_enc, 1)
+    out = updated.encode("utf-8")
+    if raw.startswith(b"\xef\xbb\xbf"):
+        out = b"\xef\xbb\xbf" + out
+    path.write_bytes(out)
+print("v2_pool_ok")
+PY
 sudo -n chown -R www-data:www-data $V2_DIR
 sudo -n chmod 640 $V2_DIR/appsettings.json $V2_DIR/appsettings.Production.json
 sudo -n test -x $V2_DIR/ApiPerleRare

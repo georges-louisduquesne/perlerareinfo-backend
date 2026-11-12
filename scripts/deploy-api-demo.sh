@@ -103,6 +103,18 @@ src = json.loads(Path(r"$DEV_SETTINGS_PY").read_text(encoding="utf-8-sig"))
 cs = src["ConnectionStrings"]["PerleRareDB"].replace("Server=142.4.216.57", "Server=127.0.0.1")
 cs = re.sub(r"Uid=[^;]*", "Uid=" + user, cs, count=1, flags=re.I)
 cs = re.sub(r"Pwd=[^;]*", "Pwd=" + password, cs, count=1, flags=re.I)
+
+def set_pool(value, name, limit):
+    pattern = re.compile(r"(?i)(^|;)\s*" + re.escape(name) + r"\s*=[^;]*")
+    updated, count = pattern.subn(lambda m: m.group(1) + name + "=" + limit, value)
+    if count:
+        return updated
+    if value and not value.endswith(";"):
+        value += ";"
+    return value + name + "=" + limit
+
+cs = set_pool(cs, "Maximum Pool Size", "8")
+cs = set_pool(cs, "Connection Idle Timeout", "20")
 src["ConnectionStrings"]["PerleRareDB"] = cs
 src["ConnectionStrings"]["Exchange"] = "Server=ex2.mail.ovh.net"
 src["AppSettings"]["YanportToken"] = ""
