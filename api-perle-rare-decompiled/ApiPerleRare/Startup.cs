@@ -13,10 +13,12 @@ using ApiPerleRare.Application.Disponibilites;
 using ApiPerleRare.Application.Events;
 using ApiPerleRare.Application.Exchange;
 using ApiPerleRare.Application.Files;
+using ApiPerleRare.Application.Formation;
 using ApiPerleRare.Application.Search;
 using ApiPerleRare.Application.Tasks;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Infrastructure.Files;
+using ApiPerleRare.Infrastructure.Formation;
 using ApiPerleRare.Infrastructure.Mail;
 using ApiPerleRare.Infrastructure.Yanport;
 using ApiPerleRare.YanportModels;
@@ -275,6 +277,7 @@ public class Startup
 		{
 			services.AddSingleton<IYanportService, YanportService>();
 		}
+		services.AddScoped<IFormationStore, MariaDbFormationStore>();
 		services.AddSingleton<IWebSiteService, WebSiteService>();
 		services.AddSingleton<ILocalhostMailService, LocalhostMailService>();
 	}
