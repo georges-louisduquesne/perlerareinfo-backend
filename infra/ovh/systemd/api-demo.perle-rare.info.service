@@ -12,6 +12,9 @@ Environment=PR_LOCAL_SAFE=1
 Environment=PR_FORMULAIRES_CANDIDATS_MAIL=on
 Environment=PR_DEMO_PATH_PREFIX=/api-demo
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5080
+# MySqlConnector default pool is 100 per process. Keep demo + the two prod APIs under max_connections.
+Environment=PR_DB_MAX_POOL=8
+Environment=PR_DB_POOL_IDLE_SECONDS=20
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
 Environment=DOTNET_EnableDiagnostics=0
 Restart=on-failure

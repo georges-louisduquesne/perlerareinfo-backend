@@ -71,7 +71,10 @@ public class Startup
 
 	public void ConfigureServices(IServiceCollection services)
 	{
-		string connectionString = Configuration.GetConnectionString("PerleRareDB");
+		string connectionString = DbConnectionPool.Apply(
+			Configuration.GetConnectionString("PerleRareDB"),
+			Environment.GetEnvironmentVariable("PR_DB_MAX_POOL"),
+			Environment.GetEnvironmentVariable("PR_DB_POOL_IDLE_SECONDS"));
 		services.AddResponseCompression(delegate(ResponseCompressionOptions options)
 		{
 			options.EnableForHttps = true;
