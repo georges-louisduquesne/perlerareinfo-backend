@@ -187,6 +187,32 @@ public class ConseillersPersonnelsController : ControllerBase
 	}
 
 	[Authorize(Roles = "Admin")]
+	[HttpPut("{id:int}/alerte-agenda")]
+	public async Task<IActionResult> PutConseillerAlerteAgenda(int id, [FromBody] AlerteAgendaRequest body)
+	{
+		if (body?.CpAlerteAgenda is not bool checkedByDefault)
+		{
+			return BadRequest();
+		}
+		bool hasClaim = User.TryGetId(out int userId);
+		if (AlerteAgendaPreference.EditableRow(hasClaim, userId, IsAdmin, id) is not uint rowId)
+		{
+			return Unauthorized();
+		}
+		int target = (int)rowId;
+		int flag = AlerteAgendaPreference.ToStoredFlag(checkedByDefault);
+		int updated = await _context.Database.ExecuteSqlInterpolatedAsync($"UPDATE conseillers_personnels SET CP_AlerteAgenda = {flag} WHERE CP_RefConseiller = {target}");
+		if (updated == 0)
+		{
+			return NotFound();
+		}
+		return Ok(new
+		{
+			cpAlerteAgenda = checkedByDefault
+		});
+	}
+
+	[Authorize(Roles = "Admin")]
 	[HttpPut("{id}")]
 	public async Task<IActionResult> PutConseillersPersonnels(uint id, ConseillersPersonnels conseillersPersonnels)
 	{
