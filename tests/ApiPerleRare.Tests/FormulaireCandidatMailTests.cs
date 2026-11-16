@@ -107,6 +107,7 @@ Délai de remplissage du formulaire : 00:03:35
 		Assert.False(created.CpNegociateur);
 		Assert.Equal((sbyte)0, created.CpDispo);
 		Assert.False(created.CpDispoMission);
+		Assert.True(created.CpAlerteAgenda);
 		Assert.Equal((sbyte)1, created.CpActif);
 		Assert.Contains("CP_Admin = 0", FormulaireCandidatAttribution.PersistOffFlagsSql);
 		Assert.Contains("CP_Negociateur = 0", FormulaireCandidatAttribution.PersistOffFlagsSql);

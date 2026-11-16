@@ -91,6 +91,8 @@ public class ConseillersPersonnels
 
 	public bool CpDispoMission { get; set; }
 
+	public bool CpAlerteAgenda { get; set; }
+
 	public string CpAutoLogin { get; set; }
 
 	public string CpCalendrierCal { get; set; }

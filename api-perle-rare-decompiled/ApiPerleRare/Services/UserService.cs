@@ -118,6 +118,7 @@ public class UserService : IUserService
 		foreach (RoleModel role in model.Roles)
 		{
 		}
+		user.CpAlerteAgenda = AlerteAgendaPreference.ValueOnCreate();
 		_context.ConseillersPersonnels.Add(user);
 		_context.SaveChanges();
 		return user;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 
 namespace ApiPerleRare.ScheduledTasks;
@@ -107,6 +108,7 @@ internal static class FormulaireCandidatAttribution
 			CpAdmin = false,
 			CpDispo = 0,
 			CpDispoMission = false,
+			CpAlerteAgenda = AlerteAgendaPreference.ValueOnCreate(),
 			CpNegociateur = false,
 			CpEnSociete = false,
 			CpTva = false,

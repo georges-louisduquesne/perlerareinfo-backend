@@ -161,6 +161,31 @@ public class ConseillersPersonnelsController : ControllerBase
 		return cp;
 	}
 
+	[HttpPut("alerte-agenda")]
+	public async Task<IActionResult> PutOwnAlerteAgenda([FromBody] AlerteAgendaRequest body)
+	{
+		if (body?.CpAlerteAgenda is not bool checkedByDefault)
+		{
+			return BadRequest();
+		}
+		bool hasClaim = User.TryGetId(out int userId);
+		if (AlerteAgendaPreference.OwnRow(hasClaim, userId) is not uint rowId)
+		{
+			return Unauthorized();
+		}
+		int target = (int)rowId;
+		int flag = AlerteAgendaPreference.ToStoredFlag(checkedByDefault);
+		int updated = await _context.Database.ExecuteSqlInterpolatedAsync($"UPDATE conseillers_personnels SET CP_AlerteAgenda = {flag} WHERE CP_RefConseiller = {target}");
+		if (updated == 0)
+		{
+			return NotFound();
+		}
+		return Ok(new
+		{
+			cpAlerteAgenda = checkedByDefault
+		});
+	}
+
 	[Authorize(Roles = "Admin")]
 	[HttpPut("{id}")]
 	public async Task<IActionResult> PutConseillersPersonnels(uint id, ConseillersPersonnels conseillersPersonnels)
@@ -179,6 +204,8 @@ public class ConseillersPersonnelsController : ControllerBase
 		_context.Entry(conseillersPersonnels).Property(x => x.CpPhoto).IsModified = false;
 		// Le lien Cal est posé hors fiche : un enregistrement ne doit pas l'effacer.
 		_context.Entry(conseillersPersonnels).Property(x => x.CpCalendrierCal).IsModified = false;
+		// La préférence d'agenda ne passe que par PUT …/alerte-agenda, jamais par la fiche.
+		_context.Entry(conseillersPersonnels).Property(x => x.CpAlerteAgenda).IsModified = false;
 		try
 		{
 			await _context.SaveChangesAsync();
@@ -272,6 +299,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			{
 				conseillersPersonnels.CpOrigine = null;
 			}
+			conseillersPersonnels.CpAlerteAgenda = AlerteAgendaPreference.ValueOnCreate();
 			bool candidat = string.Equals((conseillersPersonnels.CpStatut ?? "").Trim(), "Candidat", StringComparison.OrdinalIgnoreCase);
 			if (candidat)
 			{
@@ -313,4 +341,9 @@ public class ConseillersPersonnelsController : ControllerBase
 	{
 		return _context.ConseillersPersonnels.Any((ConseillersPersonnels e) => e.CpRefConseiller == id);
 	}
+}
+
+public sealed class AlerteAgendaRequest
+{
+	public bool? CpAlerteAgenda { get; set; }
 }
