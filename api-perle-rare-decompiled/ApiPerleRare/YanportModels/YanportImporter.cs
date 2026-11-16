@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using ApiPerleRare.RecupInfos;
 using Microsoft.EntityFrameworkCore;
@@ -122,6 +123,10 @@ public class YanportImporter
 	private List<PropertyContact> _contacts = new List<PropertyContact>();
 
 	private List<string> _contactsLoaded = new List<string>();
+
+	private HashSet<uint> _blockedAlertContacts;
+
+	private bool _blockedAlertContactsLoaded;
 
 	private Dictionary<string, uint> _conseillers = new Dictionary<string, uint>();
 
@@ -278,6 +283,16 @@ public class YanportImporter
 		return property;
 	}
 
+	private bool ContactAlertsBlocked(uint contactRef)
+	{
+		if (!_blockedAlertContactsLoaded)
+		{
+			_blockedAlertContacts = _dbContext.Evenements.AsNoTracking().Where((Evenements e) => e.EStatut == 1 && e.ERefContact != null && (e.ETypeEvenement == BienNotificationGate.TypeCompromis || e.ETypeEvenement == BienNotificationGate.TypeActe || e.ETypeEvenement == BienNotificationGate.TypeActeBare)).Select((Evenements e) => e.ERefContact.Value).ToHashSet();
+			_blockedAlertContactsLoaded = true;
+		}
+		return _blockedAlertContacts.Contains(contactRef);
+	}
+
 	private void TryToAddToContacts(Property property, double? oldPrice, double? newPrice, Action<string> logger)
 	{
 		string key = $"{property.PTypeTransaction}/{property.PType}/{property.PCp}";
@@ -288,7 +303,7 @@ public class YanportImporter
 			{
 				try
 				{
-					_contacts.Add(new PropertyContact(_dbContext, contact.CRefContact, contact.CNomFamilleConseiller, contact.CAlerteMail == 1, new PropertyFilterSearch
+					_contacts.Add(new PropertyContact(_dbContext, contact.CRefContact, contact.CNomFamilleConseiller, BienNotificationGate.Allows(contact.CAlerteMail, ContactAlertsBlocked(contact.CRefContact)), new PropertyFilterSearch
 					{
 						BudgetC = contact.CBudgetC,
 						NbChambres = contact.CNbChambres,

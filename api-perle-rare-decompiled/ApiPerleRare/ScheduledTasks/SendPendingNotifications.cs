@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Text;
+using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,6 +67,21 @@ public class SendPendingNotifications : AbstractScheduledTask
 				}
 				else
 				{
+					sbyte alerteMail = dbContext.ContactsRecherche.AsNoTracking().Where((ContactsRecherche cr) => cr.CRefContact == n.NRefContact).Select((ContactsRecherche cr) => cr.CAlerteMail).FirstOrDefault();
+					bool blockingEvent = dbContext.Evenements.AsNoTracking().Any((Evenements e) => e.ERefContact == n.NRefContact && e.EStatut == 1 && (e.ETypeEvenement == BienNotificationGate.TypeCompromis || e.ETypeEvenement == BienNotificationGate.TypeActe || e.ETypeEvenement == BienNotificationGate.TypeActeBare));
+					if (!BienNotificationGate.Allows(alerteMail, blockingEvent))
+					{
+						n.NState = BienNotificationGate.SkippedState;
+						stringBuilder = logs;
+						StringBuilder stringBuilderSkip = stringBuilder;
+						handler = new StringBuilder.AppendInterpolatedStringHandler(43, 1, stringBuilder);
+						handler.AppendLiteral("Notification ");
+						handler.AppendFormatted(n.NId);
+						handler.AppendLiteral(" ignorée (alerte biens coupée)");
+						stringBuilderSkip.AppendLine(ref handler);
+						dbContext.SaveChanges();
+						continue;
+					}
 					sbyte newState;
 					try
 					{
