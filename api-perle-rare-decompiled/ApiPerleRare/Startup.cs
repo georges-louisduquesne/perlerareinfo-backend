@@ -269,6 +269,10 @@ public class Startup
 			{
 				services.AddHostedService<TransactionEventMailHostedService>();
 			}
+			if (RecrawlStockMail.Enabled(Environment.GetEnvironmentVariable(RecrawlStockMail.EnvVar)))
+			{
+				services.AddHostedService<RecrawlStockMailHostedService>();
+			}
 		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 		services.AddSingleton<AgencyYanportLinkJob>();

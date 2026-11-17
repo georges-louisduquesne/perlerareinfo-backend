@@ -20,6 +20,8 @@ Environment=PR_FORMULAIRES_CANDIDATS_MAIL=on
 # Environment=ConnectionStrings__ExchangeContact=Server=ex2.mail.ovh.net;Username=contact@perle-rare.com;Password=...
 # Mails OFFRE, compromis et acte : envoyés par le site. Ne pas remettre ce job à on.
 Environment=PR_TRANSACTION_EVENT_MAIL=off
+# Rappel mensuel des biens à recrawler : support@ vers gld@. Pas sur la démo.
+Environment=PR_RECRAWL_STOCK_MAIL=on
 # Same host as the current API: a shared session cookie name makes each API overwrite the other's session.
 Environment=PR_SESSION_COOKIE=.PerleRare.v2.Session
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
