@@ -11,7 +11,7 @@ public class BienNotificationGateTests
 	[InlineData(1, true, false)]
 	[InlineData(0, true, false)]
 	[InlineData(2, false, false)]
-	public void Mail_goes_out_only_when_the_switch_is_on_and_no_closing_event_is_active(sbyte alerteMail, bool blockingEvent, bool allows)
+	public void Mobile_notification_goes_out_only_when_the_switch_is_on_and_no_closing_event_is_active(sbyte alerteMail, bool blockingEvent, bool allows)
 	{
 		Assert.Equal(allows, BienNotificationGate.Allows(alerteMail, blockingEvent));
 	}
@@ -27,8 +27,16 @@ public class BienNotificationGateTests
 	[InlineData("OFFRE ACCEPTEE", false)]
 	[InlineData("", false)]
 	[InlineData(null, false)]
-	public void Only_compromis_and_acte_authentique_block_property_mails(string type, bool blocking)
+	public void Only_compromis_and_acte_authentique_block_mobile_notifications(string type, bool blocking)
 	{
 		Assert.Equal(blocking, BienNotificationGate.IsBlockingType(type));
+	}
+
+	[Fact]
+	public void A_skipped_mobile_notification_is_not_marked_as_sent()
+	{
+		Assert.Equal(-3, BienNotificationGate.MobilePendingState);
+		Assert.Equal(3, BienNotificationGate.MobileSentState);
+		Assert.Equal(4, BienNotificationGate.SkippedState);
 	}
 }
