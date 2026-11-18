@@ -2,14 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.BiensNonVus;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MySqlConnector;
 
 namespace ApiPerleRare.Controllers;
@@ -21,12 +22,12 @@ public class BiensController : ControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
-	private readonly IUserSessionService _userSessionService;
+	private readonly IMemoryCache _memoryCache;
 
-	public BiensController(ApplicationDbContext context, IUserSessionService userSessionService)
+	public BiensController(ApplicationDbContext context, IMemoryCache memoryCache)
 	{
 		_context = context;
-		_userSessionService = userSessionService;
+		_memoryCache = memoryCache;
 	}
 
 	[HttpGet]
@@ -79,36 +80,26 @@ public class BiensController : ControllerBase
 		try
 		{
 			string login = this.GetUserLogin();
-			bool mustFilter = _userSessionService.Filter;
-			string select = "SELECT COUNT(*) FROM property_contact pc\r\nINNER JOIN property p ON pc.PC_PropertyId=p.P_PropertyId\r\nINNER JOIN contacts_recherche cr ON pc.PC_RefContact=cr.C_RefContact\r\nWHERE pc.PC_Actif=1 AND pc.PC_Vu<>1 AND (C_NomFamilleConseiller=@conseillerid OR C_2emeConseiller=@conseillerid)";
-			MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
-			if (c.State != ConnectionState.Open)
-			{
-				c.Open();
-			}
-			using MySqlCommand cmd = c.CreateCommand();
-			cmd.CommandText = select;
-			cmd.Parameters.AddWithValue("@conseillerid", login);
-			object res = cmd.ExecuteScalar();
-			if (res is long v)
-			{
-				return v;
-			}
-			if (res is int i)
-			{
-				return i;
-			}
-			if (res == null || res is DBNull)
-			{
-				Trace.WriteLine("Null récupéré pour Non vu");
-				return -1L;
-			}
-			throw new Exception("Type '" + res.GetType().FullName + "' non géré");
+			return BiensNonVusCount.GetOrCompute(_memoryCache, login, () => CountNonVus(login));
 		}
 		catch (Exception ex)
 		{
 			return BadRequest(ex.ToString());
 		}
+	}
+
+	private long CountNonVus(string login)
+	{
+		MySqlConnection c = (MySqlConnection)_context.Database.GetDbConnection();
+		if (c.State != ConnectionState.Open)
+		{
+			c.Open();
+		}
+		using MySqlCommand cmd = c.CreateCommand();
+		cmd.CommandText = BiensNonVusCount.Sql;
+		cmd.Parameters.AddWithValue("@conseillerid", login);
+		cmd.Parameters.AddWithValue("@conseillerid2", login);
+		return BiensNonVusCount.ReadCount(cmd.ExecuteScalar());
 	}
 
 	[HttpGet("{id}")]
