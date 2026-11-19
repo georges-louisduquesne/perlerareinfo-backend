@@ -30,19 +30,30 @@ public class ConseillersPersonnelsEvenementsController : QueryEntitiesController
 		_context = context;
 	}
 
-	/// <summary>RDV candidats actifs à partir d'aujourd'hui (catégorie RV).</summary>
+	/// <summary>Évènements candidats actifs à partir d'aujourd'hui, tous types.</summary>
 	[HttpGet("Home")]
 	public async Task<ActionResult<IEnumerable<ConseillersPersonnelsEvenements>>> GetHomeCandidatEvenements()
 	{
 		try
 		{
 			DateTime today = DateTime.Today;
-			IQueryable<ConseillersPersonnelsEvenements> query = HomeCandidatAccueilQueries.UpcomingRdvForCandidats(
-				_context.ConseillersPersonnelsEvenements.AsNoTracking(),
-				_context.ConseillersPersonnels.AsNoTracking(),
-				_context.ConseillersPersonnelsTypesEvenements.AsNoTracking(),
-				today);
-			List<ConseillersPersonnelsEvenements> res = await query.ToListAsync();
+			var joined = await (
+				from cpe in _context.ConseillersPersonnelsEvenements.AsNoTracking()
+				join cp in _context.ConseillersPersonnels.AsNoTracking()
+					on cpe.CpeRefConseiller equals cp.CpRefConseiller
+				where cpe.CpeStatut == 1
+					&& cpe.CpeDateRealisation != null
+					&& cpe.CpeDateRealisation >= today
+				select new { Event = cpe, CpStatut = cp.CpStatut }).ToListAsync();
+			List<ConseillersPersonnelsEvenements> res = joined
+				.Where((row) => HomeCandidatAccueilQueries.ListedOnCandidatEventsTab(
+					row.CpStatut,
+					row.Event.CpeTypeEvenement,
+					row.Event.CpeStatut,
+					row.Event.CpeDateRealisation,
+					today))
+				.Select((row) => row.Event)
+				.ToList();
 			foreach (ConseillersPersonnelsEvenements row in res)
 			{
 				EncodingHelper.FixEncodingInStringProperties(row);

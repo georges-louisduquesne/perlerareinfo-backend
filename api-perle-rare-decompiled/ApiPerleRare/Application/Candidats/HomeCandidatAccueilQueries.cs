@@ -41,4 +41,46 @@ public static class HomeCandidatAccueilQueries
 				&& cpe.CpeDateRealisation >= today
 			select cpe;
 	}
+
+	/// <summary>
+	/// Onglet Événements de Mes candidats : actif, du jour ou à venir, tout type
+	/// (MAIL IN compris). Un passage de statut reste listé même si la personne
+	/// n’est plus au statut Candidat.
+	/// </summary>
+	public static bool ListedOnCandidatEventsTab(
+		string conseillerStatut,
+		string eventType,
+		sbyte eventStatut,
+		DateTime? realisation,
+		DateTime today)
+	{
+		if (eventStatut != 1 || !realisation.HasValue || !IsOnOrAfterDay(realisation.Value, today))
+		{
+			return false;
+		}
+		if (string.Equals((conseillerStatut ?? "").Trim(), CandidatStatut, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		return IsCandidatLifeEventType(eventType);
+	}
+
+	/// <summary>Type « CANDIDAT ACTIF &gt; … » ou « … &gt; CANDIDAT ACTIF ».</summary>
+	public static bool IsCandidatLifeEventType(string eventType)
+	{
+		if (string.IsNullOrWhiteSpace(eventType))
+		{
+			return false;
+		}
+		string value = eventType.Trim().ToUpperInvariant();
+		return value.StartsWith("CANDIDAT ", StringComparison.Ordinal)
+			|| value.Contains("> CANDIDAT", StringComparison.Ordinal);
+	}
+
+	private static bool IsOnOrAfterDay(DateTime value, DateTime today)
+	{
+		DateTime day = DateTime.SpecifyKind(value, DateTimeKind.Unspecified).Date;
+		DateTime start = DateTime.SpecifyKind(today, DateTimeKind.Unspecified).Date;
+		return day >= start;
+	}
 }
