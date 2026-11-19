@@ -61,6 +61,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
 	public virtual DbSet<HomePageLoads> HomePageLoads { get; set; }
 
+	public virtual DbSet<PrixMoyen> PrixMoyens { get; set; }
+
+	public virtual DbSet<TransactionImmo> Transactions { get; set; }
+
 	public virtual DbSet<IntermediairesDirects> IntermediairesDirects { get; set; }
 
 	public virtual DbSet<IntermediairesDirectsYanport> IntermediairesDirectsYanport { get; set; }
@@ -997,6 +1001,67 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((HomePageLoads e) => e.HplDurationMs).HasColumnName("HPL_DurationMs");
 			entity.Property((HomePageLoads e) => e.HplMeasuredAt).HasColumnType("datetime").HasColumnName("HPL_MeasuredAt");
 			entity.Property((HomePageLoads e) => e.HplBreakdown).HasMaxLength(2048).HasColumnName("HPL_Breakdown");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<PrixMoyen> entity)
+		{
+			entity.HasKey((PrixMoyen e) => e.PmRef).HasName("PRIMARY");
+			entity.ToTable("Prix_Moyens");
+			entity.Property((PrixMoyen e) => e.PmRef).HasColumnName("PM_Ref");
+			entity.Property((PrixMoyen e) => e.PmCp).HasColumnName("PM_CP");
+			entity.Property((PrixMoyen e) => e.PmTrim).IsRequired().HasColumnType("enum('T1','T2','T3','T4')").HasColumnName("PM_Trim");
+			entity.Property((PrixMoyen e) => e.PmAnnee).HasColumnName("PM_Annee");
+			entity.Property((PrixMoyen e) => e.PmPrixMoyen).HasColumnName("PM_PrixMoyen");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<TransactionImmo> entity)
+		{
+			entity.HasKey((TransactionImmo e) => e.TRef).HasName("PRIMARY");
+			entity.ToTable("Transactions");
+			entity.HasIndex((TransactionImmo e) => e.TFingerprint, "UX_Transactions_Fingerprint").IsUnique();
+			entity.HasIndex((TransactionImmo e) => new { e.TCp, e.TAdresseRueNorm, e.TAdresseNum, e.TDateTransaction }, "IX_Transactions_CP_RueNorm_Num");
+			entity.HasIndex((TransactionImmo e) => new { e.TIdParcelle, e.TDateTransaction }, "IX_Transactions_Parcelle");
+			entity.HasIndex((TransactionImmo e) => e.TDateTransaction, "IX_Transactions_Date");
+			entity.HasIndex((TransactionImmo e) => e.TPropertyId, "IX_Transactions_PropertyId");
+			entity.Property((TransactionImmo e) => e.TRef).HasColumnName("T_Ref");
+			entity.Property((TransactionImmo e) => e.TDateTransaction).HasColumnType("date").HasColumnName("T_DateTransaction");
+			entity.Property((TransactionImmo e) => e.TNatureMutation).IsRequired().HasMaxLength(60).HasColumnName("T_NatureMutation");
+			entity.Property((TransactionImmo e) => e.TPrix).HasColumnType("decimal(12,2)").HasColumnName("T_Prix");
+			entity.Property((TransactionImmo e) => e.TAdresseNum).HasMaxLength(16).HasColumnName("T_AdresseNum");
+			entity.Property((TransactionImmo e) => e.TAdresseSuffixe).HasMaxLength(10).HasColumnName("T_AdresseSuffixe");
+			entity.Property((TransactionImmo e) => e.TAdresseRue).IsRequired().HasMaxLength(160).HasColumnName("T_AdresseRue");
+			entity.Property((TransactionImmo e) => e.TAdresseRueNorm).IsRequired().HasMaxLength(160).HasColumnName("T_AdresseRueNorm");
+			entity.Property((TransactionImmo e) => e.TCp).IsRequired().HasMaxLength(5).HasColumnName("T_CP");
+			entity.Property((TransactionImmo e) => e.TCommune).HasMaxLength(100).HasColumnName("T_Commune");
+			entity.Property((TransactionImmo e) => e.TCodeDepartement).IsRequired().HasMaxLength(3).HasColumnName("T_CodeDepartement");
+			entity.Property((TransactionImmo e) => e.TTypeBien).IsRequired().HasMaxLength(50).HasColumnName("T_TypeBien");
+			entity.Property((TransactionImmo e) => e.TNbPieces).HasColumnName("T_NbPieces");
+			entity.Property((TransactionImmo e) => e.TSurfaceBatie).HasColumnType("decimal(8,2)").HasColumnName("T_SurfaceBatie");
+			entity.Property((TransactionImmo e) => e.TPrixM2).HasColumnType("decimal(10,2)").HasColumnName("T_PrixM2");
+			entity.Property((TransactionImmo e) => e.TSurfaceCarrez).HasColumnType("decimal(8,2)").HasColumnName("T_SurfaceCarrez");
+			entity.Property((TransactionImmo e) => e.TNbLots).HasColumnName("T_NbLots");
+			entity.Property((TransactionImmo e) => e.TLotsJson).HasMaxLength(500).HasColumnName("T_LotsJson");
+			entity.Property((TransactionImmo e) => e.TNbDependances).HasColumnName("T_NbDependances");
+			entity.Property((TransactionImmo e) => e.TSurfaceTerrain).HasColumnType("decimal(10,2)").HasColumnName("T_SurfaceTerrain");
+			entity.Property((TransactionImmo e) => e.TNatureCulture).HasMaxLength(80).HasColumnName("T_NatureCulture");
+			entity.Property((TransactionImmo e) => e.TIdMutation).HasMaxLength(40).HasColumnName("T_IdMutation");
+			entity.Property((TransactionImmo e) => e.TFingerprint).IsRequired().HasMaxLength(64).HasColumnName("T_Fingerprint");
+			entity.Property((TransactionImmo e) => e.TIdParcelle).HasMaxLength(14).HasColumnName("T_IdParcelle");
+			entity.Property((TransactionImmo e) => e.TCodeCommuneInsee).HasMaxLength(5).HasColumnName("T_CodeCommuneInsee");
+			entity.Property((TransactionImmo e) => e.TCodeVoieFantoir).HasMaxLength(6).HasColumnName("T_CodeVoieFantoir");
+			entity.Property((TransactionImmo e) => e.TLat).HasColumnName("T_Lat");
+			entity.Property((TransactionImmo e) => e.TLon).HasColumnName("T_Lon");
+			entity.Property((TransactionImmo e) => e.TNbChambres).HasColumnName("T_NbChambres");
+			entity.Property((TransactionImmo e) => e.TEtage).HasColumnName("T_Etage");
+			entity.Property((TransactionImmo e) => e.TSurfaceNormee).HasColumnType("decimal(8,2)").HasColumnName("T_SurfaceNormee");
+			entity.Property((TransactionImmo e) => e.TNbEtages).HasColumnName("T_NbEtages");
+			entity.Property((TransactionImmo e) => e.TAscenseur).HasColumnName("T_Ascenseur");
+			entity.Property((TransactionImmo e) => e.TDernierEtage).HasColumnName("T_DernierEtage");
+			entity.Property((TransactionImmo e) => e.TDpe).HasMaxLength(1).HasColumnName("T_Dpe");
+			entity.Property((TransactionImmo e) => e.TRemarques).HasColumnName("T_Remarques");
+			entity.Property((TransactionImmo e) => e.TPropertyId).HasMaxLength(40).HasColumnName("T_PropertyId");
+			entity.Property((TransactionImmo e) => e.TPhotoUrl).HasMaxLength(500).HasColumnName("T_PhotoUrl");
+			entity.Property((TransactionImmo e) => e.TSource).IsRequired().HasMaxLength(40).HasColumnName("T_Source");
+			entity.Property((TransactionImmo e) => e.TDateImport).HasColumnType("datetime").HasColumnName("T_DateImport");
+			entity.Property((TransactionImmo e) => e.TDateMaj).HasColumnType("datetime").HasColumnName("T_DateMaj");
 		});
 		modelBuilder.Entity(delegate(EntityTypeBuilder<IntermediairesDirects> entity)
 		{
