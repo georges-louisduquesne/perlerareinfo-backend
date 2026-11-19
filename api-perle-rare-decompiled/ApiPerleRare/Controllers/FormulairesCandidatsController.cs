@@ -38,6 +38,38 @@ public class FormulairesCandidatsController : ControllerBase
 		public string CpPhoto { get; set; }
 	}
 
+	public class VolumeRow
+	{
+		public int FcRef { get; set; }
+
+		public DateTime FcDate { get; set; }
+
+		public short FcStatut { get; set; }
+
+		public string FcCauseRejet { get; set; }
+
+		public uint? FcRefAdmin { get; set; }
+	}
+
+	internal const int DefaultVolumeDays = 60;
+
+	internal const int MaxVolumeDays = 365;
+
+	internal static int ClampVolumeDays(int days)
+	{
+		if (days <= 0)
+		{
+			return DefaultVolumeDays;
+		}
+		return days > MaxVolumeDays ? MaxVolumeDays : days;
+	}
+
+	internal static DateTime VolumeWindowStart(DateTime parisNow, int days)
+	{
+		int clamped = ClampVolumeDays(days);
+		return DateTime.SpecifyKind(parisNow.Date.AddDays(-(clamped - 1)), DateTimeKind.Unspecified);
+	}
+
 	private readonly ApplicationDbContext _context;
 
 	public FormulairesCandidatsController(ApplicationDbContext context)
@@ -64,6 +96,29 @@ public class FormulairesCandidatsController : ControllerBase
 	public async Task<ActionResult<int>> GetActiveCount()
 	{
 		return await _context.FormulairesCandidats.CountAsync((FormulairesCandidats row) => row.FcStatut == FormulaireCandidatMail.StatutAAttribuer);
+	}
+
+	[HttpGet("Volume")]
+	public async Task<ActionResult<object>> GetVolume([FromQuery] int days = DefaultVolumeDays)
+	{
+		DateTime start = VolumeWindowStart(TypeformPartialLeadMapper.ToParisWallClock(DateTime.UtcNow), days);
+		VolumeRow[] items = await _context.FormulairesCandidats.AsNoTracking()
+			.Where((FormulairesCandidats row) => row.FcDate >= start)
+			.OrderBy((FormulairesCandidats row) => row.FcDate)
+			.Select((FormulairesCandidats row) => new VolumeRow
+			{
+				FcRef = row.FcRef,
+				FcDate = row.FcDate,
+				FcStatut = row.FcStatut,
+				FcCauseRejet = row.FcCauseRejet,
+				FcRefAdmin = row.FcRefAdmin
+			})
+			.ToArrayAsync();
+		return new
+		{
+			items,
+			total = items.Length
+		};
 	}
 
 	[HttpGet("Recruteurs")]

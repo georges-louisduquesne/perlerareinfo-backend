@@ -1,4 +1,5 @@
 using System;
+using ApiPerleRare.Controllers;
 using ApiPerleRare.Models;
 using ApiPerleRare.ScheduledTasks;
 using Xunit;
@@ -242,5 +243,21 @@ Délai de remplissage du formulaire : 00:03:35
 		Assert.StartsWith("J'ai envie", created.CpCommentaire);
 		Assert.Equal(2000, created.CpCommentaire.Length);
 		Assert.Contains("\u00F6", created.CpCommentaire);
+	}
+
+	[Fact]
+	public void Volume_window_clamps_days_and_covers_60_inclusive_days()
+	{
+		Assert.Equal(60, FormulairesCandidatsController.ClampVolumeDays(0));
+		Assert.Equal(60, FormulairesCandidatsController.ClampVolumeDays(-10));
+		Assert.Equal(30, FormulairesCandidatsController.ClampVolumeDays(30));
+		Assert.Equal(365, FormulairesCandidatsController.ClampVolumeDays(999));
+
+		DateTime start = FormulairesCandidatsController.VolumeWindowStart(new DateTime(2026, 11, 17, 19, 30, 0), 60);
+		Assert.Equal(new DateTime(2026, 9, 19, 0, 0, 0), start);
+		Assert.Equal(DateTimeKind.Unspecified, start.Kind);
+
+		DateTime oneDay = FormulairesCandidatsController.VolumeWindowStart(new DateTime(2026, 11, 17, 19, 30, 0), 1);
+		Assert.Equal(new DateTime(2026, 11, 17, 0, 0, 0), oneDay);
 	}
 }
