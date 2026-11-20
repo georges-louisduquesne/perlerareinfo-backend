@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,6 +34,21 @@ public class PersonLookupController : ControllerBase
 	/// <summary>run-sync Google : 20 s coupait la requête avant les résultats.</summary>
 	internal const int GoogleSearchTimeoutSeconds = 90;
 
+	internal const int GoogleImagesTimeoutSeconds = 45;
+
+	private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
+
+	private sealed record CachedLookup(
+		DateTimeOffset ExpiresAt,
+		string AiSummary,
+		string AiSummaryIntro,
+		List<AiSummaryPoint> AiSummaryPoints,
+		List<PublicProfile> LinkedIn,
+		List<PublicWebHit> Web,
+		List<PublicPhoto> Photos);
+
+	private static readonly ConcurrentDictionary<string, CachedLookup> Cache = new ConcurrentDictionary<string, CachedLookup>(StringComparer.Ordinal);
+
 	public PersonLookupController(IConfiguration configuration)
 	{
 		_configuration = configuration;
@@ -43,6 +59,8 @@ public class PersonLookupController : ControllerBase
 		public string Prenom { get; set; }
 
 		public string Nom { get; set; }
+
+		public bool ForceRefresh { get; set; }
 	}
 
 	[HttpPost("identify")]
@@ -54,57 +72,52 @@ public class PersonLookupController : ControllerBase
 		{
 			return Ok(PersonLookupReader.Unavailable());
 		}
+
+		var cacheKey = CacheKey(prenom, nom);
+		if (body?.ForceRefresh != true && TryReadCache(cacheKey, out var cached))
+		{
+			return Ok(new
+			{
+				available = true,
+				aiSummary = cached.AiSummary,
+				aiSummaryIntro = cached.AiSummaryIntro,
+				aiSummaryPoints = cached.AiSummaryPoints,
+				linkedin = cached.LinkedIn,
+				web = cached.Web,
+				photos = cached.Photos,
+				cached = true,
+			});
+		}
+
 		var token = ReadApifyToken(_configuration);
 		if (string.IsNullOrWhiteSpace(token))
 		{
 			Console.WriteLine("PersonLookup: jeton Apify absent.");
 			return Ok(PersonLookupReader.Unavailable());
 		}
+
+		var fullName = (prenom + " " + nom).Trim();
 		using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds) };
 		try
 		{
-			var lightTask = RunActor(http, token, "automly~linkedin-people-search-scraper", new
-			{
-				firstName = prenom,
-				lastName = nom,
-				maxResults = 12,
-				fullProfiles = false,
-			}, 22, 512, cancellationToken);
 			var googleTask = RunActor(http, token, "apify~google-search-scraper", new
 			{
-				queries = (prenom + " " + nom).Trim(),
+				queries = BuildGoogleQueries(prenom, nom),
 				maxPagesPerQuery = 1,
 				countryCode = "fr",
 				languageCode = "fr",
-				searchLanguage = "fr",
+				aiOverview = new { scrapeFullAiOverview = true },
 				saveHtml = false,
 				saveHtmlToKeyValueStore = false,
 			}, GoogleSearchTimeoutSeconds, 1024, cancellationToken);
 
-			var people = PersonLookupReader.ReadLinkedIn(await lightTask);
-			var exact = people.Where(person => PersonLookupReader.IsExactPersonName(prenom, nom, person.Name)).ToList();
-			if (exact.Count == 1)
+			var imagesTask = RunActor(http, token, "johnvc~google-images-api", new
 			{
-				try
-				{
-					var fullJson = await RunActor(http, token, "automly~linkedin-people-search-scraper", new
-					{
-						firstName = prenom,
-						lastName = nom,
-						maxResults = 2,
-						fullProfiles = true,
-					}, 20, 512, cancellationToken);
-					people = PersonLookupReader.Merge(people, PersonLookupReader.ReadLinkedIn(fullJson));
-				}
-				catch (OperationCanceledException)
-				{
-					throw;
-				}
-				catch
-				{
-					// Le décompte reste valable sans la photo.
-				}
-			}
+				queries = new[] { fullName },
+				maxResultsPerQuery = 12,
+				gl = "fr",
+				hl = "fr",
+			}, GoogleImagesTimeoutSeconds, 512, cancellationToken);
 
 			string googleJson = null;
 			try
@@ -115,17 +128,72 @@ public class PersonLookupController : ControllerBase
 			{
 				throw;
 			}
-			catch
+			catch (Exception ex)
 			{
-				googleJson = null;
+				Console.WriteLine("PersonLookup Google: " + ex.Message);
+			}
+
+			string imagesJson = null;
+			try
+			{
+				imagesJson = await imagesTask;
+			}
+			catch (OperationCanceledException)
+			{
+				throw;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("PersonLookup Images: " + ex.Message);
+			}
+
+			if (googleJson == null && imagesJson == null)
+			{
+				return Ok(PersonLookupReader.Unavailable());
+			}
+
+			var rawAi = PersonLookupReader.ReadAiSummary(googleJson);
+			var parsedAi = PersonLookupReader.ParseAiSummary(rawAi);
+			var linkedin = PersonLookupReader.ReadLinkedInFromGoogle(googleJson, prenom, nom);
+			var web = PersonLookupReader.ReadGoogleForPerson(googleJson, prenom, nom);
+
+			var knownUrls = new List<string>();
+			knownUrls.AddRange(linkedin.Select(p => p.Url));
+			knownUrls.AddRange(web.Select(w => w.Url));
+
+			var photos = PersonLookupReader.ReadGoogleImages(imagesJson, prenom, nom, knownUrls);
+			if (linkedin.Count == 0 && photos.Count > 0)
+			{
+				linkedin = PersonLookupReader.ProfilesFromLinkedInPhotos(photos, prenom, nom);
+			}
+			PersonLookupReader.AttachLinkedInPhotos(linkedin, photos);
+
+			var aiText = parsedAi?.Text;
+			var aiIntro = parsedAi?.Intro;
+			var aiPoints = parsedAi?.Points ?? new List<AiSummaryPoint>();
+
+			if (!string.IsNullOrWhiteSpace(aiText) || linkedin.Count > 0 || web.Count > 0 || photos.Count > 0)
+			{
+				WriteCache(cacheKey, new CachedLookup(
+					DateTimeOffset.UtcNow.Add(CacheTtl),
+					aiText,
+					aiIntro,
+					aiPoints,
+					linkedin,
+					web,
+					photos));
 			}
 
 			return Ok(new
 			{
 				available = true,
-				aiSummary = PersonLookupReader.ReadAiSummary(googleJson),
-				linkedin = people,
-				web = googleJson == null ? new List<PublicWebHit>() : PersonLookupReader.ReadGoogle(googleJson),
+				aiSummary = aiText,
+				aiSummaryIntro = aiIntro,
+				aiSummaryPoints = aiPoints,
+				linkedin,
+				web,
+				photos,
+				cached = false,
 			});
 		}
 		catch (OperationCanceledException)
@@ -137,6 +205,49 @@ public class PersonLookupController : ControllerBase
 			Console.WriteLine("PersonLookup: " + ex.Message);
 			return Ok(PersonLookupReader.Unavailable());
 		}
+	}
+
+	internal static string BuildGoogleQueries(string prenom, string nom)
+	{
+		var fullName = ((prenom ?? "") + " " + (nom ?? "")).Trim();
+		return fullName
+			+ "\n\"" + fullName + "\""
+			+ "\n\"" + fullName + "\" site:linkedin.com/in";
+	}
+
+	internal static string CacheKey(string prenom, string nom)
+	{
+		return PersonLookupReader.Fold(prenom) + "|" + PersonLookupReader.Fold(nom);
+	}
+
+	private static bool TryReadCache(string key, out CachedLookup entry)
+	{
+		if (Cache.TryGetValue(key, out entry))
+		{
+			if (entry.ExpiresAt > DateTimeOffset.UtcNow)
+			{
+				return true;
+			}
+			Cache.TryRemove(key, out _);
+		}
+		entry = null;
+		return false;
+	}
+
+	private static void WriteCache(string key, CachedLookup entry)
+	{
+		if (Cache.Count > 200)
+		{
+			var now = DateTimeOffset.UtcNow;
+			foreach (var kv in Cache)
+			{
+				if (kv.Value.ExpiresAt <= now)
+				{
+					Cache.TryRemove(kv.Key, out _);
+				}
+			}
+		}
+		Cache[key] = entry;
 	}
 
 	private static async Task<string> RunActor(HttpClient http, string token, string actorId, object input, int timeoutSecs, int memory, CancellationToken cancellationToken)
