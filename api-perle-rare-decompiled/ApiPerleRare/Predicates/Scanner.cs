@@ -118,6 +118,19 @@ internal class Scanner
 		MoveToNextToken();
 	}
 
+	/// <summary>
+	/// OData : '' (ou ``, ‘‘) reste dans la chaîne. Le caractère courant est déjà le premier guillemet.
+	/// </summary>
+	private bool ConsumeEscapedQuote()
+	{
+		if (_bufferPosition >= _bufferSize || _buffer[_bufferPosition] != ch)
+		{
+			return false;
+		}
+		NextChar();
+		return true;
+	}
+
 	private void NextChar()
 	{
 		if (_bufferPosition >= _bufferSize)
@@ -317,6 +330,10 @@ internal class Scanner
 										NextChar();
 										if (ch == '\'' || ch == '`' || ch == '‘')
 										{
+											if (ConsumeEscapedQuote())
+											{
+												continue;
+											}
 											FoundToken(54);
 											break;
 										}
@@ -2637,6 +2654,10 @@ internal class Scanner
 								NextChar();
 								if (ch == '\'' || ch == '`' || ch == '‘')
 								{
+									if (ConsumeEscapedQuote())
+									{
+										continue;
+									}
 									FoundToken(54);
 									break;
 								}
@@ -2959,6 +2980,10 @@ internal class Scanner
 											NextChar();
 											if (ch == '\'' || ch == '`' || ch == '‘')
 											{
+												if (ConsumeEscapedQuote())
+												{
+													continue;
+												}
 												FoundToken(54);
 												break;
 											}

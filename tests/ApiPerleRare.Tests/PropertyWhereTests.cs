@@ -34,6 +34,21 @@ public class PropertyWhereTests
 	}
 
 	[Fact]
+	public void Apply_keeps_apostrophe_and_accent_in_street_name()
+	{
+		const string where = "PCp eq '75008' and PAdresseRue eq 'Rue d''Édimbourg' and PAdresseNum eq '32'";
+		Property[] rows =
+		[
+			new Property { PPropertyId = "match", PCp = "75008", PAdresseRue = "Rue d'Édimbourg", PAdresseNum = "32" },
+			new Property { PPropertyId = "other-street", PCp = "75008", PAdresseRue = "Rue de la Paix", PAdresseNum = "32" },
+			new Property { PPropertyId = "other-number", PCp = "75008", PAdresseRue = "Rue d'Édimbourg", PAdresseNum = "14" }
+		];
+		Property[] selected = EFHelper<Property>.Apply(rows.AsQueryable(), where, null, 0, 0, null).ToArray();
+		Assert.Single(selected);
+		Assert.Equal("match", selected[0].PPropertyId);
+	}
+
+	[Fact]
 	public void Apply_coerces_byte_and_double_property_filters()
 	{
 		Property[] rows =
