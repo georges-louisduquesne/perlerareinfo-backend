@@ -302,6 +302,7 @@ function parseArgs(argv) {
     depts: ['75', '92', '93', '94'],
     appsettings: DEFAULT_APPSETTINGS,
     maxPages: 0,
+    minDate: null,
     concurrency: 4,
   };
   for (const a of argv) {
@@ -317,6 +318,8 @@ function parseArgs(argv) {
       opts.appsettings = a.slice(14);
     } else if (a.startsWith('--max-pages=')) {
       opts.maxPages = parseInt(a.slice(12), 10) || 0;
+    } else if (a.startsWith('--min-date=')) {
+      opts.minDate = a.slice(11).trim() || null;
     } else if (a.startsWith('--concurrency=')) {
       opts.concurrency = Math.max(1, Math.min(4, parseInt(a.slice(14), 10) || 4));
     }
@@ -358,8 +361,9 @@ async function fetchTextWithRetry(url, maxRetries = 8) {
   }
 }
 
-async function streamAdemeDept(dept, neededAddresses, ademeByAddr, nbEtagesCountsByAddr, maxPages) {
-  const qs = encodeURIComponent(`code_departement_ban:${dept} AND type_batiment:appartement`);
+async function streamAdemeDept(dept, neededAddresses, ademeByAddr, nbEtagesCountsByAddr, maxPages, minDpeDate = null) {
+  const dpeDateClause = minDpeDate ? ` AND date_etablissement_dpe:[${minDpeDate} TO *]` : '';
+  const qs = encodeURIComponent(`code_departement_ban:${dept} AND type_batiment:appartement${dpeDateClause}`);
   let url = `${ADEME_BASE_URL}?format=csv&size=${PAGE_SIZE}&qs=${qs}&select=${encodeURIComponent(ADEME_SELECT)}`;
   let pages = 0;
   let rowsRead = 0;
@@ -515,6 +519,8 @@ async function main() {
   try {
     // 1. Charger les transactions Appartement qui ont encore T_Etage / T_NbEtages / T_Dpe NULL
     const deptPlaceholders = opts.depts.map(() => '?').join(',');
+    const dateFilterSql = opts.minDate ? ' AND T_DateTransaction >= ?' : '';
+    const queryParams = opts.minDate ? [...opts.depts, opts.minDate] : [...opts.depts];
     const [txRows] = await conn.query(
       `SELECT T_Ref, T_CodeDepartement, T_CP, T_AdresseRueNorm, T_AdresseNum, T_AdresseSuffixe, T_DateTransaction,
               T_SurfaceCarrez, T_SurfaceBatie,
@@ -523,8 +529,8 @@ async function main() {
        WHERE T_CodeDepartement IN (${deptPlaceholders})
          AND T_TypeBien = 'Appartement'
          AND T_CP IS NOT NULL AND T_AdresseRueNorm IS NOT NULL AND T_AdresseNum IS NOT NULL
-         AND (T_Etage IS NULL OR T_NbEtages IS NULL OR T_Dpe IS NULL)`,
-      opts.depts
+         AND (T_Etage IS NULL OR T_NbEtages IS NULL OR T_Dpe IS NULL)${dateFilterSql}`,
+      queryParams
     );
 
     const neededAddresses = new Set();
@@ -574,12 +580,17 @@ async function main() {
       const ademeByAddr = new Map();
       const nbEtagesCountsByAddr = new Map();
 
+      const minDpeDate = opts.minDate
+        ? new Date(Date.parse(opts.minDate) - 730 * DAY_MS).toISOString().slice(0, 10)
+        : null;
+
       const dr = await streamAdemeDept(
         dept,
         deptAddresses,
         ademeByAddr,
         nbEtagesCountsByAddr,
-        opts.maxPages
+        opts.maxPages,
+        minDpeDate
       );
       console.log(
         `  ADEME dept ${dr.dept} terminé : ${dr.pages} pages, ${dr.rowsRead} lignes lues, ${dr.rowsKept} retenues`

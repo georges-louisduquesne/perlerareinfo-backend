@@ -2,25 +2,29 @@
 /**
  * Import DVF géolocalisé (data.gouv.fr) vers la table MariaDB `Transactions`.
  *
- * - Sans dépendance externe (Node.js >= 18 natif).
- * - Mode --dry-run par défaut (aucune écriture tant que --out-sql n'est pas fourni).
- * - Télécharge les CSV compressés officiels :
- *   https://files.data.gouv.fr/geo-dvf/latest/csv/{annee}/departements/{dept}.csv.gz
+ * - Mode --dry-run par défaut (aucune écriture tant que --out-sql ou --apply n'est pas fourni).
+ * - Résout automatiquement les URLs officielles de la livraison en cours via l'API data.gouv.fr :
+ *   https://www.data.gouv.fr/api/1/datasets/demandes-de-valeurs-foncieres-geolocalisees/
+ *   (fichiers annuels/semestriels `full-YYYY*.csv.gz`, ex. `full-2026-s1.csv.gz`),
+ *   puis filtre les départements demandés en streaming.
  * - Agrège les lignes par (id_mutation, numero_disposition) pour éviter le double
  *   comptage de valeur_fonciere, compter les dépendances et extraire les surfaces Carrez.
- * - Génère des requêtes INSERT ... ON DUPLICATE KEY UPDATE basées sur T_Fingerprint (SHA-256)
+ * - Génère / exécute des requêtes INSERT ... ON DUPLICATE KEY UPDATE basées sur T_Fingerprint (SHA-256)
  *   qui mettent à jour uniquement les colonnes DVF sans jamais écraser les colonnes enrichies
- *   (T_NbChambres, T_Etage, T_SurfaceNormee, T_PropertyId, T_PhotoUrl, T_Remarques...).
+ *   (T_NbChambres, T_Etage, T_Ascenseur, T_Dpe, T_SurfaceNormee, T_PropertyId, T_PhotoUrl...).
  *
  * Exemples :
- *   node scripts/import-dvf-transactions.mjs --dry-run
+ *   node scripts/import-dvf-transactions.mjs --dry-run --years=2026
+ *   node scripts/import-dvf-transactions.mjs --depts=75,92,93,94 --years=2025,2026 --apply
  *   node scripts/import-dvf-transactions.mjs --depts=75,92,93,94 --out-sql=artifacts/dvf-75-92-93-94.sql
  */
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
+import { createRequire } from 'node:module';
 import { Readable } from 'node:stream';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 export const DEFAULT_DEPTS = ['75', '92', '93', '94'];
 export const DEFAULT_NATURES = new Set(['Vente']);
 export const RESIDENTIAL_TYPES = new Set(['Appartement', 'Maison']);
-const DVF_BASE_URL = 'https://files.data.gouv.fr/geo-dvf/latest/csv';
+const DVF_DATASET_API_URL = 'https://www.data.gouv.fr/api/1/datasets/demandes-de-valeurs-foncieres-geolocalisees/';
 
 const LEADING_STREET_ABBREVS = new Map([
   ['r', 'rue'],
@@ -449,92 +453,197 @@ export function buildBatchInsertSql(batch, importStamp) {
   return `INSERT INTO Transactions (${INSERT_COLS.join(', ')}) VALUES\n${tuples.join(',\n')}\nON DUPLICATE KEY UPDATE ${ON_DUPLICATE_CLAUSE};\n`;
 }
 
-async function discoverAvailableYears(probeDept = '75', maxYears = 5) {
-  const currentYear = new Date().getUTCFullYear();
-  const years = [];
-  for (let y = currentYear; y >= currentYear - 7 && years.length < maxYears; y -= 1) {
-    const url = `${DVF_BASE_URL}/${y}/departements/${probeDept}.csv.gz`;
-    try {
-      const res = await fetch(url, { method: 'HEAD' });
-      if (res.ok) {
-        years.push(y);
-      }
-    } catch {
-      // Ignore transient probe error and keep checking previous year.
+/**
+ * Sélectionne les ressources officielles `full-YYYY*.csv.gz` depuis la réponse API data.gouv.fr.
+ * Retourne un tableau trié par année croissante : [{ year, title, url, lastModified }].
+ */
+export function selectDvfResourcesForYears(resources, requestedYears = null) {
+  const byYear = new Map();
+  for (const r of resources || []) {
+    const url = String(r?.url || '');
+    const m = url.match(/\/full-(\d{4})(?:-s[12])?\.csv\.gz$/i);
+    if (!m) continue;
+    const year = Number.parseInt(m[1], 10);
+    if (!Number.isFinite(year)) continue;
+    if (requestedYears && requestedYears.length > 0 && !requestedYears.includes(year)) {
+      continue;
+    }
+    const existing = byYear.get(year);
+    const mod = String(r.last_modified || '');
+    if (!existing || mod > existing.lastModified) {
+      byYear.set(year, {
+        year,
+        title: String(r.title || `DVF ${year}`),
+        url,
+        lastModified: mod,
+      });
     }
   }
-  return years.sort((a, b) => a - b);
+  return Array.from(byYear.values()).sort((a, b) => a.year - b.year);
 }
 
-async function processDeptYear(year, dept, onTransaction, stats) {
-  const url = `${DVF_BASE_URL}/${year}/departements/${dept}.csv.gz`;
-  const res = await fetch(url);
-  if (res.status === 404) {
-    return { missing: true };
-  }
+async function discoverDvfResources(requestedYears = null) {
+  const res = await fetch(DVF_DATASET_API_URL, {
+    headers: { 'User-Agent': 'PerleRareCRM-ImportDVF/2.0' },
+  });
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status} pour ${url}`);
+    throw new Error(`HTTP ${res.status} lors de la résolution du jeu DVF sur data.gouv.fr`);
   }
+  const dataset = await res.json();
+  return selectDvfResourcesForYears(dataset.resources || [], requestedYears);
+}
 
-  const gunzip = zlib.createGunzip();
-  const nodeStream = Readable.fromWeb(res.body).pipe(gunzip);
-  const rl = readline.createInterface({ input: nodeStream, crlfDelay: Infinity });
-
-  let headers = null;
-  let currentKey = null;
-  let currentRows = [];
-
-  const flush = () => {
-    if (currentRows.length === 0) {
-      return;
+async function downloadToTempFile(url, maxRetries = 3) {
+  const tmpPath = path.join(os.tmpdir(), `dvf-${Date.now()}-${Math.random().toString(36).slice(2)}.csv.gz`);
+  let attempt = 0;
+  while (true) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'PerleRareCRM-ImportDVF/2.0' },
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} pour ${url}`);
+      }
+      const ws = fs.createWriteStream(tmpPath);
+      await new Promise((resolve, reject) => {
+        const rs = Readable.fromWeb(res.body);
+        rs.on('error', reject);
+        ws.on('error', reject);
+        ws.on('finish', resolve);
+        rs.pipe(ws);
+      });
+      return tmpPath;
+    } catch (err) {
+      fs.rmSync(tmpPath, { force: true });
+      attempt += 1;
+      if (attempt >= maxRetries) throw err;
+      await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
-    stats.mutations += 1;
-    const agg = aggregateMutationRows(currentRows);
-    if (agg.status === 'ok') {
-      stats.kept += 1;
-      onTransaction(agg.tx);
-    } else {
-      stats.skipped[agg.reason] = (stats.skipped[agg.reason] || 0) + 1;
+  }
+}
+
+async function processNationalYearResource(resource, deptSet, onTransaction, stats) {
+  const tmpPath = await downloadToTempFile(resource.url);
+  try {
+    const gunzip = zlib.createGunzip();
+    const nodeStream = fs.createReadStream(tmpPath).pipe(gunzip);
+    const rl = readline.createInterface({ input: nodeStream, crlfDelay: Infinity });
+
+    let headers = null;
+    let deptIdx = -1;
+    let currentKey = null;
+    let currentRows = [];
+
+    const flush = () => {
+      if (currentRows.length === 0) {
+        return;
+      }
+      stats.mutations += 1;
+      const agg = aggregateMutationRows(currentRows);
+      if (agg.status === 'ok') {
+        stats.kept += 1;
+        onTransaction(agg.tx);
+      } else {
+        stats.skipped[agg.reason] = (stats.skipped[agg.reason] || 0) + 1;
+      }
+      currentRows = [];
+    };
+
+    for await (const line of rl) {
+      if (!line) {
+        continue;
+      }
+      if (!headers) {
+        headers = parseCsvLine(line);
+        deptIdx = headers.indexOf('code_departement');
+        continue;
+      }
+      stats.rawRows += 1;
+      const values = parseCsvLine(line);
+      if (deptIdx >= 0) {
+        const d = String(values[deptIdx] ?? '').trim();
+        if (!deptSet.has(d)) {
+          if (currentRows.length > 0) {
+            flush();
+            currentKey = null;
+          }
+          continue;
+        }
+      }
+      const row = {};
+      for (let i = 0; i < headers.length; i += 1) {
+        row[headers[i]] = values[i] ?? '';
+      }
+      const key = `${row.id_mutation || ''}|${row.numero_disposition || ''}`;
+      if (currentKey !== null && key !== currentKey) {
+        flush();
+      }
+      currentKey = key;
+      currentRows.push(row);
     }
-    currentRows = [];
+    flush();
+  } finally {
+    fs.rmSync(tmpPath, { force: true });
+  }
+}
+
+function loadMysql2() {
+  const req = createRequire(import.meta.url);
+  const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const candidates = [
+    path.join(backendRoot, 'node_modules', 'mysql2', 'promise.js'),
+    path.resolve(backendRoot, '..', 'perlerareFrontWeb', 'node_modules', 'mysql2', 'promise.js'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return req(p);
+  }
+  const cache = path.join(os.homedir(), 'AppData', 'Local', 'npm-cache', '_npx');
+  if (fs.existsSync(cache)) {
+    const dir = fs.readdirSync(cache).find((d) => fs.existsSync(path.join(cache, d, 'node_modules', 'mysql2')));
+    if (dir) {
+      return req(path.join(cache, dir, 'node_modules', 'mysql2', 'promise'));
+    }
+  }
+  return req('mysql2/promise');
+}
+
+function resolveDbConfig(appsettingsPath) {
+  const json = JSON.parse(fs.readFileSync(appsettingsPath, 'utf8'));
+  const cs = json?.ConnectionStrings?.PerleRareDB;
+  if (!cs) throw new Error(`ConnectionStrings:PerleRareDB introuvable dans ${appsettingsPath}`);
+  const map = {};
+  for (const part of String(cs).split(';')) {
+    const idx = part.indexOf('=');
+    if (idx <= 0) continue;
+    map[part.slice(0, idx).trim().toLowerCase()] = part.slice(idx + 1).trim();
+  }
+  return {
+    host: map.server || map.host || '127.0.0.1',
+    port: parseInt(map.port || '3306', 10),
+    database: map.database,
+    user: map.user || map.uid || map['user id'],
+    password: map.password || map.pwd,
   };
-
-  for await (const line of rl) {
-    if (!line) {
-      continue;
-    }
-    if (!headers) {
-      headers = parseCsvLine(line);
-      continue;
-    }
-    stats.rawRows += 1;
-    const values = parseCsvLine(line);
-    const row = {};
-    for (let i = 0; i < headers.length; i += 1) {
-      row[headers[i]] = values[i] ?? '';
-    }
-    const key = `${row.id_mutation || ''}|${row.numero_disposition || ''}`;
-    if (currentKey !== null && key !== currentKey) {
-      flush();
-    }
-    currentKey = key;
-    currentRows.push(row);
-  }
-  flush();
-  return { missing: false };
 }
 
 function parseCliArgs(argv) {
+  const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const opts = {
     depts: DEFAULT_DEPTS,
     years: null,
     outSql: null,
+    apply: false,
+    appsettings: path.join(backendRoot, 'api-perle-rare-decompiled', 'appsettings.Development.json'),
     batchSize: 500,
     dryRun: true,
   };
   for (const arg of argv) {
     if (arg === '--dry-run') {
       opts.dryRun = true;
+      opts.apply = false;
+    } else if (arg === '--apply') {
+      opts.apply = true;
+      opts.dryRun = false;
     } else if (arg.startsWith('--depts=')) {
       opts.depts = arg.slice('--depts='.length).split(',').map((d) => d.trim()).filter(Boolean);
     } else if (arg.startsWith('--years=')) {
@@ -542,6 +651,8 @@ function parseCliArgs(argv) {
     } else if (arg.startsWith('--out-sql=')) {
       opts.outSql = arg.slice('--out-sql='.length).trim();
       opts.dryRun = false;
+    } else if (arg.startsWith('--appsettings=')) {
+      opts.appsettings = arg.slice('--appsettings='.length).trim();
     } else if (arg.startsWith('--batch-size=')) {
       const n = Number.parseInt(arg.slice('--batch-size='.length), 10);
       if (Number.isFinite(n) && n > 0 && n <= 5000) {
@@ -554,15 +665,16 @@ function parseCliArgs(argv) {
 
 async function main() {
   const opts = parseCliArgs(process.argv.slice(2));
-  const years = opts.years && opts.years.length > 0
-    ? opts.years
-    : await discoverAvailableYears(opts.depts[0] || '75', 5);
+  const resources = await discoverDvfResources(opts.years);
 
-  if (years.length === 0) {
-    throw new Error('Aucun millésime DVF géolocalisé trouvé sur files.data.gouv.fr.');
+  if (resources.length === 0) {
+    throw new Error('Aucun millésime DVF géolocalisé trouvé sur data.gouv.fr pour les années demandées.');
   }
 
-  console.log(`DVF géolocalisé : départements=[${opts.depts.join(',')}] millésimes=[${years.join(',')}] mode=${opts.dryRun ? 'dry-run' : `sql:${opts.outSql}`}`);
+  const modeLabel = opts.apply ? 'apply-db' : (opts.outSql ? `sql:${opts.outSql}` : 'dry-run');
+  console.log(
+    `DVF géolocalisé : départements=[${opts.depts.join(',')}] millésimes=[${resources.map((r) => r.year).join(',')}] mode=${modeLabel}`
+  );
 
   let sqlStream = null;
   if (!opts.dryRun && opts.outSql) {
@@ -573,10 +685,18 @@ async function main() {
     sqlStream.write('SET autocommit = 0;\n\n');
   }
 
+  let dbConn = null;
+  if (opts.apply) {
+    const mysql = loadMysql2();
+    dbConn = await mysql.createConnection(resolveDbConfig(opts.appsettings));
+  }
+
   const importStamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const deptSet = new Set(opts.depts);
   const seenFingerprints = new Set();
   let batch = [];
   let writtenBatches = 0;
+  let dbAffectedRows = 0;
 
   const stats = {
     rawRows: 0,
@@ -585,51 +705,74 @@ async function main() {
     duplicatesInRun: 0,
     skipped: {},
     byDept: {},
+    byYear: {},
   };
 
-  const flushBatch = () => {
-    if (!sqlStream || batch.length === 0) {
-      batch = [];
-      return;
+  const flushBatch = async () => {
+    if (batch.length === 0) return;
+    const sql = buildBatchInsertSql(batch, importStamp);
+    if (sqlStream) {
+      sqlStream.write(sql);
+      writtenBatches += 1;
+      if (writtenBatches % 20 === 0) {
+        sqlStream.write('COMMIT;\n');
+      }
     }
-    sqlStream.write(buildBatchInsertSql(batch, importStamp));
-    writtenBatches += 1;
-    if (writtenBatches % 20 === 0) {
-      sqlStream.write('COMMIT;\n');
+    if (dbConn) {
+      const [res] = await dbConn.query(sql);
+      dbAffectedRows += Number(res?.affectedRows || 0);
+      writtenBatches += 1;
     }
     batch = [];
   };
 
-  for (const dept of opts.depts) {
-    let deptKept = 0;
-    for (const year of years) {
+  try {
+    for (const resource of resources) {
       const before = stats.kept;
-      const result = await processDeptYear(year, dept, (tx) => {
+      const pendingFlush = [];
+      await processNationalYearResource(resource, deptSet, (tx) => {
         if (seenFingerprints.has(tx.fingerprint)) {
           stats.duplicatesInRun += 1;
           return;
         }
         seenFingerprints.add(tx.fingerprint);
-        deptKept += 1;
-        if (sqlStream) {
+        stats.byDept[tx.codeDepartement] = (stats.byDept[tx.codeDepartement] || 0) + 1;
+        stats.byYear[resource.year] = (stats.byYear[resource.year] || 0) + 1;
+        if (sqlStream || dbConn) {
           batch.push(tx);
           if (batch.length >= opts.batchSize) {
-            flushBatch();
+            pendingFlush.push(batch);
+            batch = [];
           }
         }
       }, stats);
-      const delta = stats.kept - before;
-      console.log(`  dept ${dept} / ${year} : ${result.missing ? 'absent (404)' : `+${delta} transactions`}`);
-    }
-    stats.byDept[dept] = deptKept;
-  }
 
-  flushBatch();
-  if (sqlStream) {
-    sqlStream.write('\nCOMMIT;\nSET autocommit = 1;\n');
-    await new Promise((resolve, reject) => {
-      sqlStream.end((err) => (err ? reject(err) : resolve()));
-    });
+      for (const b of pendingFlush) {
+        const sql = buildBatchInsertSql(b, importStamp);
+        if (sqlStream) {
+          sqlStream.write(sql);
+          writtenBatches += 1;
+          if (writtenBatches % 20 === 0) sqlStream.write('COMMIT;\n');
+        }
+        if (dbConn) {
+          const [res] = await dbConn.query(sql);
+          dbAffectedRows += Number(res?.affectedRows || 0);
+          writtenBatches += 1;
+        }
+      }
+      await flushBatch();
+      const delta = stats.kept - before;
+      console.log(`  ${resource.title} (${resource.year}) : +${delta} transactions retenues`);
+    }
+
+    if (sqlStream) {
+      sqlStream.write('\nCOMMIT;\nSET autocommit = 1;\n');
+      await new Promise((resolve, reject) => {
+        sqlStream.end((err) => (err ? reject(err) : resolve()));
+      });
+    }
+  } finally {
+    if (dbConn) await dbConn.end();
   }
 
   console.log('\nRésumé :');
@@ -638,8 +781,10 @@ async function main() {
     mutations: stats.mutations,
     uniqueTransactions: seenFingerprints.size,
     duplicatesInRun: stats.duplicatesInRun,
+    byYear: stats.byYear,
     byDept: stats.byDept,
     skipped: stats.skipped,
+    dbAffectedRows: opts.apply ? dbAffectedRows : null,
     outSql: opts.outSql || null,
   }, null, 2));
 }

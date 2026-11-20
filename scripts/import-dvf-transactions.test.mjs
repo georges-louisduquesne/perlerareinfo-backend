@@ -6,6 +6,7 @@ import {
   formatHouseNumber,
   normalizeStreet,
   parseCsvLine,
+  selectDvfResourcesForYears,
 } from './import-dvf-transactions.mjs';
 
 test('normalizeStreet harmonise les abréviations DVF et accents BAN', () => {
@@ -114,4 +115,30 @@ test('aggregateMutationRows exclut VEFA et ventes en bloc > 2 logements', () => 
   const block = aggregateMutationRows([blockRow, blockRow, blockRow]);
   assert.equal(block.status, 'skip');
   assert.equal(block.reason, 'multi_unit_block');
+});
+
+test('selectDvfResourcesForYears extrait full-2026-s1 et filtre les années demandées', () => {
+  const resources = [
+    {
+      title: 'DVF 2025',
+      url: 'https://static.data.gouv.fr/resources/demandes-de-valeurs-foncieres-geolocalisees/20261020-114721/full-2025.csv.gz',
+      last_modified: '2026-10-20T11:47:28Z',
+    },
+    {
+      title: 'DVF 2026 (1er semestre)',
+      url: 'https://static.data.gouv.fr/resources/demandes-de-valeurs-foncieres-geolocalisees/20261020-114825/full-2026-s1.csv.gz',
+      last_modified: '2026-10-20T11:48:28Z',
+    },
+    {
+      title: 'DVF fichier unique',
+      url: 'https://static.data.gouv.fr/resources/demandes-de-valeurs-foncieres-geolocalisees/20261021-085741/dvf.csv.gz',
+      last_modified: '2026-10-21T08:58:04Z',
+    },
+  ];
+  const all = selectDvfResourcesForYears(resources);
+  assert.deepEqual(all.map((r) => r.year), [2025, 2026]);
+  const only2026 = selectDvfResourcesForYears(resources, [2026]);
+  assert.equal(only2026.length, 1);
+  assert.equal(only2026[0].year, 2026);
+  assert.match(only2026[0].url, /full-2026-s1\.csv\.gz$/);
 });
