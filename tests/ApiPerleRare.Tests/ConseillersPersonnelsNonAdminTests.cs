@@ -55,6 +55,37 @@ public class ConseillersPersonnelsNonAdminTests
 	}
 
 	[Fact]
+	public void Omitted_web_copy_keeps_stored_text_and_empty_string_clears()
+	{
+		var stored = new ConseillersPersonnels
+		{
+			CpPageWebFr = "https://perle-rare.com/fr/georges-louis-duquesne-director/",
+			CpPageWebEn = "https://perle-rare.com/en/georges-louis-duquesne-director/",
+			CpParcoursFr = "Parcours français",
+			CpParcoursEn = "English bio"
+		};
+		var omitted = new ConseillersPersonnels();
+		ConseillersPersonnelsController.KeepOmittedWebCopy(omitted, stored);
+		Assert.Equal(stored.CpPageWebFr, omitted.CpPageWebFr);
+		Assert.Equal(stored.CpPageWebEn, omitted.CpPageWebEn);
+		Assert.Equal(stored.CpParcoursFr, omitted.CpParcoursFr);
+		Assert.Equal(stored.CpParcoursEn, omitted.CpParcoursEn);
+
+		var cleared = new ConseillersPersonnels
+		{
+			CpPageWebFr = "",
+			CpPageWebEn = "https://perle-rare.com/en/autre/",
+			CpParcoursFr = "",
+			CpParcoursEn = "New bio"
+		};
+		ConseillersPersonnelsController.KeepOmittedWebCopy(cleared, stored);
+		Assert.Equal("", cleared.CpPageWebFr);
+		Assert.Equal("https://perle-rare.com/en/autre/", cleared.CpPageWebEn);
+		Assert.Equal("", cleared.CpParcoursFr);
+		Assert.Equal("New bio", cleared.CpParcoursEn);
+	}
+
+	[Fact]
 	public void Self_keeps_personal_data_but_never_credentials()
 	{
 		var cp = FullRow();

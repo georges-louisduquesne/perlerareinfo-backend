@@ -49,6 +49,14 @@ public class ConseillersPersonnels
 
 	public string CpLinkedIn { get; set; }
 
+	public string CpPageWebFr { get; set; }
+
+	public string CpPageWebEn { get; set; }
+
+	public string CpParcoursFr { get; set; }
+
+	public string CpParcoursEn { get; set; }
+
 	public string CpPhoto { get; set; }
 
 	public DateOnly CpDateDebut { get; set; }

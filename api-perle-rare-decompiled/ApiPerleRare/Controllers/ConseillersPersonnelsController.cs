@@ -47,6 +47,35 @@ public class ConseillersPersonnelsController : ControllerBase
 	// Non-admins (agents, associés) need the team directory for Contact, agenda, tâches and mails,
 	// but never credentials nor other people's personal data.
 	// Mail send does not need CP_MelMotDePasse in this payload: Exchange/SendEmail reads it for the signed-in conseiller.
+	/// <summary>
+	/// Un PUT de fiche omet les propriétés null (WhenWritingNull). Sans ça, enregistrer
+	/// un autre champ effacerait la page web et le parcours déjà saisis.
+	/// Une chaîne vide est un effacement volontaire.
+	/// </summary>
+	internal static void KeepOmittedWebCopy(ConseillersPersonnels incoming, ConseillersPersonnels stored)
+	{
+		if (incoming == null || stored == null)
+		{
+			return;
+		}
+		if (incoming.CpPageWebFr == null)
+		{
+			incoming.CpPageWebFr = stored.CpPageWebFr;
+		}
+		if (incoming.CpPageWebEn == null)
+		{
+			incoming.CpPageWebEn = stored.CpPageWebEn;
+		}
+		if (incoming.CpParcoursFr == null)
+		{
+			incoming.CpParcoursFr = stored.CpParcoursFr;
+		}
+		if (incoming.CpParcoursEn == null)
+		{
+			incoming.CpParcoursEn = stored.CpParcoursEn;
+		}
+	}
+
 	internal static void StripForNonAdmin(ConseillersPersonnels cp, bool isSelf)
 	{
 		cp.CpMotDePasse = null;
@@ -220,6 +249,12 @@ public class ConseillersPersonnelsController : ControllerBase
 		{
 			return BadRequest();
 		}
+		ConseillersPersonnels stored = await _context.ConseillersPersonnels.AsNoTracking().FirstOrDefaultAsync((ConseillersPersonnels e) => e.CpRefConseiller == id);
+		if (stored == null)
+		{
+			return NotFound();
+		}
+		KeepOmittedWebCopy(conseillersPersonnels, stored);
 		if (string.IsNullOrWhiteSpace(conseillersPersonnels.CpOrigine))
 		{
 			conseillersPersonnels.CpOrigine = null;

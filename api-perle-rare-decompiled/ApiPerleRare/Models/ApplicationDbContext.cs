@@ -448,6 +448,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpMelPerso).IsRequired().HasMaxLength(100)
 				.HasColumnName("CP_MelPerso");
 			entity.Property((ConseillersPersonnels e) => e.CpLinkedIn).HasMaxLength(100).HasColumnName("CP_LinkedIn");
+			entity.Property((ConseillersPersonnels e) => e.CpPageWebFr).HasMaxLength(255).HasColumnName("CP_pageWebFr")
+				.UseCollation("utf8mb4_unicode_ci")
+				.HasCharSet("utf8mb4");
+			entity.Property((ConseillersPersonnels e) => e.CpPageWebEn).HasMaxLength(255).HasColumnName("CP_pageWebEn")
+				.UseCollation("utf8mb4_unicode_ci")
+				.HasCharSet("utf8mb4");
+			entity.Property((ConseillersPersonnels e) => e.CpParcoursFr).HasColumnType("text").HasColumnName("CP_parcours_fr")
+				.UseCollation("utf8mb4_unicode_ci")
+				.HasCharSet("utf8mb4");
+			entity.Property((ConseillersPersonnels e) => e.CpParcoursEn).HasColumnType("text").HasColumnName("CP_parcours_en")
+				.UseCollation("utf8mb4_unicode_ci")
+				.HasCharSet("utf8mb4");
 			entity.Property((ConseillersPersonnels e) => e.CpMelSignature).HasMaxLength(10000).HasColumnName("CP_MelSignature");
 			// Widened for soft-hash PBKDF2 strings (~90 chars). Apply docs/sql/widen-cp-mot-de-passe.sql before prod deploy.
 			entity.Property((ConseillersPersonnels e) => e.CpMotDePasse).HasMaxLength(255).HasColumnName("CP_MotDePasse");
