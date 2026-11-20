@@ -20,13 +20,9 @@ public sealed class DownloadFileUseCase : IDownloadFileUseCase
 			{
 				throw new InvalidOperationException("Requête invalide");
 			}
-			if (!_storage.TryResolve(request.FileName, out string fullPath, out string error))
+			if (!_storage.TryResolveExisting(request.FileName, out string fullPath, out string error))
 			{
-				throw new InvalidOperationException(error ?? "Requête invalide");
-			}
-			if (!_storage.Exists(fullPath))
-			{
-				throw new InvalidOperationException("Fichier introuvable");
+				throw new InvalidOperationException(error ?? "Fichier introuvable");
 			}
 			return new FileDownloadResponse
 			{
