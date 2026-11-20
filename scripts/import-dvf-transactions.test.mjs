@@ -4,6 +4,7 @@ import {
   aggregateMutationRows,
   buildBatchInsertSql,
   formatHouseNumber,
+  mapDgfipTxtRowToGeoRow,
   normalizeStreet,
   parseCsvLine,
   selectDvfResourcesForYears,
@@ -141,4 +142,38 @@ test('selectDvfResourcesForYears extrait full-2026-s1 et filtre les années dema
   assert.equal(only2026.length, 1);
   assert.equal(only2026[0].year, 2026);
   assert.match(only2026[0].url, /full-2026-s1\.csv\.gz$/);
+
+  const hist = selectDvfResourcesForYears([], [2014, 2020]);
+  assert.deepEqual(hist.map((r) => r.year), [2014, 2020]);
+  assert.equal(hist[0].format, 'dgfip-txt');
+  assert.equal(hist[1].format, 'dgfip-txt-zip');
+});
+
+test('mapDgfipTxtRowToGeoRow convertit le format brut DGFiP pipe/virgule vers le format geo-dvf', () => {
+  const header = [
+    'No disposition', 'Date mutation', 'Nature mutation', 'Valeur fonciere',
+    'No voie', 'B/T/Q', 'Type de voie', 'Code voie', 'Voie', 'Code postal',
+    'Commune', 'Code departement', 'Code commune', 'Prefixe de section',
+    'Section', 'No plan', '1er lot', 'Surface Carrez du 1er lot',
+    'Nombre de lots', 'Type local', 'Surface reelle bati', 'Nombre pieces principales',
+  ];
+  const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+  const row = mapDgfipTxtRowToGeoRow([
+    '000001', '14/03/2019', 'Vente', '650000,00',
+    '12', 'B', 'RUE', '8274', 'DE RIVOLI', '75004',
+    'PARIS 04', '75', '104', '', 'AB', '12', '14', '60,50',
+    '2', 'Appartement', '62', '3',
+  ], idx);
+  assert.equal(row.date_mutation, '2019-03-14');
+  assert.equal(row.valeur_fonciere, '650000.00');
+  assert.equal(row.adresse_nom_voie, 'RUE DE RIVOLI');
+  assert.equal(row.lot1_surface_carrez, '60.50');
+  assert.equal(row.code_commune, '75104');
+  assert.equal(row.id_parcelle, '75104000AB0012');
+
+  const agg = aggregateMutationRows([row]);
+  assert.equal(agg.status, 'ok');
+  assert.equal(agg.tx.prix, 650000);
+  assert.equal(agg.tx.surfaceCarrez, 60.5);
+  assert.equal(agg.tx.adresseRueNorm, 'rue de rivoli');
 });

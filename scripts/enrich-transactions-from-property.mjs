@@ -419,7 +419,7 @@ async function main() {
     `SELECT P_PropertyId, P_CP, P_AdresseNum, P_AdresseRue, P_Type,
             P_NbPieces, P_NbChambres, P_Etage, P_NbEtages, P_EstDernierEtage,
             P_Asc, P_Surface, P_Prix, P_DateDebut, P_DateFin,
-            P_ConsumptionLetter, P_Images
+            P_ConsumptionLetter, LEFT(P_Images, 500) AS P_Images
      FROM property
      WHERE P_TypeTransaction = 'A'
        AND LEFT(P_CP, 2) IN (${deptListSql})

@@ -19,6 +19,7 @@
  *   node scripts/import-dvf-transactions.mjs --depts=75,92,93,94 --out-sql=artifacts/dvf-75-92-93-94.sql
  */
 
+import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -33,6 +34,18 @@ export const DEFAULT_DEPTS = ['75', '92', '93', '94'];
 export const DEFAULT_NATURES = new Set(['Vente']);
 export const RESIDENTIAL_TYPES = new Set(['Appartement', 'Maison']);
 const DVF_DATASET_API_URL = 'https://www.data.gouv.fr/api/1/datasets/demandes-de-valeurs-foncieres-geolocalisees/';
+
+// Archives publiques des dernières livraisons officielles DGFiP par millésime (2014-2020)
+// avant leur sortie de la fenêtre glissante de 5 ans sur data.gouv.fr (miroir OSM France).
+export const HISTORICAL_DGFIP_RESOURCES = new Map([
+  [2014, { year: 2014, title: 'DVF 2014 (archive DGFiP 2019-04)', format: 'dgfip-txt', url: 'https://data.cquest.org/dgfip_dvf/201904/valeursfoncieres-2014.txt' }],
+  [2015, { year: 2015, title: 'DVF 2015 (archive DGFiP 2020-04)', format: 'dgfip-txt', url: 'https://data.cquest.org/dgfip_dvf/202004/valeursfoncieres-2015.txt' }],
+  [2016, { year: 2016, title: 'DVF 2016 (archive DGFiP 2021-04)', format: 'dgfip-txt', url: 'https://data.cquest.org/dgfip_dvf/202104/valeursfoncieres-2016.txt' }],
+  [2017, { year: 2017, title: 'DVF 2017 (archive DGFiP 2022-04)', format: 'dgfip-txt', url: 'https://data.cquest.org/dgfip_dvf/202204/valeursfoncieres-2017.txt' }],
+  [2018, { year: 2018, title: 'DVF 2018 (archive DGFiP 2023-04)', format: 'dgfip-txt', url: 'https://data.cquest.org/dgfip_dvf/202304/valeursfoncieres-2018.txt' }],
+  [2019, { year: 2019, title: 'DVF 2019 (archive DGFiP 2024-04)', format: 'dgfip-txt', url: 'https://data.cquest.org/dgfip_dvf/202404/valeursfoncieres-2019.txt' }],
+  [2020, { year: 2020, title: 'DVF 2020 (archive DGFiP 2025-04)', format: 'dgfip-txt-zip', url: 'https://data.cquest.org/dgfip_dvf/202504/valeursfoncieres-2020.txt.zip' }],
+]);
 
 const LEADING_STREET_ABBREVS = new Map([
   ['r', 'rue'],
@@ -454,8 +467,85 @@ export function buildBatchInsertSql(batch, importStamp) {
 }
 
 /**
- * Sélectionne les ressources officielles `full-YYYY*.csv.gz` depuis la réponse API data.gouv.fr.
- * Retourne un tableau trié par année croissante : [{ year, title, url, lastModified }].
+ * Convertit une ligne DGFiP brute (séparateur `|`, dates JJ/MM/AAAA, décimales avec `,`)
+ * vers le format d'objet normalisé attendu par `aggregateMutationRows`.
+ */
+export function mapDgfipTxtRowToGeoRow(values, idx) {
+  const get = (name) => {
+    const i = idx[name];
+    return i !== undefined ? String(values[i] ?? '').trim() : '';
+  };
+  const dec = (s) => (s ? s.replace(',', '.') : '');
+
+  const rawDate = get('Date mutation');
+  let isoDate = '';
+  const dm = rawDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dm) {
+    isoDate = `${dm[3]}-${dm[2]}-${dm[1]}`;
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+    isoDate = rawDate;
+  }
+
+  const dept = get('Code departement');
+  const rawComm = get('Code commune');
+  const codeCommune = dept && rawComm
+    ? (dept.length === 3 ? `${dept}${rawComm.padStart(2, '0')}` : `${dept.padStart(2, '0')}${rawComm.padStart(3, '0')}`)
+    : '';
+
+  const rawCp = get('Code postal');
+  const cp = /^\d{4,5}$/.test(rawCp) ? rawCp.padStart(5, '0') : rawCp;
+
+  const typeVoie = get('Type de voie');
+  const voie = get('Voie');
+  const nomVoie = [typeVoie, voie].filter(Boolean).join(' ');
+
+  const pref = (get('Prefixe de section') || '000').padStart(3, '0');
+  const sec = get('Section').padStart(2, '0');
+  const plan = get('No plan').padStart(4, '0');
+  const idParcelle = codeCommune && sec.trim() && plan.trim() && get('Section') && get('No plan')
+    ? `${codeCommune}${pref}${sec}${plan}`
+    : '';
+
+  return {
+    id_mutation: '',
+    numero_disposition: get('No disposition'),
+    date_mutation: isoDate,
+    nature_mutation: get('Nature mutation'),
+    valeur_fonciere: dec(get('Valeur fonciere')),
+    adresse_numero: get('No voie'),
+    adresse_suffixe: get('B/T/Q'),
+    adresse_nom_voie: nomVoie,
+    adresse_code_voie: get('Code voie'),
+    code_postal: cp,
+    code_commune: codeCommune,
+    nom_commune: get('Commune'),
+    code_departement: dept,
+    id_parcelle: idParcelle,
+    lot1_numero: get('1er lot'),
+    lot1_surface_carrez: dec(get('Surface Carrez du 1er lot')),
+    lot2_numero: get('2eme lot'),
+    lot2_surface_carrez: dec(get('Surface Carrez du 2eme lot')),
+    lot3_numero: get('3eme lot'),
+    lot3_surface_carrez: dec(get('Surface Carrez du 3eme lot')),
+    lot4_numero: get('4eme lot'),
+    lot4_surface_carrez: dec(get('Surface Carrez du 4eme lot')),
+    lot5_numero: get('5eme lot'),
+    lot5_surface_carrez: dec(get('Surface Carrez du 5eme lot')),
+    nombre_lots: get('Nombre de lots'),
+    type_local: get('Type local'),
+    surface_reelle_bati: dec(get('Surface reelle bati')),
+    nombre_pieces_principales: get('Nombre pieces principales'),
+    nature_culture: get('Nature culture'),
+    surface_terrain: dec(get('Surface terrain')),
+    latitude: '',
+    longitude: '',
+  };
+}
+
+/**
+ * Sélectionne les ressources officielles `full-YYYY*.csv.gz` depuis la réponse API data.gouv.fr,
+ * et complète si besoin avec les archives DGFiP 2014-2020 pour les années explicitement demandées.
+ * Retourne un tableau trié par année croissante : [{ year, title, format, url, lastModified }].
  */
 export function selectDvfResourcesForYears(resources, requestedYears = null) {
   const byYear = new Map();
@@ -474,15 +564,29 @@ export function selectDvfResourcesForYears(resources, requestedYears = null) {
       byYear.set(year, {
         year,
         title: String(r.title || `DVF ${year}`),
+        format: 'geo-csv-gz',
         url,
         lastModified: mod,
       });
+    }
+  }
+  if (requestedYears && requestedYears.length > 0) {
+    for (const y of requestedYears) {
+      if (!byYear.has(y) && HISTORICAL_DGFIP_RESOURCES.has(y)) {
+        const hist = HISTORICAL_DGFIP_RESOURCES.get(y);
+        byYear.set(y, { ...hist, lastModified: '' });
+      }
     }
   }
   return Array.from(byYear.values()).sort((a, b) => a.year - b.year);
 }
 
 async function discoverDvfResources(requestedYears = null) {
+  const onlyHistorical = requestedYears && requestedYears.length > 0
+    && requestedYears.every((y) => HISTORICAL_DGFIP_RESOURCES.has(y));
+  if (onlyHistorical) {
+    return selectDvfResourcesForYears([], requestedYears);
+  }
   const res = await fetch(DVF_DATASET_API_URL, {
     headers: { 'User-Agent': 'PerleRareCRM-ImportDVF/2.0' },
   });
@@ -493,8 +597,8 @@ async function discoverDvfResources(requestedYears = null) {
   return selectDvfResourcesForYears(dataset.resources || [], requestedYears);
 }
 
-async function downloadToTempFile(url, maxRetries = 3) {
-  const tmpPath = path.join(os.tmpdir(), `dvf-${Date.now()}-${Math.random().toString(36).slice(2)}.csv.gz`);
+async function downloadToTempFile(url, ext = '.dat', maxRetries = 3) {
+  const tmpPath = path.join(os.tmpdir(), `dvf-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
   let attempt = 0;
   while (true) {
     try {
@@ -522,8 +626,93 @@ async function downloadToTempFile(url, maxRetries = 3) {
   }
 }
 
+async function processDgfipTxtResource(resource, deptSet, onTransaction, stats) {
+  const isZip = resource.format === 'dgfip-txt-zip';
+  const tmpPath = await downloadToTempFile(resource.url, isZip ? '.zip' : '.txt');
+  let extractDir = null;
+  let txtPath = tmpPath;
+
+  try {
+    if (isZip) {
+      extractDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dvf-unzip-'));
+      execFileSync('tar', ['-xf', tmpPath, '-C', extractDir], { stdio: 'ignore' });
+      const files = fs.readdirSync(extractDir).filter((f) => f.toLowerCase().endsWith('.txt'));
+      if (files.length === 0) {
+        throw new Error(`Aucun fichier .txt trouvé dans ${resource.url}`);
+      }
+      txtPath = path.join(extractDir, files[0]);
+    }
+
+    const rl = readline.createInterface({
+      input: fs.createReadStream(txtPath, { encoding: 'utf8' }),
+      crlfDelay: Infinity,
+    });
+
+    let idx = null;
+    let deptIdx = -1;
+    let currentKey = null;
+    let currentRows = [];
+    let mutSeq = 0;
+
+    const flush = () => {
+      if (currentRows.length === 0) return;
+      mutSeq += 1;
+      const synthId = `${resource.year}-H${mutSeq}`;
+      for (const r of currentRows) r.id_mutation = synthId;
+      stats.mutations += 1;
+      const agg = aggregateMutationRows(currentRows);
+      if (agg.status === 'ok') {
+        stats.kept += 1;
+        onTransaction(agg.tx);
+      } else {
+        stats.skipped[agg.reason] = (stats.skipped[agg.reason] || 0) + 1;
+      }
+      currentRows = [];
+    };
+
+    for await (const line of rl) {
+      if (!line) continue;
+      if (!idx) {
+        const header = line.replace(/^\uFEFF/, '').split('|');
+        idx = {};
+        for (let i = 0; i < header.length; i += 1) {
+          idx[header[i].trim()] = i;
+        }
+        deptIdx = idx['Code departement'] ?? -1;
+        continue;
+      }
+      stats.rawRows += 1;
+      const values = line.split('|');
+      if (deptIdx >= 0) {
+        const d = String(values[deptIdx] ?? '').trim();
+        if (!deptSet.has(d)) {
+          if (currentRows.length > 0) {
+            flush();
+            currentKey = null;
+          }
+          continue;
+        }
+      }
+      const row = mapDgfipTxtRowToGeoRow(values, idx);
+      const key = `${row.date_mutation}|${row.nature_mutation}|${row.valeur_fonciere}|${row.numero_disposition}|${row.code_departement}|${row.code_commune}`;
+      if (currentKey !== null && key !== currentKey) {
+        flush();
+      }
+      currentKey = key;
+      currentRows.push(row);
+    }
+    flush();
+  } finally {
+    fs.rmSync(tmpPath, { force: true });
+    if (extractDir) fs.rmSync(extractDir, { recursive: true, force: true });
+  }
+}
+
 async function processNationalYearResource(resource, deptSet, onTransaction, stats) {
-  const tmpPath = await downloadToTempFile(resource.url);
+  if (resource.format === 'dgfip-txt' || resource.format === 'dgfip-txt-zip') {
+    return processDgfipTxtResource(resource, deptSet, onTransaction, stats);
+  }
+  const tmpPath = await downloadToTempFile(resource.url, '.csv.gz');
   try {
     const gunzip = zlib.createGunzip();
     const nodeStream = fs.createReadStream(tmpPath).pipe(gunzip);
@@ -587,6 +776,25 @@ async function processNationalYearResource(resource, deptSet, onTransaction, sta
   }
 }
 
+async function backfillMissingCoords(conn) {
+  const [res] = await conn.query(
+    `UPDATE Transactions t
+     INNER JOIN (
+       SELECT T_CP, T_AdresseRueNorm, T_AdresseNum,
+              ROUND(AVG(T_Lat), 7) AS lat, ROUND(AVG(T_Lon), 7) AS lon
+       FROM Transactions
+       WHERE T_Lat IS NOT NULL AND T_Lon IS NOT NULL AND T_AdresseNum IS NOT NULL
+       GROUP BY T_CP, T_AdresseRueNorm, T_AdresseNum
+     ) g
+       ON g.T_CP = t.T_CP
+      AND g.T_AdresseRueNorm = t.T_AdresseRueNorm
+      AND g.T_AdresseNum = t.T_AdresseNum
+     SET t.T_Lat = g.lat, t.T_Lon = g.lon
+     WHERE t.T_Lat IS NULL AND t.T_AdresseNum IS NOT NULL`
+  );
+  return Number(res?.affectedRows || 0);
+}
+
 function loadMysql2() {
   const req = createRequire(import.meta.url);
   const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -633,6 +841,7 @@ function parseCliArgs(argv) {
     years: null,
     outSql: null,
     apply: false,
+    backfillGeoOnly: false,
     appsettings: path.join(backendRoot, 'api-perle-rare-decompiled', 'appsettings.Development.json'),
     batchSize: 500,
     dryRun: true,
@@ -643,6 +852,9 @@ function parseCliArgs(argv) {
       opts.apply = false;
     } else if (arg === '--apply') {
       opts.apply = true;
+      opts.dryRun = false;
+    } else if (arg === '--backfill-geo-only') {
+      opts.backfillGeoOnly = true;
       opts.dryRun = false;
     } else if (arg.startsWith('--depts=')) {
       opts.depts = arg.slice('--depts='.length).split(',').map((d) => d.trim()).filter(Boolean);
@@ -665,6 +877,17 @@ function parseCliArgs(argv) {
 
 async function main() {
   const opts = parseCliArgs(process.argv.slice(2));
+  if (opts.backfillGeoOnly) {
+    const mysql = loadMysql2();
+    const conn = await mysql.createConnection(resolveDbConfig(opts.appsettings));
+    try {
+      const geoFilled = await backfillMissingCoords(conn);
+      console.log(`Géocodage recopié depuis adresses connues : +${geoFilled} lignes`);
+    } finally {
+      await conn.end();
+    }
+    return;
+  }
   const resources = await discoverDvfResources(opts.years);
 
   if (resources.length === 0) {
@@ -763,6 +986,11 @@ async function main() {
       await flushBatch();
       const delta = stats.kept - before;
       console.log(`  ${resource.title} (${resource.year}) : +${delta} transactions retenues`);
+    }
+
+    if (dbConn && resources.some((r) => r.format && r.format.startsWith('dgfip-txt'))) {
+      const geoFilled = await backfillMissingCoords(dbConn);
+      console.log(`  Géocodage recopié depuis adresses connues : +${geoFilled} lignes`);
     }
 
     if (sqlStream) {
