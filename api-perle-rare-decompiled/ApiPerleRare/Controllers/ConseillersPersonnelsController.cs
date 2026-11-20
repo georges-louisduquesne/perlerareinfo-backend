@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Conseillers;
 using ApiPerleRare.Application.Files;
 using ApiPerleRare.Helpers;
 using ApiPerleRare.Models;
@@ -24,10 +25,13 @@ public class ConseillersPersonnelsController : ControllerBase
 
 	private readonly ImportConseillerPhotoUseCase _photo;
 
-	public ConseillersPersonnelsController(ApplicationDbContext context, ImportConseillerPhotoUseCase photo)
+	private readonly PublicParcoursPublisher _publicPages;
+
+	public ConseillersPersonnelsController(ApplicationDbContext context, ImportConseillerPhotoUseCase photo, PublicParcoursPublisher publicPages)
 	{
 		_context = context;
 		_photo = photo;
+		_publicPages = publicPages;
 	}
 
 	private static readonly string[] RestrictedFilterTokens = new string[11] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "googlebusinessprofile", "calendriercal", "origine" };
@@ -279,6 +283,8 @@ public class ConseillersPersonnelsController : ControllerBase
 			}
 			throw;
 		}
+		await _publicPages.PublishAsync(stored.CpPageWebFr, stored.CpParcoursFr, conseillersPersonnels.CpPageWebFr, conseillersPersonnels.CpParcoursFr, HttpContext.RequestAborted);
+		await _publicPages.PublishAsync(stored.CpPageWebEn, stored.CpParcoursEn, conseillersPersonnels.CpPageWebEn, conseillersPersonnels.CpParcoursEn, HttpContext.RequestAborted);
 		return NoContent();
 	}
 

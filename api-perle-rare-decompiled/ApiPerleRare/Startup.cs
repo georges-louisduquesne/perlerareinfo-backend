@@ -199,6 +199,7 @@ public class Startup
 		services.AddScoped<ImportNetworkLogoUseCase>();
 		services.AddScoped<UpdateAgentPhotoUseCase>();
 		services.AddScoped<ImportConseillerPhotoUseCase>();
+		services.AddScoped<ApiPerleRare.Application.Conseillers.PublicParcoursPublisher>();
 		services.AddScoped(typeof(IQueryEntitiesUseCase<>), typeof(QueryEntitiesUseCase<>));
 		services.AddScoped<IListEncaissementsEnCoursUseCase, ListEncaissementsEnCoursUseCase>();
 		services.AddScoped<IListHomeClientEvenementsUseCase, ListHomeClientEvenementsUseCase>();
