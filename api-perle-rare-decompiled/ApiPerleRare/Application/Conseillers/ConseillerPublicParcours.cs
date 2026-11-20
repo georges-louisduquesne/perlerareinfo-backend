@@ -28,6 +28,20 @@ internal static class ConseillerPublicParcours
 
 	private static readonly Regex SlugPattern = new Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
+	/// <summary>CP_RefConseiller de Georges-Louis Duquesne. Seule fiche publiée pour l'instant.</summary>
+	internal const uint GeorgesLouisRef = 0;
+
+	private static readonly HashSet<string> GeorgesLouisSlugs = new HashSet<string>(StringComparer.Ordinal)
+	{
+		"georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier",
+		"georges-louis-duquesne-director"
+	};
+
+	internal static bool IsGeorgesLouis(uint conseillerId)
+	{
+		return conseillerId == GeorgesLouisRef;
+	}
+
 	internal static bool ShouldPublish(string previousUrl, string previousText, string nextUrl, string nextText)
 	{
 		return !string.Equals(previousUrl ?? "", nextUrl ?? "", StringComparison.Ordinal)
@@ -48,6 +62,10 @@ internal static class ConseillerPublicParcours
 		}
 		string[] parts = uri.AbsolutePath.Trim('/').Split('/');
 		if (parts.Length != 2 || (parts[0] != "fr" && parts[0] != "en") || !SlugPattern.IsMatch(parts[1]))
+		{
+			return false;
+		}
+		if (!GeorgesLouisSlugs.Contains(parts[1]))
 		{
 			return false;
 		}

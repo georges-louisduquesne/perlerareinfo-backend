@@ -68,7 +68,10 @@ public class ConseillerPublicParcoursTests
 			out string slug));
 		Assert.Equal("georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier", slug);
 		Assert.False(ConseillerPublicParcours.TryPerleRareSlug("https://example.com/fr/georges/", out _));
+		Assert.False(ConseillerPublicParcours.TryPerleRareSlug("https://perle-rare.com/fr/autre-conseiller/", out _));
 		Assert.False(ConseillerPublicParcours.TryPerleRareSlug("javascript:alert(1)", out _));
+		Assert.True(ConseillerPublicParcours.IsGeorgesLouis(0));
+		Assert.False(ConseillerPublicParcours.IsGeorgesLouis(12));
 		Assert.False(ConseillerPublicParcours.ShouldPublish("https://perle-rare.com/fr/a/", "meme", "https://perle-rare.com/fr/a/", "meme"));
 		Assert.True(ConseillerPublicParcours.ShouldPublish("https://perle-rare.com/fr/a/", "ancien", "https://perle-rare.com/fr/a/", "nouveau"));
 	}

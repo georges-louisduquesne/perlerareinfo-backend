@@ -29,8 +29,12 @@ public sealed class PublicParcoursPublisher
 		_logger = logger;
 	}
 
-	public async Task PublishAsync(string previousUrl, string previousText, string nextUrl, string nextText, CancellationToken cancellationToken)
+	public async Task PublishAsync(uint conseillerId, string previousUrl, string previousText, string nextUrl, string nextText, CancellationToken cancellationToken)
 	{
+		if (!ConseillerPublicParcours.IsGeorgesLouis(conseillerId))
+		{
+			return;
+		}
 		if (!ConseillerPublicParcours.ShouldPublish(previousUrl, previousText, nextUrl, nextText))
 		{
 			return;
