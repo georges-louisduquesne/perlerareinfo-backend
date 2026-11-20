@@ -53,6 +53,28 @@ public sealed class PublicParcoursPublisher
 		}
 	}
 
+	/// <summary>
+	/// Recopie CP_LinkedIn sur la page française de Georges-Louis et la laisse publiée.
+	/// Un échec n'annule pas l'enregistrement CRM.
+	/// </summary>
+	public async Task PublishLinkedInAsync(uint conseillerId, string previousLinkedIn, string nextLinkedIn, CancellationToken cancellationToken)
+	{
+		if (!ConseillerPublicParcours.IsGeorgesLouis(conseillerId)
+			|| !ConseillerPublicParcours.ShouldPublishLinkedIn(previousLinkedIn, nextLinkedIn))
+		{
+			return;
+		}
+		string slug = ConseillerPublicParcours.GeorgesLouisFrSlug;
+		try
+		{
+			await UpdateLinkedInAsync(slug, nextLinkedIn ?? "", cancellationToken);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Publication du LinkedIn impossible pour {Slug}.", slug);
+		}
+	}
+
 	private async Task UpdatePageAsync(string slug, string parcours, CancellationToken cancellationToken)
 	{
 		DbConnection connection = _context.Database.GetDbConnection();
@@ -97,6 +119,53 @@ public sealed class PublicParcoursPublisher
 		if (written == 1)
 		{
 			_logger.LogInformation("Parcours publie sur la page {Slug}.", slug);
+		}
+	}
+
+	private async Task UpdateLinkedInAsync(string slug, string linkedIn, CancellationToken cancellationToken)
+	{
+		DbConnection connection = _context.Database.GetDbConnection();
+		if (connection.State != ConnectionState.Open)
+		{
+			await connection.OpenAsync(cancellationToken);
+		}
+		long? pageId = null;
+		string postContent = null;
+		int matches = 0;
+		await using (DbCommand select = connection.CreateCommand())
+		{
+			select.CommandText = $"SELECT ID, post_content FROM `{DatabaseName}`.`{PostsTable}` WHERE post_name = @slug AND post_type = 'page' AND post_status = 'publish'";
+			Add(select, "@slug", slug);
+			await using DbDataReader reader = await select.ExecuteReaderAsync(cancellationToken);
+			while (await reader.ReadAsync(cancellationToken))
+			{
+				matches++;
+				pageId = Convert.ToInt64(reader.GetValue(0));
+				postContent = reader.IsDBNull(1) ? "" : reader.GetString(1);
+			}
+		}
+		if (matches != 1 || pageId == null)
+		{
+			_logger.LogWarning("Page publique introuvable ou ambigue pour {Slug} ({Count}).", slug, matches);
+			return;
+		}
+		if (!ConseillerPublicParcours.TryReplaceLinkedIn(postContent, linkedIn, out string updated))
+		{
+			_logger.LogWarning("La page {Slug} n'a pas le lien LinkedIn attendu.", slug);
+			return;
+		}
+		if (string.Equals(updated, postContent, StringComparison.Ordinal))
+		{
+			return;
+		}
+		await using DbCommand update = connection.CreateCommand();
+		update.CommandText = $"UPDATE `{DatabaseName}`.`{PostsTable}` SET post_content = @content, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = @id AND post_type = 'page' AND post_status = 'publish'";
+		Add(update, "@content", updated);
+		Add(update, "@id", pageId.Value);
+		int written = await update.ExecuteNonQueryAsync(cancellationToken);
+		if (written == 1)
+		{
+			_logger.LogInformation("LinkedIn publie sur la page {Slug}.", slug);
 		}
 	}
 

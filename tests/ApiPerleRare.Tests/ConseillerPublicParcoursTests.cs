@@ -74,6 +74,59 @@ public class ConseillerPublicParcoursTests
 		Assert.False(ConseillerPublicParcours.IsGeorgesLouis(12));
 		Assert.False(ConseillerPublicParcours.ShouldPublish("https://perle-rare.com/fr/a/", "meme", "https://perle-rare.com/fr/a/", "meme"));
 		Assert.True(ConseillerPublicParcours.ShouldPublish("https://perle-rare.com/fr/a/", "ancien", "https://perle-rare.com/fr/a/", "nouveau"));
+		Assert.Equal(
+			"georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier",
+			ConseillerPublicParcours.GeorgesLouisFrSlug);
+	}
+
+	[Fact]
+	public void A_new_linkedin_replaces_only_the_contact_icon_href()
+	{
+		const string next = "https://www.linkedin.com/in/autre-profil/";
+		Assert.True(ConseillerPublicParcours.TryReplaceLinkedIn(Page, next, out string updated));
+		Assert.Contains("href=\"" + next + "\"", updated);
+		Assert.DoesNotContain("https://www.linkedin.com/in/glduquesne/", updated);
+		Assert.Contains("linkedin-brands.png", updated);
+		Assert.Contains("mailto:gld@perle-rare.com", updated);
+		Assert.Contains("expérience de 20 années", updated);
+		Assert.Contains("nom-chasseur-immobilier-noir", updated);
+	}
+
+	[Fact]
+	public void The_same_linkedin_leaves_the_page_unchanged()
+	{
+		Assert.True(ConseillerPublicParcours.TryReplaceLinkedIn(Page, "https://www.linkedin.com/in/glduquesne/", out string updated));
+		Assert.Equal(Page, updated);
+		Assert.False(ConseillerPublicParcours.ShouldPublishLinkedIn(
+			"https://www.linkedin.com/in/glduquesne/",
+			"https://www.linkedin.com/in/glduquesne/"));
+		Assert.True(ConseillerPublicParcours.ShouldPublishLinkedIn(
+			"https://www.linkedin.com/in/glduquesne/",
+			"https://www.linkedin.com/in/autre/"));
+	}
+
+	[Fact]
+	public void Clearing_linkedin_removes_the_icon_and_a_later_value_publishes_it_again()
+	{
+		Assert.True(ConseillerPublicParcours.TryReplaceLinkedIn(Page, "", out string cleared));
+		Assert.DoesNotContain("linkedin.com", cleared);
+		Assert.Contains("mailto:gld@perle-rare.com", cleared);
+		Assert.Contains("expérience de 20 années", cleared);
+
+		const string next = "https://fr.linkedin.com/in/glduquesne/";
+		Assert.True(ConseillerPublicParcours.TryReplaceLinkedIn(cleared, next, out string restored));
+		Assert.Contains("href=\"" + next + "\"", restored);
+		Assert.Contains("linkedin-brands.png", restored);
+		Assert.Contains("mailto:gld@perle-rare.com", restored);
+	}
+
+	[Fact]
+	public void A_non_linkedin_address_is_not_written_on_the_page()
+	{
+		Assert.False(ConseillerPublicParcours.TryReplaceLinkedIn(Page, "https://example.com/in/gld", out _));
+		Assert.False(ConseillerPublicParcours.TryReplaceLinkedIn(Page, "javascript:alert(1)", out _));
+		Assert.False(ConseillerPublicParcours.TryReplaceLinkedIn(Page, "https://linkedin.com.evil.test/in/gld", out _));
+		Assert.False(ConseillerPublicParcours.TryReplaceLinkedIn("<p>Bonjour</p>", "https://www.linkedin.com/in/glduquesne/", out _));
 	}
 
 	private static string Dedent(string value)
