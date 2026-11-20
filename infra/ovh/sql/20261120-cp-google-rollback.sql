@@ -1,0 +1,11 @@
+-- Retour arrière pour 20261120-cp-google.sql.
+-- Ne pas l’exécuter si un lien a déjà été enregistré.
+-- Contrôle :
+--   SELECT SUM(CP_Google IS NOT NULL) AS filled FROM conseillers_personnels;
+--   -- n’aller plus loin que si filled = 0
+--
+-- Tant que la colonne est entièrement vide, le retour arrière est :
+--   ALTER TABLE conseillers_personnels DROP COLUMN CP_Google;
+--
+-- La table conseillers_personnels_bak_20261120_cp_google est conservée.
+-- Elle ne contient que CP_RefConseiller, CP_Actif et CP_Statut.
