@@ -49,6 +49,8 @@ public class ConseillersPersonnels
 
 	public string CpLinkedIn { get; set; }
 
+	public string CpGoogle { get; set; }
+
 	public string CpPageWebFr { get; set; }
 
 	public string CpPageWebEn { get; set; }

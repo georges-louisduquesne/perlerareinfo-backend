@@ -63,7 +63,8 @@ public class ConseillersPersonnelsNonAdminTests
 			CpPageWebEn = "https://perle-rare.com/en/georges-louis-duquesne-director/",
 			CpParcoursFr = "Parcours français",
 			CpParcoursEn = "English bio",
-			CpLinkedIn = "https://www.linkedin.com/in/glduquesne/"
+			CpLinkedIn = "https://www.linkedin.com/in/glduquesne/",
+			CpGoogle = "https://www.google.com/maps/search/?api=1&query=Perle+Rare"
 		};
 		var omitted = new ConseillersPersonnels();
 		ConseillersPersonnelsController.KeepOmittedWebCopy(omitted, stored);
@@ -72,6 +73,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal(stored.CpParcoursFr, omitted.CpParcoursFr);
 		Assert.Equal(stored.CpParcoursEn, omitted.CpParcoursEn);
 		Assert.Equal(stored.CpLinkedIn, omitted.CpLinkedIn);
+		Assert.Equal(stored.CpGoogle, omitted.CpGoogle);
 
 		var cleared = new ConseillersPersonnels
 		{
@@ -79,7 +81,8 @@ public class ConseillersPersonnelsNonAdminTests
 			CpPageWebEn = "https://perle-rare.com/en/autre/",
 			CpParcoursFr = "",
 			CpParcoursEn = "New bio",
-			CpLinkedIn = ""
+			CpLinkedIn = "",
+			CpGoogle = ""
 		};
 		ConseillersPersonnelsController.KeepOmittedWebCopy(cleared, stored);
 		Assert.Equal("", cleared.CpPageWebFr);
@@ -87,6 +90,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal("", cleared.CpParcoursFr);
 		Assert.Equal("New bio", cleared.CpParcoursEn);
 		Assert.Equal("", cleared.CpLinkedIn);
+		Assert.Equal("", cleared.CpGoogle);
 	}
 
 	[Fact]
@@ -117,6 +121,7 @@ public class ConseillersPersonnelsNonAdminTests
 	[InlineData("CP_Commentaire eq 'x'")]
 	[InlineData("CP_LinkedIn eq 'x'")]
 	[InlineData("CP_googleBusinessProfile eq 'x'")]
+	[InlineData("CP_Google eq 'x'")]
 	[InlineData("CP_CalendrierCal eq 'x'")]
 	[InlineData("CP_Origine eq 'LinkedIn'")]
 	public void Filters_probing_restricted_fields_are_detected(string expression)
