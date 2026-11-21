@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: Perle Rare — LinkedIn piloté par le CRM
- * Description: Avertit, dans l’éditeur de la page de Georges-Louis Duquesne, que le lien LinkedIn est publié depuis perle-rare.info.
+ * Plugin Name: Perle Rare — fiches conseiller pilotées par le CRM
+ * Description: Avertit, dans l’éditeur des pages qui affichent un conseiller, que le parcours et le lien LinkedIn sont publiés depuis perle-rare.info.
  */
 
 if (!defined('ABSPATH')) {
@@ -21,14 +21,23 @@ add_action('admin_notices', static function () {
         return;
     }
     $post = get_post($post_id);
-    if (!$post instanceof WP_Post) {
-        return;
-    }
-    if ($post->post_name !== 'georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier') {
+    if (!$post instanceof WP_Post || $post->post_type !== 'page') {
         return;
     }
     if (!current_user_can('edit_post', $post_id)) {
         return;
     }
-    echo '<div class="notice notice-warning"><p><strong>Lien LinkedIn piloté par perle-rare.info.</strong> Il est enregistré sur la fiche de Georges-Louis Duquesne. Une modification faite ici sera remplacée au prochain enregistrement de cette fiche.</p></div>';
+    $content = (string) $post->post_content;
+    if (strpos($content, 'nom-chasseur-immobilier') === false) {
+        return;
+    }
+    $is_profile = strpos($content, 'nom-chasseur-immobilier-noir') !== false;
+    if ($is_profile) {
+        $message = '<strong>Parcours et lien LinkedIn pilotés par perle-rare.info.</strong> Ces informations sont enregistrées sur la fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de cette fiche.';
+    } elseif (strpos($content, 'linkedin.com') !== false) {
+        $message = '<strong>Liens LinkedIn des conseillers pilotés par perle-rare.info.</strong> Ils sont enregistrés sur chaque fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de la fiche.';
+    } else {
+        return;
+    }
+    echo '<div class="notice notice-warning"><p>' . $message . '</p></div>';
 });

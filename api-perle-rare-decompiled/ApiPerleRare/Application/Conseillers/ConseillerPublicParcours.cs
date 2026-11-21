@@ -11,6 +11,14 @@ namespace ApiPerleRare.Application.Conseillers;
 /// à la photo ni aux icônes. Le lien LinkedIn de la base remplace le href de l'icône.
 /// Un paragraphe dont le texte visible ne change pas garde son HTML (lien inclus).
 /// </summary>
+internal enum LinkedInCardUpdate
+{
+	Absent,
+	Unchanged,
+	Updated,
+	Unsafe
+}
+
 internal static class ConseillerPublicParcours
 {
 	private static readonly Regex NameParagraph = new Regex(
@@ -43,22 +51,11 @@ internal static class ConseillerPublicParcours
 
 	private const string LinkedInIcon = "<img class=\"alignnone size-full wp-image-4358\" src=\"https://perle-rare.com/wp-content/uploads/2021/02/linkedin-brands.png\" alt=\"\" width=\"30\" height=\"30\" />";
 
-	/// <summary>CP_RefConseiller de Georges-Louis Duquesne. Seule fiche publiée pour l'instant.</summary>
-	internal const uint GeorgesLouisRef = 0;
+	private const string CardLinkedInIcon = "<img class=\"alignnone size-full wp-image-4374\" src=\"https://perle-rare.com/wp-content/uploads/2021/02/linkedin-brands-2.png\" alt=\"\" width=\"25\" height=\"26\" />";
 
-	/// <summary>Page française dont l'icône LinkedIn suit CP_LinkedIn.</summary>
-	internal const string GeorgesLouisFrSlug = "georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier";
-
-	private static readonly HashSet<string> GeorgesLouisSlugs = new HashSet<string>(StringComparer.Ordinal)
-	{
-		GeorgesLouisFrSlug,
-		"georges-louis-duquesne-director"
-	};
-
-	internal static bool IsGeorgesLouis(uint conseillerId)
-	{
-		return conseillerId == GeorgesLouisRef;
-	}
+	private static readonly Regex MailAnchor = new Regex(
+		"<a\\b[^>]*\\bhref\\s*=\\s*[\"']mail(?:to|o):[^\"']*[\"'][^>]*>.*?</a>",
+		RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
 	internal static bool ShouldPublish(string previousUrl, string previousText, string nextUrl, string nextText)
 	{
@@ -73,6 +70,12 @@ internal static class ConseillerPublicParcours
 
 	internal static bool TryPerleRareSlug(string url, out string slug)
 	{
+		return TryPerleRarePage(url, out _, out slug);
+	}
+
+	internal static bool TryPerleRarePage(string url, out string language, out string slug)
+	{
+		language = null;
 		slug = null;
 		if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out Uri uri))
 		{
@@ -88,10 +91,7 @@ internal static class ConseillerPublicParcours
 		{
 			return false;
 		}
-		if (!GeorgesLouisSlugs.Contains(parts[1]))
-		{
-			return false;
-		}
+		language = parts[0];
 		slug = parts[1];
 		return true;
 	}
@@ -120,6 +120,58 @@ internal static class ConseillerPublicParcours
 		}
 		updated = postContent.Substring(0, index) + nextParagraph + postContent.Substring(index + length);
 		return true;
+	}
+
+	/// <summary>
+	/// Sur une page qui cite plusieurs conseillers, remplace uniquement le LinkedIn
+	/// de la carte qui pointe vers la page du conseiller. Le texte court de la carte
+	/// n'est pas le parcours de la fiche : il reste en place.
+	/// </summary>
+	internal static LinkedInCardUpdate ReplaceLinkedInNearProfile(string postContent, string profileUrl, string linkedInUrl, out string updated)
+	{
+		updated = null;
+		if (string.IsNullOrEmpty(postContent) || !TryPerleRarePage(profileUrl, out string language, out string slug))
+		{
+			return LinkedInCardUpdate.Absent;
+		}
+		bool wantsLink = TryLinkedInHref(linkedInUrl, out string href);
+		if (!string.IsNullOrWhiteSpace(linkedInUrl) && !wantsLink)
+		{
+			return LinkedInCardUpdate.Unsafe;
+		}
+		string marker = "/" + language + "/" + slug;
+		List<(int Start, int End, string Next)> windows = new List<(int, int, string)>();
+		int search = 0;
+		while (search < postContent.Length)
+		{
+			int at = IndexOfBoundedSlug(postContent, marker, search);
+			if (at < 0)
+			{
+				break;
+			}
+			int windowEnd = NextCardBoundary(postContent, at + marker.Length);
+			string window = postContent.Substring(at, windowEnd - at);
+			if (!TryReplaceCardWindow(window, wantsLink, href, out string nextWindow))
+			{
+				return LinkedInCardUpdate.Unsafe;
+			}
+			windows.Add((at, windowEnd, nextWindow));
+			search = windowEnd;
+		}
+		if (windows.Count == 0)
+		{
+			return LinkedInCardUpdate.Absent;
+		}
+		string current = postContent;
+		for (int i = windows.Count - 1; i >= 0; i--)
+		{
+			(int start, int end, string next) = windows[i];
+			current = current.Substring(0, start) + next + current.Substring(end);
+		}
+		updated = current;
+		return string.Equals(current, postContent, StringComparison.Ordinal)
+			? LinkedInCardUpdate.Unchanged
+			: LinkedInCardUpdate.Updated;
 	}
 
 	internal static bool TryReplaceBiography(string postContent, string parcours, out string updated)
@@ -206,6 +258,66 @@ internal static class ConseillerPublicParcours
 			return false;
 		}
 		href = raw;
+		return true;
+	}
+
+	private static int IndexOfBoundedSlug(string content, string marker, int start)
+	{
+		int at = content.IndexOf(marker, start, StringComparison.OrdinalIgnoreCase);
+		while (at >= 0)
+		{
+			int after = at + marker.Length;
+			if (after >= content.Length || !IsSlugChar(content[after]))
+			{
+				return at;
+			}
+			at = content.IndexOf(marker, after, StringComparison.OrdinalIgnoreCase);
+		}
+		return -1;
+	}
+
+	private static bool IsSlugChar(char value)
+	{
+		return (value >= 'a' && value <= 'z') || (value >= '0' && value <= '9') || value == '-';
+	}
+
+	private static int NextCardBoundary(string content, int start)
+	{
+		int at = content.IndexOf("<p class=\"nom-chasseur-immobilier\"", start, StringComparison.Ordinal);
+		int cap = Math.Min(content.Length, start + 4000);
+		if (at < 0 || at > cap)
+		{
+			return cap;
+		}
+		return at;
+	}
+
+	private static bool TryReplaceCardWindow(string window, bool wantsLink, string href, out string updated)
+	{
+		updated = window;
+		int links = LinkedInAnchor.Matches(window).Count;
+		if (links > 1)
+		{
+			updated = null;
+			return false;
+		}
+		if (links == 1)
+		{
+			updated = wantsLink
+				? LinkedInHref.Replace(window, "$1" + href + "$2", 1)
+				: LinkedInAnchor.Replace(window, "", 1);
+			return updated != null;
+		}
+		if (!wantsLink)
+		{
+			return true;
+		}
+		Match mail = MailAnchor.Match(window);
+		if (!mail.Success)
+		{
+			return true;
+		}
+		updated = window.Insert(mail.Index + mail.Length, " <a href=\"" + href + "\">" + CardLinkedInIcon + "</a>");
 		return true;
 	}
 
