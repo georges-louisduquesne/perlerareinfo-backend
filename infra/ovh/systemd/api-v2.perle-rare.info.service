@@ -22,9 +22,11 @@ Environment=PR_FORMULAIRES_CANDIDATS_MAIL=on
 Environment=PR_TRANSACTION_EVENT_MAIL=off
 # Rappel mensuel des biens à recrawler : support@ vers gld@. Pas sur la démo.
 Environment=PR_RECRAWL_STOCK_MAIL=on
-# Nettoyage quotidien des biens Yanport 404 (> 48 h) et fermés ratés : passer à on après validation du rattrapage initial.
+# Maintenance quotidienne unifiée et économique Yanport (Lot 1 fantômes + Lot 2 doublons en 1 passe :
+# nouveaux < 36 h + 1/14e des biens sans MAJ > 14 j, plafond 2 500 biens/jour ≈ 35 000 biens/mois).
+Environment=PR_YANPORT_DAILY_MAINTENANCE=on
+# Jobs complets autonomes gardés à off (remplacés par PR_YANPORT_DAILY_MAINTENANCE en mode économique).
 Environment=PR_YANPORT_GHOST_CLEANUP=off
-# Synchronisation quotidienne des doublons multi-agences Yanport (P_DoublonPropertyId) : passer à on après validation du rattrapage initial.
 Environment=PR_YANPORT_DOUBLON_SYNC=off
 # Same host as the current API: a shared session cookie name makes each API overwrite the other's session.
 Environment=PR_SESSION_COOKIE=.PerleRare.v2.Session
