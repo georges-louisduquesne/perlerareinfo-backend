@@ -449,6 +449,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 				.HasColumnName("CP_MelPerso");
 			entity.Property((ConseillersPersonnels e) => e.CpLinkedIn).HasMaxLength(100).HasColumnName("CP_LinkedIn");
 			entity.Property((ConseillersPersonnels e) => e.CpGoogle).HasMaxLength(512).HasColumnName("CP_Google");
+			entity.Property((ConseillersPersonnels e) => e.CpCarteVirtuelle).HasMaxLength(255).HasColumnName("CP_CarteVirtuelle");
 			entity.Property((ConseillersPersonnels e) => e.CpPageWebFr).HasMaxLength(255).HasColumnName("CP_pageWebFr")
 				.UseCollation("utf8mb4_unicode_ci")
 				.HasCharSet("utf8mb4");

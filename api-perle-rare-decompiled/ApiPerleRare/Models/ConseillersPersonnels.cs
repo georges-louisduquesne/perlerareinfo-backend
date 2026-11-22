@@ -51,6 +51,8 @@ public class ConseillersPersonnels
 
 	public string CpGoogle { get; set; }
 
+	public string CpCarteVirtuelle { get; set; }
+
 	public string CpPageWebFr { get; set; }
 
 	public string CpPageWebEn { get; set; }

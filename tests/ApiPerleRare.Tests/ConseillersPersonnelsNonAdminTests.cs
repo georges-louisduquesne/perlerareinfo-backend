@@ -64,7 +64,8 @@ public class ConseillersPersonnelsNonAdminTests
 			CpParcoursFr = "Parcours français",
 			CpParcoursEn = "English bio",
 			CpLinkedIn = "https://www.linkedin.com/in/glduquesne/",
-			CpGoogle = "https://www.google.com/maps/search/?api=1&query=Perle+Rare"
+			CpGoogle = "https://www.google.com/maps/search/?api=1&query=Perle+Rare",
+			CpCarteVirtuelle = "https://perle-rare.com/fr/carte-virtuelle-georges-louis-duquesne/"
 		};
 		var omitted = new ConseillersPersonnels();
 		ConseillersPersonnelsController.KeepOmittedWebCopy(omitted, stored);
@@ -74,6 +75,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal(stored.CpParcoursEn, omitted.CpParcoursEn);
 		Assert.Equal(stored.CpLinkedIn, omitted.CpLinkedIn);
 		Assert.Equal(stored.CpGoogle, omitted.CpGoogle);
+		Assert.Equal(stored.CpCarteVirtuelle, omitted.CpCarteVirtuelle);
 
 		var cleared = new ConseillersPersonnels
 		{
@@ -82,7 +84,8 @@ public class ConseillersPersonnelsNonAdminTests
 			CpParcoursFr = "",
 			CpParcoursEn = "New bio",
 			CpLinkedIn = "",
-			CpGoogle = ""
+			CpGoogle = "",
+			CpCarteVirtuelle = ""
 		};
 		ConseillersPersonnelsController.KeepOmittedWebCopy(cleared, stored);
 		Assert.Equal("", cleared.CpPageWebFr);
@@ -91,6 +94,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal("New bio", cleared.CpParcoursEn);
 		Assert.Equal("", cleared.CpLinkedIn);
 		Assert.Equal("", cleared.CpGoogle);
+		Assert.Equal("", cleared.CpCarteVirtuelle);
 	}
 
 	[Fact]
