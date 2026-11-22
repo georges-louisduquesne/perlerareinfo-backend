@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Perle Rare — fiches conseiller pilotées par le CRM
- * Description: Avertit, dans l’éditeur des pages qui affichent un conseiller, que le parcours et le lien LinkedIn sont publiés depuis perle-rare.info.
+ * Description: Avertit, dans l’éditeur des pages qui affichent un conseiller, que ses données maîtresses sont publiées depuis perle-rare.info.
  */
 
 if (!defined('ABSPATH')) {
@@ -33,11 +33,9 @@ add_action('admin_notices', static function () {
     }
     $is_profile = strpos($content, 'nom-chasseur-immobilier-noir') !== false;
     if ($is_profile) {
-        $message = '<strong>Parcours et lien LinkedIn pilotés par perle-rare.info.</strong> Ces informations sont enregistrées sur la fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de cette fiche.';
-    } elseif (strpos($content, 'linkedin.com') !== false) {
-        $message = '<strong>Liens LinkedIn des conseillers pilotés par perle-rare.info.</strong> Ils sont enregistrés sur chaque fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de la fiche.';
+        $message = '<strong>Prénom/nom, parcours, RSAC, e-mail, LinkedIn et fiche Google pilotés par perle-rare.info.</strong> Ces informations sont enregistrées sur la fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de cette fiche.';
     } else {
-        return;
+        $message = '<strong>Prénom/nom, e-mail, LinkedIn et fiche Google des conseillers pilotés par perle-rare.info.</strong> Ils sont enregistrés sur chaque fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de la fiche.';
     }
     echo '<div class="notice notice-warning"><p>' . $message . '</p></div>';
 });

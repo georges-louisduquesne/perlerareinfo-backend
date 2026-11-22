@@ -291,9 +291,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			}
 			throw;
 		}
-		await _publicPages.PublishAsync(id, stored.CpPageWebFr, stored.CpParcoursFr, conseillersPersonnels.CpPageWebFr, conseillersPersonnels.CpParcoursFr, HttpContext.RequestAborted);
-		await _publicPages.PublishAsync(id, stored.CpPageWebEn, stored.CpParcoursEn, conseillersPersonnels.CpPageWebEn, conseillersPersonnels.CpParcoursEn, HttpContext.RequestAborted);
-		await _publicPages.PublishLinkedInAsync(id, stored.CpLinkedIn, conseillersPersonnels.CpLinkedIn, stored.CpPageWebFr, conseillersPersonnels.CpPageWebFr, stored.CpPageWebEn, conseillersPersonnels.CpPageWebEn, HttpContext.RequestAborted);
+		await _publicPages.PublishProfileChangesAsync(stored, conseillersPersonnels, HttpContext.RequestAborted);
 		return NoContent();
 	}
 
