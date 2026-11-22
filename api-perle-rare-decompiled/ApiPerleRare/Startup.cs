@@ -274,6 +274,10 @@ public class Startup
 			{
 				services.AddHostedService<RecrawlStockMailHostedService>();
 			}
+			if (YanportGhostCleanup.Enabled(Environment.GetEnvironmentVariable(YanportGhostCleanup.EnvVar)))
+			{
+				services.AddHostedService<YanportGhostCleanupHostedService>();
+			}
 		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 		services.AddSingleton<AgencyYanportLinkJob>();
