@@ -24,6 +24,8 @@ Environment=PR_TRANSACTION_EVENT_MAIL=off
 Environment=PR_RECRAWL_STOCK_MAIL=on
 # Nettoyage quotidien des biens Yanport 404 (> 48 h) et fermés ratés : passer à on après validation du rattrapage initial.
 Environment=PR_YANPORT_GHOST_CLEANUP=off
+# Synchronisation quotidienne des doublons multi-agences Yanport (P_DoublonPropertyId) : passer à on après validation du rattrapage initial.
+Environment=PR_YANPORT_DOUBLON_SYNC=off
 # Same host as the current API: a shared session cookie name makes each API overwrite the other's session.
 Environment=PR_SESSION_COOKIE=.PerleRare.v2.Session
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false

@@ -278,6 +278,10 @@ public class Startup
 			{
 				services.AddHostedService<YanportGhostCleanupHostedService>();
 			}
+			if (YanportDoublonSync.Enabled(Environment.GetEnvironmentVariable(YanportDoublonSync.EnvVar)))
+			{
+				services.AddHostedService<YanportDoublonSyncHostedService>();
+			}
 		}
 		services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 		services.AddSingleton<AgencyYanportLinkJob>();
