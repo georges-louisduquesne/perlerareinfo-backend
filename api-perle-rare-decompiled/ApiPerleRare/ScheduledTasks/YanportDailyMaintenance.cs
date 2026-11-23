@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ApiPerleRare.Application.Doublons;
 
 namespace ApiPerleRare.ScheduledTasks;
 
@@ -204,12 +205,23 @@ internal static class YanportDailyMaintenance
 		IReadOnlyList<ActiveRow> allActives,
 		IReadOnlySet<string> closedIds,
 		IReadOnlySet<string> queriedIds,
-		IReadOnlyDictionary<string, IReadOnlyList<string>> relatedById)
+		IReadOnlyDictionary<string, IReadOnlyList<string>> relatedById,
+		IReadOnlySet<string> rejectedPairKeys = null)
 	{
 		YanportDoublonSync.SyncPlan plan = new YanportDoublonSync.SyncPlan();
 		if (allActives == null || allActives.Count == 0)
 		{
 			return plan;
+		}
+
+		bool IsRejected(string a, string b)
+		{
+			if (rejectedPairKeys == null || rejectedPairKeys.Count == 0)
+			{
+				return false;
+			}
+			string key = DoublonReviewLogic.CanonicalPairKey(a, b);
+			return !string.IsNullOrEmpty(key) && rejectedPairKeys.Contains(key);
 		}
 
 		Dictionary<string, YanportDoublonSync.ActiveProperty> byId = new Dictionary<string, YanportDoublonSync.ActiveProperty>(StringComparer.Ordinal);
@@ -258,7 +270,8 @@ internal static class YanportDailyMaintenance
 
 			if (byId.TryGetValue(curParent, out YanportDoublonSync.ActiveProperty parent))
 			{
-				if (YanportDoublonSync.SameTransaction(prop.TypeTransaction, parent.TypeTransaction))
+				if (YanportDoublonSync.SameTransaction(prop.TypeTransaction, parent.TypeTransaction)
+					&& !IsRejected(prop.PropertyId, parent.PropertyId))
 				{
 					AddEdge(adj, prop.PropertyId, parent.PropertyId);
 					AddEdge(adj, parent.PropertyId, prop.PropertyId);
@@ -288,7 +301,8 @@ internal static class YanportDailyMaintenance
 			{
 				for (int j = i + 1; j < siblings.Count; j++)
 				{
-					if (YanportDoublonSync.SameTransaction(siblings[i].TypeTransaction, siblings[j].TypeTransaction))
+					if (YanportDoublonSync.SameTransaction(siblings[i].TypeTransaction, siblings[j].TypeTransaction)
+						&& !IsRejected(siblings[i].PropertyId, siblings[j].PropertyId))
 					{
 						AddEdge(adj, siblings[i].PropertyId, siblings[j].PropertyId);
 						AddEdge(adj, siblings[j].PropertyId, siblings[i].PropertyId);
@@ -318,6 +332,10 @@ internal static class YanportDailyMaintenance
 						continue;
 					}
 					if (!YanportDoublonSync.SameTransaction(src.TypeTransaction, dst.TypeTransaction))
+					{
+						continue;
+					}
+					if (IsRejected(src.PropertyId, dst.PropertyId))
 					{
 						continue;
 					}

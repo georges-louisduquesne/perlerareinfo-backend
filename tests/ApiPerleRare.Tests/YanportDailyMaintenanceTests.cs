@@ -220,6 +220,44 @@ public class YanportDailyMaintenanceTests
 	}
 
 	[Fact]
+	public void ComputeIncrementalDoublonPlan_never_relinks_admin_rejected_pairs()
+	{
+		DateTime d1 = new DateTime(2026, 9, 1);
+		DateTime d2 = new DateTime(2026, 10, 1);
+
+		List<YanportDailyMaintenance.ActiveRow> actives = new List<YanportDailyMaintenance.ActiveRow>
+		{
+			new("lotA", "SALE", d1, d1, d1, null),
+			new("lotB", "SALE", d2, d2, d2, null),
+			new("lotC", "SALE", d2, d2, d2, "lotA"),
+		};
+
+		HashSet<string> queried = new HashSet<string>(StringComparer.Ordinal) { "lotB" };
+		Dictionary<string, IReadOnlyList<string>> related = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+		{
+			["lotB"] = new[] { "lotA" }
+		};
+		HashSet<string> rejected = new HashSet<string>(StringComparer.Ordinal)
+		{
+			ApiPerleRare.Application.Doublons.DoublonReviewLogic.CanonicalPairKey("lotA", "lotB"),
+			ApiPerleRare.Application.Doublons.DoublonReviewLogic.CanonicalPairKey("lotA", "lotC"),
+		};
+
+		YanportDoublonSync.SyncPlan plan = YanportDailyMaintenance.ComputeIncrementalDoublonPlan(
+			actives,
+			closedIds: new HashSet<string>(StringComparer.Ordinal),
+			queriedIds: queried,
+			relatedById: related,
+			rejectedPairKeys: rejected);
+
+		Assert.Equal(0, plan.ClustersCount);
+		Assert.Empty(plan.ToLink);
+		YanportDoublonSync.DoublonUpdate clear = Assert.Single(plan.ToClear);
+		Assert.Equal("lotC", clear.PropertyId);
+		Assert.Null(clear.TargetDoublonPropertyId);
+	}
+
+	[Fact]
 	public void Sql_and_guards_are_safe()
 	{
 		Assert.Contains("IFNULL(P_EstRattrapage, 0) <> 4", YanportDailyMaintenance.SelectActiveSql);

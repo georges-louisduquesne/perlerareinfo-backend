@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ApiPerleRare.Application.Doublons;
 using ApiPerleRare.Models;
 using ApiPerleRare.ScheduledTasks;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,7 @@ public class YanportDailyMaintenanceHostedService : IHostedService, IDisposable
 		DateTime utcStart = DateTime.UtcNow;
 		DateTime parisStart = YanportDailyMaintenance.ToParisTime(utcStart);
 		List<YanportDailyMaintenance.ActiveRow> actives;
+		HashSet<string> rejectedPairKeys;
 
 		using (IServiceScope readScope = _serviceScopeFactory.CreateScope())
 		using (ApplicationDbContext db = readScope.ServiceProvider.GetRequiredService<ApplicationDbContext>())
@@ -97,6 +99,7 @@ public class YanportDailyMaintenanceHostedService : IHostedService, IDisposable
 				return;
 			}
 			actives = LoadActiveRows(db);
+			rejectedPairKeys = LoadRejectedPairKeys(db);
 		}
 
 		Stopwatch sw = Stopwatch.StartNew();
@@ -166,7 +169,7 @@ public class YanportDailyMaintenanceHostedService : IHostedService, IDisposable
 		}
 
 		YanportDoublonSync.SyncPlan doublonPlan = batchRateOk
-			? YanportDailyMaintenance.ComputeIncrementalDoublonPlan(actives, closedIds, queriedIds, relatedById)
+			? YanportDailyMaintenance.ComputeIncrementalDoublonPlan(actives, closedIds, queriedIds, relatedById, rejectedPairKeys)
 			: new YanportDoublonSync.SyncPlan();
 
 		int plannedDoublonUpdates = doublonPlan.ToLink.Count + doublonPlan.ToClear.Count;
@@ -285,6 +288,37 @@ public class YanportDailyMaintenanceHostedService : IHostedService, IDisposable
 			result.Add(new YanportDailyMaintenance.ActiveRow(id, tx, debut, crea, lastUpd, doublon));
 		}
 		return result;
+	}
+
+	private static HashSet<string> LoadRejectedPairKeys(ApplicationDbContext db)
+	{
+		HashSet<string> rejected = new HashSet<string>(StringComparer.Ordinal);
+		try
+		{
+			var conn = db.Database.GetDbConnection();
+			if (conn.State != ConnectionState.Open)
+			{
+				conn.Open();
+			}
+			using var cmd = conn.CreateCommand();
+			cmd.CommandText = DoublonReviewLogic.SelectRejectedReviewsSql;
+			using var reader = cmd.ExecuteReader();
+			while (reader.Read())
+			{
+				string a = reader.IsDBNull(0) ? null : reader.GetString(0);
+				string b = reader.IsDBNull(1) ? null : reader.GetString(1);
+				string key = DoublonReviewLogic.CanonicalPairKey(a, b);
+				if (!string.IsNullOrEmpty(key))
+				{
+					rejected.Add(key);
+				}
+			}
+		}
+		catch (MySqlException ex) when (ex.Number == 1146)
+		{
+			// Table property_doublon_review pas encore créée : on continue sans bloquer la maintenance.
+		}
+		return rejected;
 	}
 
 	private static int ApplyClosures(ApplicationDbContext db, IReadOnlyList<YanportGhostCleanup.CloseDecision> decisions)

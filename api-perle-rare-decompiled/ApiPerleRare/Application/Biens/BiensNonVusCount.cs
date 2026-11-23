@@ -15,14 +15,14 @@ internal static class BiensNonVusCount
 
 	internal const string Sql = @"
 SELECT COUNT(*) FROM (
-  SELECT pc.PC_Id
+  SELECT pc.PC_RefContact, COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) AS grp
   FROM contacts_recherche cr
   INNER JOIN property_contact pc
     ON pc.PC_RefContact = cr.C_RefContact AND pc.PC_Actif = 1 AND pc.PC_Vu <> 1
   INNER JOIN property p ON p.P_PropertyId = pc.PC_PropertyId
   WHERE cr.C_NomFamilleConseiller = @conseillerid
   UNION
-  SELECT pc.PC_Id
+  SELECT pc.PC_RefContact, COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) AS grp
   FROM contacts_recherche cr
   INNER JOIN property_contact pc
     ON pc.PC_RefContact = cr.C_RefContact AND pc.PC_Actif = 1 AND pc.PC_Vu <> 1

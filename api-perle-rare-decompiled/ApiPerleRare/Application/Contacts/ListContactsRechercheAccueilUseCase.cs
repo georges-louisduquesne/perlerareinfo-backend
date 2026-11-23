@@ -56,22 +56,27 @@ public sealed class ListContactsRechercheAccueilUseCase : IListContactsRecherche
 		return resa;
 	}
 
-	private static async Task FillAnnoncesStats(DbConnection c, List<ContactsRechercheAccueil> resa, Dictionary<uint, ContactsRechercheAccueil> byId)
+	internal static string BuildAnnoncesStatsSql(string ids)
 	{
-		string ids = string.Join(",", resa.Select((ContactsRechercheAccueil x) => x.CRefContact));
-		await using DbCommand cmd = c.CreateCommand();
-		cmd.CommandText = $@"
+		return $@"
 SELECT pc.PC_RefContact,
-  SUM(1-pc.PC_Vu) AS nonlus,
+  COUNT(DISTINCT CASE WHEN pc.PC_Vu = 0 THEN COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) END) AS nonlus,
   MIN(p.P_DateCreation) AS max_aff,
-  SUM(pc.PC_Vu) AS lus,
-  SUM(case when pc.PC_Rate=1 then 1 ELSE 0 END) AS demi,
-  SUM(case when pc.PC_Rate=2 then 1 ELSE 0 END) AS complete,
-  COUNT(*) AS total
+  COUNT(DISTINCT CASE WHEN pc.PC_Vu = 1 THEN COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) END) AS lus,
+  COUNT(DISTINCT CASE WHEN pc.PC_Rate = 1 THEN COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) END) AS demi,
+  COUNT(DISTINCT CASE WHEN pc.PC_Rate = 2 THEN COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) END) AS complete,
+  COUNT(DISTINCT COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId)) AS total
 FROM property_contact pc
 INNER JOIN property p ON pc.PC_PropertyId=p.P_PropertyId
 WHERE pc.PC_RefContact IN ({ids}) AND p.P_DateFin IS NULL AND pc.PC_Actif=1
 GROUP BY pc.PC_RefContact";
+	}
+
+	private static async Task FillAnnoncesStats(DbConnection c, List<ContactsRechercheAccueil> resa, Dictionary<uint, ContactsRechercheAccueil> byId)
+	{
+		string ids = string.Join(",", resa.Select((ContactsRechercheAccueil x) => x.CRefContact));
+		await using DbCommand cmd = c.CreateCommand();
+		cmd.CommandText = BuildAnnoncesStatsSql(ids);
 		await using DbDataReader reader = await cmd.ExecuteReaderAsync();
 		while (await reader.ReadAsync())
 		{

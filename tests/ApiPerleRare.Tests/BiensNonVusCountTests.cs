@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using ApiPerleRare.Application.BiensNonVus;
+using ApiPerleRare.Application.Contacts;
 using Microsoft.Extensions.Caching.Memory;
 using Xunit;
 
@@ -18,6 +19,19 @@ public class BiensNonVusCountTests
 		Assert.Contains("cr.C_2emeConseiller = @conseillerid2", sql);
 		Assert.Contains("UNION", sql);
 		Assert.DoesNotContain(" OR ", sql);
+	}
+
+	[Fact]
+	public void Sql_deduplicates_multi_agency_properties_per_contact_and_accueil_stats_follow_suit()
+	{
+		string sql = BiensNonVusCount.Sql;
+		Assert.Equal(2, CountOf(sql, "COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId)"));
+		Assert.Equal(2, CountOf(sql, "SELECT pc.PC_RefContact, COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) AS grp"));
+
+		string accueilSql = ListContactsRechercheAccueilUseCase.BuildAnnoncesStatsSql("101,102");
+		Assert.Contains("COUNT(DISTINCT CASE WHEN pc.PC_Vu = 0 THEN COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) END) AS nonlus", accueilSql);
+		Assert.Contains("COUNT(DISTINCT CASE WHEN pc.PC_Vu = 1 THEN COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId) END) AS lus", accueilSql);
+		Assert.Contains("COUNT(DISTINCT COALESCE(NULLIF(p.P_DoublonPropertyId, ''), p.P_PropertyId)) AS total", accueilSql);
 	}
 
 	[Fact]
