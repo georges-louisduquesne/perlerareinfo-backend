@@ -9,7 +9,7 @@ namespace ApiPerleRare.Application.Conseillers;
 /// <summary>
 /// Met à jour une page conseiller WPBakery (perle-rare.com) et les cartes qui y renvoient.
 /// Données maîtresses synchronisées depuis conseillers_personnels :
-/// prénom/nom, parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
+/// prénom/nom, fonction (page française), parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
 /// Un paragraphe du parcours dont le texte visible ne change pas garde son HTML (lien inclus).
 /// </summary>
 internal enum LinkedInCardUpdate
@@ -409,6 +409,51 @@ internal static class ConseillerPublicParcours
 			+ strong.Groups[1].Value + encoded + strong.Groups[3].Value
 			+ namePara.Value.Substring(strong.Index + strong.Length);
 		updated = postContent.Substring(0, namePara.Index) + replacedPara + postContent.Substring(namePara.Index + namePara.Length);
+		return true;
+	}
+
+	/// <summary>
+	/// Remplace la ligne de fonction sous le nom (page française).
+	/// Une fonction vide ne retire pas le titre déjà publié.
+	/// La page anglaise garde sa traduction : elle n'a pas de colonne dédiée.
+	/// </summary>
+	internal static bool TryReplaceJobTitle(string postContent, string jobTitle, out string updated)
+	{
+		updated = null;
+		string title = (jobTitle ?? "").Trim();
+		if (string.IsNullOrEmpty(postContent) || title.Length == 0 || title.Length > 120 || title.IndexOfAny(new char[] { '<', '>', '\r', '\n' }) >= 0)
+		{
+			return false;
+		}
+		Match namePara = NameParagraph.Match(postContent);
+		if (!namePara.Success)
+		{
+			return false;
+		}
+		MatchCollection breaks = Regex.Matches(namePara.Value, "<br\\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+		if (breaks.Count == 0)
+		{
+			return false;
+		}
+		Match br = breaks[breaks.Count - 1];
+		int textStart = br.Index + br.Length;
+		int close = namePara.Value.LastIndexOf("</p>", StringComparison.OrdinalIgnoreCase);
+		if (close < textStart)
+		{
+			return false;
+		}
+		string current = namePara.Value.Substring(textStart, close - textStart);
+		if (Regex.IsMatch(current, "<[^>]+>", RegexOptions.CultureInvariant))
+		{
+			return false;
+		}
+		string prefix = current.Substring(0, current.Length - current.TrimStart().Length);
+		if (prefix.Length == 0)
+		{
+			prefix = " ";
+		}
+		string nextPara = namePara.Value.Substring(0, textStart) + prefix + WebUtility.HtmlEncode(title) + namePara.Value.Substring(close);
+		updated = postContent.Substring(0, namePara.Index) + nextPara + postContent.Substring(namePara.Index + namePara.Length);
 		return true;
 	}
 

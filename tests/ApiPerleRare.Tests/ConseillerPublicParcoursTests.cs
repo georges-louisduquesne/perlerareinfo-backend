@@ -254,6 +254,27 @@ public class ConseillerPublicParcoursTests
 	}
 
 	[Fact]
+	public void French_job_title_replaces_only_the_line_under_the_name()
+	{
+		Assert.True(ConseillerPublicParcours.TryReplaceJobTitle(Page, " Directeur ", out string updated));
+		Assert.Contains("<strong>Georges-Louis Duquesne</strong><br />\nDirecteur</p>", updated);
+		Assert.DoesNotContain("Dirigeant co-fondateur", updated);
+		Assert.Contains("mailto:gld@perle-rare.com", updated);
+		Assert.False(ConseillerPublicParcours.TryReplaceJobTitle(Page, "   ", out _));
+		Assert.False(ConseillerPublicParcours.TryReplaceJobTitle(Page, "Titre <b>interdit</b>", out _));
+		Assert.False(ConseillerPublicParcours.TryReplaceJobTitle("<p class=\"nom-chasseur-immobilier-noir\"><strong>Jean</strong></p>", "Associé", out _));
+	}
+
+	[Fact]
+	public void Public_profile_url_is_canonical_https()
+	{
+		Assert.True(PublicPageRepublish.TryProfileUrl("https://perle-rare.com/fr/anne-davoli-conseiller-personnel", out string url));
+		Assert.Equal("https://perle-rare.com/fr/anne-davoli-conseiller-personnel/", url);
+		Assert.False(PublicPageRepublish.TryProfileUrl("https://example.com/fr/anne/", out _));
+		Assert.False(PublicPageRepublish.TryProfileUrl("javascript:alert(1)", out _));
+	}
+
+	[Fact]
 	public void Profile_email_updates_icon_link_text_link_and_broken_hrefs()
 	{
 		Assert.True(ConseillerPublicParcours.TryReplaceEmail(Page, "georges-louis.duquesne@perle-rare.com", out string iconUpdated));

@@ -13,9 +13,10 @@ namespace ApiPerleRare.Application.Conseillers;
 
 /// <summary>
 /// Publie les données maîtresses d'un conseiller (conseillers_personnels) sur https://perle-rare.com :
-/// prénom/nom, parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
-/// Le parcours et le RSAC vont sur la page dédiée (FR/EN).
+/// prénom/nom, fonction de la page française, parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
+/// Le parcours, le RSAC et la fonction vont sur la page dédiée. La fonction n'est recopiée que sur la page française.
 /// Le prénom/nom, l'e-mail, LinkedIn et Google vont sur cette page et sur les cartes qui y renvoient.
+/// Après écriture, les pages touchées sont republiées (purge du cache NitroPack).
 /// La base WordPress est sur le même MariaDB. Un échec n'annule jamais l'enregistrement CRM.
 /// </summary>
 public sealed class PublicParcoursPublisher
@@ -29,6 +30,10 @@ public sealed class PublicParcoursPublisher
 	private readonly ApplicationDbContext _context;
 
 	private readonly ILogger<PublicParcoursPublisher> _logger;
+
+	private readonly List<string> _purgeUrls = new List<string>();
+
+	private readonly List<long> _purgeIds = new List<long>();
 
 	public PublicParcoursPublisher(ApplicationDbContext context, ILogger<PublicParcoursPublisher> logger)
 	{
@@ -60,7 +65,10 @@ public sealed class PublicParcoursPublisher
 		bool linkedInChanged = ConseillerPublicParcours.ShouldPublishLinkedIn(previous.CpLinkedIn, next.CpLinkedIn);
 		bool googleChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpGoogle, next.CpGoogle);
 		bool photoChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpPhotoWeb, next.CpPhotoWeb);
-
+		bool fonctionChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpFonction, next.CpFonction);
+		ClearPurge();
+		try
+		{
 		await PublishLanguageAsync(
 			next.CpRefConseiller,
 			next.CpPageWebFr,
@@ -72,6 +80,7 @@ public sealed class PublicParcoursPublisher
 			next.CpLinkedIn,
 			next.CpGoogle,
 			next.CpPhotoWeb,
+			next.CpFonction,
 			updateParcours: parcoursFrChanged,
 			updateName: nameChanged || pageFrChanged,
 			updateEmail: emailChanged || pageFrChanged,
@@ -79,6 +88,7 @@ public sealed class PublicParcoursPublisher
 			updateLinkedIn: linkedInChanged || pageFrChanged,
 			updateGoogle: googleChanged || pageFrChanged,
 			updatePhoto: photoChanged || pageFrChanged,
+			updateJobTitle: fonctionChanged || pageFrChanged,
 			cancellationToken);
 
 		await PublishLanguageAsync(
@@ -92,6 +102,7 @@ public sealed class PublicParcoursPublisher
 			next.CpLinkedIn,
 			next.CpGoogle,
 			next.CpPhotoWeb,
+			next.CpFonction,
 			updateParcours: parcoursEnChanged,
 			updateName: nameChanged || pageEnChanged,
 			updateEmail: emailChanged || pageEnChanged,
@@ -99,7 +110,13 @@ public sealed class PublicParcoursPublisher
 			updateLinkedIn: linkedInChanged || pageEnChanged,
 			updateGoogle: googleChanged || pageEnChanged,
 			updatePhoto: photoChanged || pageEnChanged,
+			updateJobTitle: false,
 			cancellationToken);
+		}
+		finally
+		{
+			await FlushPurgeAsync(cancellationToken);
+		}
 	}
 
 	public async Task PublishAsync(uint conseillerId, string previousUrl, string previousText, string nextUrl, string nextText, CancellationToken cancellationToken)
@@ -114,6 +131,7 @@ public sealed class PublicParcoursPublisher
 		}
 		try
 		{
+			ClearPurge();
 			await UpdateProfilePageAsync(
 				conseillerId,
 				language,
@@ -126,6 +144,7 @@ public sealed class PublicParcoursPublisher
 				linkedIn: null,
 				google: null,
 				photoUrl: null,
+				jobTitle: null,
 				updateParcours: true,
 				updateName: false,
 				updateEmail: false,
@@ -133,11 +152,17 @@ public sealed class PublicParcoursPublisher
 				updateLinkedIn: false,
 				updateGoogle: false,
 				updatePhoto: false,
+				updateJobTitle: false,
+				pageUrl: nextUrl,
 				cancellationToken);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogWarning(ex, "Publication du parcours impossible pour le conseiller {ConseillerId}, page {Slug}.", conseillerId, slug);
+		}
+		finally
+		{
+			await FlushPurgeAsync(cancellationToken);
 		}
 	}
 
@@ -155,13 +180,21 @@ public sealed class PublicParcoursPublisher
 			return;
 		}
 		string value = nextLinkedIn ?? "";
+		ClearPurge();
+		try
+		{
 		if (linkedInChanged || frenchChanged)
 		{
-			await PublishLanguageAsync(conseillerId, nextPageFr, null, null, null, null, null, value, null, null, false, false, false, false, true, false, false, cancellationToken);
+			await PublishLanguageAsync(conseillerId, nextPageFr, null, null, null, null, null, value, null, null, null, false, false, false, false, true, false, false, false, cancellationToken);
 		}
 		if (linkedInChanged || englishChanged)
 		{
-			await PublishLanguageAsync(conseillerId, nextPageEn, null, null, null, null, null, value, null, null, false, false, false, false, true, false, false, cancellationToken);
+			await PublishLanguageAsync(conseillerId, nextPageEn, null, null, null, null, null, value, null, null, null, false, false, false, false, true, false, false, false, cancellationToken);
+		}
+		}
+		finally
+		{
+			await FlushPurgeAsync(cancellationToken);
 		}
 	}
 
@@ -176,6 +209,7 @@ public sealed class PublicParcoursPublisher
 		string linkedIn,
 		string google,
 		string photoUrl,
+		string jobTitle,
 		bool updateParcours,
 		bool updateName,
 		bool updateEmail,
@@ -183,9 +217,10 @@ public sealed class PublicParcoursPublisher
 		bool updateLinkedIn,
 		bool updateGoogle,
 		bool updatePhoto,
+		bool updateJobTitle,
 		CancellationToken cancellationToken)
 	{
-		bool anyProfile = updateParcours || updateName || updateEmail || updateRsac || updateLinkedIn || updateGoogle || updatePhoto;
+		bool anyProfile = updateParcours || updateName || updateEmail || updateRsac || updateLinkedIn || updateGoogle || updatePhoto || updateJobTitle;
 		ConseillerCardChanges cardChanges = new ConseillerCardChanges
 		{
 			UpdateName = updateName && !string.IsNullOrWhiteSpace(fullName),
@@ -221,6 +256,7 @@ public sealed class PublicParcoursPublisher
 					linkedIn ?? "",
 					google ?? "",
 					photoUrl ?? "",
+					jobTitle ?? "",
 					updateParcours,
 					updateName,
 					updateEmail,
@@ -228,6 +264,8 @@ public sealed class PublicParcoursPublisher
 					updateLinkedIn,
 					updateGoogle,
 					updatePhoto,
+					updateJobTitle,
+					pageUrl,
 					cancellationToken);
 			}
 			if (cardChanges.Any)
@@ -253,6 +291,7 @@ public sealed class PublicParcoursPublisher
 		string linkedIn,
 		string google,
 		string photoUrl,
+		string jobTitle,
 		bool updateParcours,
 		bool updateName,
 		bool updateEmail,
@@ -260,6 +299,8 @@ public sealed class PublicParcoursPublisher
 		bool updateLinkedIn,
 		bool updateGoogle,
 		bool updatePhoto,
+		bool updateJobTitle,
+		string pageUrl,
 		CancellationToken cancellationToken)
 	{
 		DbConnection connection = _context.Database.GetDbConnection();
@@ -393,6 +434,18 @@ public sealed class PublicParcoursPublisher
 				}
 			}
 		}
+		if (updateJobTitle)
+		{
+			if (ConseillerPublicParcours.TryReplaceJobTitle(nextContent, jobTitle, out string withJob))
+			{
+				nextContent = withJob;
+				applied.Add("fonction");
+			}
+			else if (!string.IsNullOrWhiteSpace(jobTitle))
+			{
+				_logger.LogWarning("Impossible de mettre a jour la fonction sur la page {Slug}.", slug);
+			}
+		}
 
 		bool contentChanged = !string.Equals(nextContent, postContent, StringComparison.Ordinal);
 		bool titleChanged = !string.Equals(nextTitle, postTitle, StringComparison.Ordinal);
@@ -407,6 +460,10 @@ public sealed class PublicParcoursPublisher
 			if (written == 1)
 			{
 				_logger.LogInformation("Fiche publique {Slug} mise a jour ({Fields}).", slug, string.Join(", ", applied));
+				if (PublicPageRepublish.TryProfileUrl(pageUrl, out string canonical))
+				{
+					_purgeUrls.Add(canonical);
+				}
 			}
 		}
 		if (portraitId != null)
@@ -456,6 +513,7 @@ public sealed class PublicParcoursPublisher
 			if (written == 1)
 			{
 				_logger.LogInformation("Carte publique mise a jour sur la page {PageId} pour {Slug}.", id, slug);
+				_purgeIds.Add(id);
 			}
 		}
 	}
@@ -534,5 +592,27 @@ public sealed class PublicParcoursPublisher
 		Add(insert, "@page", pageId);
 		Add(insert, "@value", value);
 		await insert.ExecuteNonQueryAsync(cancellationToken);
+	}
+
+	private void ClearPurge()
+	{
+		_purgeUrls.Clear();
+		_purgeIds.Clear();
+	}
+
+	private async Task FlushPurgeAsync(CancellationToken cancellationToken)
+	{
+		try
+		{
+			await PublicPageRepublish.RunAsync(_purgeUrls, _purgeIds, _logger, cancellationToken);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Republication du cache des pages publiques impossible.");
+		}
+		finally
+		{
+			ClearPurge();
+		}
 	}
 }
