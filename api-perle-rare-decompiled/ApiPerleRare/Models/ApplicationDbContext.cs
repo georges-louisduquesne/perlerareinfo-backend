@@ -456,6 +456,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpPageWebEn).HasMaxLength(255).HasColumnName("CP_pageWebEn")
 				.UseCollation("utf8mb4_unicode_ci")
 				.HasCharSet("utf8mb4");
+			entity.Property((ConseillersPersonnels e) => e.CpPhotoWeb).HasMaxLength(512).HasColumnName("CP_photoWeb");
 			entity.Property((ConseillersPersonnels e) => e.CpParcoursFr).HasColumnType("text").HasColumnName("CP_parcours_fr")
 				.UseCollation("utf8mb4_unicode_ci")
 				.HasCharSet("utf8mb4");

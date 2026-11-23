@@ -466,4 +466,37 @@ public class ConseillerPublicParcoursTests
 	{
 		return string.Join("\n", value.Replace("\r\n", "\n").Split('\n').Select((string line) => line.TrimStart('\t', ' ')));
 	}
+
+	[Fact]
+	public void Portrait_url_must_be_the_site_jpg_and_the_shortcode_is_replaced()
+	{
+		Assert.True(ConseillerPublicParcours.TryParseSitePortraitUrl(
+			"https://perle-rare.com/wp-content/uploads/2023/01/chasseur-immobilier-perle-rare-georges-louis-duquesne-1.jpg",
+			out string relative));
+		Assert.Equal("2023/01/chasseur-immobilier-perle-rare-georges-louis-duquesne-1.jpg", relative);
+		Assert.False(ConseillerPublicParcours.TryParseSitePortraitUrl(
+			"http://perle-rare.com/wp-content/uploads/2023/01/portrait.jpg", out _));
+		Assert.False(ConseillerPublicParcours.TryParseSitePortraitUrl(
+			"https://perle-rare.com/wp-content/uploads/2023/01/portrait.jpg?x=1", out _));
+		Assert.False(ConseillerPublicParcours.TryParseSitePortraitUrl(
+			"https://example.com/wp-content/uploads/2023/01/portrait.jpg", out _));
+		Assert.False(ConseillerPublicParcours.TryParseSitePortraitUrl(
+			"https://perle-rare.com/wp-content/uploads/2023/01/../portrait.jpg", out _));
+		Assert.False(ConseillerPublicParcours.TryParseSitePortraitUrl("", out _));
+
+		Assert.True(ConseillerPublicParcours.AttachmentMetadataIsSquare555("a:2:{s:5:\"width\";i:555;s:6:\"height\";i:555;}"));
+		Assert.False(ConseillerPublicParcours.AttachmentMetadataIsSquare555("a:2:{s:5:\"width\";i:555;s:6:\"height\";i:400;}"));
+		Assert.False(ConseillerPublicParcours.AttachmentMetadataIsSquare555("a:3:{s:5:\"width\";i:669;s:6:\"height\";i:669;s:5:\"sizes\";a:1:{s:4:\"crop\";a:2:{s:5:\"width\";i:555;s:6:\"height\";i:555;}}}"));
+		Assert.False(ConseillerPublicParcours.AttachmentMetadataIsSquare555(""));
+
+		Assert.True(ConseillerPublicParcours.TryReplacePortrait(Page, 7244, out string updated));
+		Assert.Contains("[vc_single_image image=\"7244\"", updated);
+		Assert.DoesNotContain("image=\"5791\"", updated);
+		Assert.Contains("wp-image-4359", updated);
+		Assert.Contains("wp-image-4358", updated);
+		Assert.True(ConseillerPublicParcours.TryReplacePortrait(updated, 7244, out string same));
+		Assert.Equal(updated, same);
+		Assert.False(ConseillerPublicParcours.TryReplacePortrait(Page + Page, 7244, out _));
+		Assert.False(ConseillerPublicParcours.TryReplacePortrait("<p>sans portrait</p>", 7244, out _));
+	}
 }

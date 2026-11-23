@@ -53,7 +53,7 @@ public class ConseillersPersonnelsController : ControllerBase
 	// Mail send does not need CP_MelMotDePasse in this payload: Exchange/SendEmail reads it for the signed-in conseiller.
 	/// <summary>
 	/// Un PUT de fiche omet les propriétés null (WhenWritingNull). Sans ça, enregistrer
-	/// un autre champ effacerait la page web, le parcours, le LinkedIn, la fiche Google ou la carte virtuelle déjà saisis.
+	/// un autre champ effacerait la page web, le portrait du site, le parcours, le LinkedIn, la fiche Google ou la carte virtuelle déjà saisis.
 	/// Une chaîne vide est un effacement volontaire.
 	/// </summary>
 	internal static void KeepOmittedWebCopy(ConseillersPersonnels incoming, ConseillersPersonnels stored)
@@ -69,6 +69,10 @@ public class ConseillersPersonnelsController : ControllerBase
 		if (incoming.CpPageWebEn == null)
 		{
 			incoming.CpPageWebEn = stored.CpPageWebEn;
+		}
+		if (incoming.CpPhotoWeb == null)
+		{
+			incoming.CpPhotoWeb = stored.CpPhotoWeb;
 		}
 		if (incoming.CpParcoursFr == null)
 		{

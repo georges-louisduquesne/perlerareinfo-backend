@@ -57,6 +57,8 @@ public class ConseillersPersonnels
 
 	public string CpPageWebEn { get; set; }
 
+	public string CpPhotoWeb { get; set; }
+
 	public string CpParcoursFr { get; set; }
 
 	public string CpParcoursEn { get; set; }

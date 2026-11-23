@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
 
@@ -8,7 +9,7 @@ namespace ApiPerleRare.Application.Conseillers;
 /// <summary>
 /// Met à jour une page conseiller WPBakery (perle-rare.com) et les cartes qui y renvoient.
 /// Données maîtresses synchronisées depuis conseillers_personnels :
-/// prénom/nom, parcours FR/EN, numéro RSAC (agents commerciaux), e-mail, LinkedIn et fiche Google.
+/// prénom/nom, parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
 /// Un paragraphe du parcours dont le texte visible ne change pas garde son HTML (lien inclus).
 /// </summary>
 internal enum LinkedInCardUpdate
@@ -71,6 +72,18 @@ internal static class ConseillerPublicParcours
 	private static readonly Regex Breaks = new Regex("<br\\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
 	private static readonly Regex Whitespace = new Regex("\\s+", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+	private static readonly Regex VcSingleImage = new Regex(
+		"\\[vc_single_image\\b[^\\]]*\\]",
+		RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+	private static readonly Regex VcSingleImageId = new Regex(
+		"\\bimage\\s*=\\s*\"(\\d+)\"",
+		RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+	private static readonly Regex PortraitUploadPath = new Regex(
+		"^\\d{4}/\\d{2}/[^/\\\\]+\\.jpg$",
+		RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
 	private static readonly Regex SlugPattern = new Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
@@ -141,6 +154,109 @@ internal static class ConseillerPublicParcours
 	internal static bool ShouldPublishText(string previous, string next)
 	{
 		return !string.Equals((previous ?? "").Trim(), (next ?? "").Trim(), StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// URL maîtresse du portrait publié : https://perle-rare.com/wp-content/uploads/AAAA/MM/fichier.jpg
+	/// </summary>
+	internal static bool TryParseSitePortraitUrl(string url, out string relativePath)
+	{
+		relativePath = "";
+		string raw = (url ?? "").Trim();
+		if (raw.Length == 0 || raw.Length > 512)
+		{
+			return false;
+		}
+		if (!Uri.TryCreate(raw, UriKind.Absolute, out Uri uri))
+		{
+			return false;
+		}
+		if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		if (!string.Equals(uri.IdnHost, "perle-rare.com", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		if (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment) || !string.IsNullOrEmpty(uri.UserInfo))
+		{
+			return false;
+		}
+		const string prefix = "/wp-content/uploads/";
+		string path = Uri.UnescapeDataString(uri.AbsolutePath);
+		if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+		string relative = path.Substring(prefix.Length);
+		if (relative.IndexOf("..", StringComparison.Ordinal) >= 0 || !PortraitUploadPath.IsMatch(relative))
+		{
+			return false;
+		}
+		relativePath = relative;
+		return true;
+	}
+
+	internal static bool AttachmentMetadataIsSquare555(string serialized)
+	{
+		// La première paire width/height est la taille d'origine. Un recadrage
+		// 555 imbriqué dans "sizes" ne doit pas valider un fichier plus grand.
+		return TryPhpInt(serialized, "\"width\";i:", out int width)
+			&& TryPhpInt(serialized, "\"height\";i:", out int height)
+			&& width == 555
+			&& height == 555;
+	}
+
+	private static bool TryPhpInt(string serialized, string marker, out int value)
+	{
+		value = 0;
+		if (string.IsNullOrEmpty(serialized))
+		{
+			return false;
+		}
+		int at = serialized.IndexOf(marker, StringComparison.Ordinal);
+		if (at < 0)
+		{
+			return false;
+		}
+		int start = at + marker.Length;
+		int end = start;
+		while (end < serialized.Length && char.IsDigit(serialized[end]))
+		{
+			end++;
+		}
+		if (end == start || end >= serialized.Length || serialized[end] != ';')
+		{
+			return false;
+		}
+		return int.TryParse(serialized.Substring(start, end - start), NumberStyles.None, CultureInfo.InvariantCulture, out value);
+	}
+
+	/// <summary>
+	/// Remplace l'unique portrait WPBakery de la fiche. Les icônes e-mail et LinkedIn ne sont pas des shortcodes image.
+	/// </summary>
+	internal static bool TryReplacePortrait(string postContent, long attachmentId, out string updated)
+	{
+		updated = postContent ?? "";
+		if (attachmentId <= 0 || updated.Length == 0)
+		{
+			return false;
+		}
+		MatchCollection blocks = VcSingleImage.Matches(updated);
+		if (blocks.Count != 1)
+		{
+			return false;
+		}
+		string block = blocks[0].Value;
+		MatchCollection ids = VcSingleImageId.Matches(block);
+		if (ids.Count != 1)
+		{
+			return false;
+		}
+		string nextBlock = block.Remove(ids[0].Index, ids[0].Length).Insert(ids[0].Index, "image=\"" + attachmentId.ToString() + "\"");
+		updated = updated.Remove(blocks[0].Index, blocks[0].Length).Insert(blocks[0].Index, nextBlock);
+		return true;
 	}
 
 	internal static string BuildFullName(string prenom, string nom)

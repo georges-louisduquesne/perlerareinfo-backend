@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
@@ -12,7 +13,7 @@ namespace ApiPerleRare.Application.Conseillers;
 
 /// <summary>
 /// Publie les données maîtresses d'un conseiller (conseillers_personnels) sur https://perle-rare.com :
-/// prénom/nom, parcours FR/EN, numéro RSAC, e-mail, LinkedIn et fiche Google.
+/// prénom/nom, parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
 /// Le parcours et le RSAC vont sur la page dédiée (FR/EN).
 /// Le prénom/nom, l'e-mail, LinkedIn et Google vont sur cette page et sur les cartes qui y renvoient.
 /// La base WordPress est sur le même MariaDB. Un échec n'annule jamais l'enregistrement CRM.
@@ -22,6 +23,8 @@ public sealed class PublicParcoursPublisher
 	internal const string DatabaseName = "perle-rarecom-v2";
 
 	internal const string PostsTable = "kdg_posts";
+
+	internal const string PostMetaTable = "kdg_postmeta";
 
 	private readonly ApplicationDbContext _context;
 
@@ -56,6 +59,7 @@ public sealed class PublicParcoursPublisher
 		bool rsacChanged = !string.Equals(prevRsac ?? "", nextRsac ?? "", StringComparison.Ordinal);
 		bool linkedInChanged = ConseillerPublicParcours.ShouldPublishLinkedIn(previous.CpLinkedIn, next.CpLinkedIn);
 		bool googleChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpGoogle, next.CpGoogle);
+		bool photoChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpPhotoWeb, next.CpPhotoWeb);
 
 		await PublishLanguageAsync(
 			next.CpRefConseiller,
@@ -67,12 +71,14 @@ public sealed class PublicParcoursPublisher
 			next.CpNumrsac,
 			next.CpLinkedIn,
 			next.CpGoogle,
+			next.CpPhotoWeb,
 			updateParcours: parcoursFrChanged,
 			updateName: nameChanged || pageFrChanged,
 			updateEmail: emailChanged || pageFrChanged,
 			updateRsac: rsacChanged || pageFrChanged,
 			updateLinkedIn: linkedInChanged || pageFrChanged,
 			updateGoogle: googleChanged || pageFrChanged,
+			updatePhoto: photoChanged || pageFrChanged,
 			cancellationToken);
 
 		await PublishLanguageAsync(
@@ -85,12 +91,14 @@ public sealed class PublicParcoursPublisher
 			next.CpNumrsac,
 			next.CpLinkedIn,
 			next.CpGoogle,
+			next.CpPhotoWeb,
 			updateParcours: parcoursEnChanged,
 			updateName: nameChanged || pageEnChanged,
 			updateEmail: emailChanged || pageEnChanged,
 			updateRsac: rsacChanged || pageEnChanged,
 			updateLinkedIn: linkedInChanged || pageEnChanged,
 			updateGoogle: googleChanged || pageEnChanged,
+			updatePhoto: photoChanged || pageEnChanged,
 			cancellationToken);
 	}
 
@@ -117,12 +125,14 @@ public sealed class PublicParcoursPublisher
 				numRsac: null,
 				linkedIn: null,
 				google: null,
+				photoUrl: null,
 				updateParcours: true,
 				updateName: false,
 				updateEmail: false,
 				updateRsac: false,
 				updateLinkedIn: false,
 				updateGoogle: false,
+				updatePhoto: false,
 				cancellationToken);
 		}
 		catch (Exception ex)
@@ -147,11 +157,11 @@ public sealed class PublicParcoursPublisher
 		string value = nextLinkedIn ?? "";
 		if (linkedInChanged || frenchChanged)
 		{
-			await PublishLanguageAsync(conseillerId, nextPageFr, null, null, null, null, null, value, null, false, false, false, false, true, false, cancellationToken);
+			await PublishLanguageAsync(conseillerId, nextPageFr, null, null, null, null, null, value, null, null, false, false, false, false, true, false, false, cancellationToken);
 		}
 		if (linkedInChanged || englishChanged)
 		{
-			await PublishLanguageAsync(conseillerId, nextPageEn, null, null, null, null, null, value, null, false, false, false, false, true, false, cancellationToken);
+			await PublishLanguageAsync(conseillerId, nextPageEn, null, null, null, null, null, value, null, null, false, false, false, false, true, false, false, cancellationToken);
 		}
 	}
 
@@ -165,15 +175,17 @@ public sealed class PublicParcoursPublisher
 		string numRsac,
 		string linkedIn,
 		string google,
+		string photoUrl,
 		bool updateParcours,
 		bool updateName,
 		bool updateEmail,
 		bool updateRsac,
 		bool updateLinkedIn,
 		bool updateGoogle,
+		bool updatePhoto,
 		CancellationToken cancellationToken)
 	{
-		bool anyProfile = updateParcours || updateName || updateEmail || updateRsac || updateLinkedIn || updateGoogle;
+		bool anyProfile = updateParcours || updateName || updateEmail || updateRsac || updateLinkedIn || updateGoogle || updatePhoto;
 		ConseillerCardChanges cardChanges = new ConseillerCardChanges
 		{
 			UpdateName = updateName && !string.IsNullOrWhiteSpace(fullName),
@@ -208,12 +220,14 @@ public sealed class PublicParcoursPublisher
 					numRsac,
 					linkedIn ?? "",
 					google ?? "",
+					photoUrl ?? "",
 					updateParcours,
 					updateName,
 					updateEmail,
 					updateRsac,
 					updateLinkedIn,
 					updateGoogle,
+					updatePhoto,
 					cancellationToken);
 			}
 			if (cardChanges.Any)
@@ -238,12 +252,14 @@ public sealed class PublicParcoursPublisher
 		string numRsac,
 		string linkedIn,
 		string google,
+		string photoUrl,
 		bool updateParcours,
 		bool updateName,
 		bool updateEmail,
 		bool updateRsac,
 		bool updateLinkedIn,
 		bool updateGoogle,
+		bool updatePhoto,
 		CancellationToken cancellationToken)
 	{
 		DbConnection connection = _context.Database.GetDbConnection();
@@ -351,22 +367,51 @@ public sealed class PublicParcoursPublisher
 				_logger.LogWarning("Impossible de mettre a jour la fiche Google sur la page {Slug}.", slug);
 			}
 		}
+		long? portraitId = null;
+		if (updatePhoto)
+		{
+			if (!ConseillerPublicParcours.TryParseSitePortraitUrl(photoUrl, out string relativePath))
+			{
+				_logger.LogWarning("URL de portrait ignoree pour la page {Slug}.", slug);
+			}
+			else
+			{
+				long? found = await FindSquarePortraitAsync(connection, relativePath, cancellationToken);
+				if (found == null)
+				{
+					_logger.LogWarning("Portrait 555 introuvable dans la mediatheque pour la page {Slug}.", slug);
+				}
+				else if (!ConseillerPublicParcours.TryReplacePortrait(nextContent, found.Value, out string withPhoto))
+				{
+					_logger.LogWarning("La page {Slug} n'a pas un unique portrait WPBakery.", slug);
+				}
+				else
+				{
+					nextContent = withPhoto;
+					portraitId = found;
+					applied.Add("photo");
+				}
+			}
+		}
 
 		bool contentChanged = !string.Equals(nextContent, postContent, StringComparison.Ordinal);
 		bool titleChanged = !string.Equals(nextTitle, postTitle, StringComparison.Ordinal);
-		if (!contentChanged && !titleChanged)
+		if (contentChanged || titleChanged)
 		{
-			return;
+			await using DbCommand update = connection.CreateCommand();
+			update.CommandText = $"UPDATE `{DatabaseName}`.`{PostsTable}` SET post_title = @title, post_content = @content, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = @id AND post_type = 'page' AND post_status = 'publish'";
+			Add(update, "@title", nextTitle);
+			Add(update, "@content", nextContent);
+			Add(update, "@id", pageId.Value);
+			int written = await update.ExecuteNonQueryAsync(cancellationToken);
+			if (written == 1)
+			{
+				_logger.LogInformation("Fiche publique {Slug} mise a jour ({Fields}).", slug, string.Join(", ", applied));
+			}
 		}
-		await using DbCommand update = connection.CreateCommand();
-		update.CommandText = $"UPDATE `{DatabaseName}`.`{PostsTable}` SET post_title = @title, post_content = @content, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = @id AND post_type = 'page' AND post_status = 'publish'";
-		Add(update, "@title", nextTitle);
-		Add(update, "@content", nextContent);
-		Add(update, "@id", pageId.Value);
-		int written = await update.ExecuteNonQueryAsync(cancellationToken);
-		if (written == 1)
+		if (portraitId != null)
 		{
-			_logger.LogInformation("Fiche publique {Slug} mise a jour ({Fields}).", slug, string.Join(", ", applied));
+			await SetFeaturedPortraitAsync(connection, pageId.Value, portraitId.Value, cancellationToken);
 		}
 	}
 
@@ -421,5 +466,73 @@ public sealed class PublicParcoursPublisher
 		parameter.ParameterName = name;
 		parameter.Value = value;
 		command.Parameters.Add(parameter);
+	}
+
+	private async Task<long?> FindSquarePortraitAsync(DbConnection connection, string relativePath, CancellationToken cancellationToken)
+	{
+		List<(long Id, string Metadata)> rows = new List<(long, string)>();
+		await using (DbCommand select = connection.CreateCommand())
+		{
+			select.CommandText = $"SELECT p.ID, meta.meta_value FROM `{DatabaseName}`.`{PostsTable}` p INNER JOIN `{DatabaseName}`.`{PostMetaTable}` file ON file.post_id = p.ID AND file.meta_key = '_wp_attached_file' AND file.meta_value = @path LEFT JOIN `{DatabaseName}`.`{PostMetaTable}` meta ON meta.post_id = p.ID AND meta.meta_key = '_wp_attachment_metadata' WHERE p.post_type = 'attachment'";
+			Add(select, "@path", relativePath);
+			await using DbDataReader reader = await select.ExecuteReaderAsync(cancellationToken);
+			while (await reader.ReadAsync(cancellationToken))
+			{
+				long id = Convert.ToInt64(reader.GetValue(0));
+				string metadata = reader.IsDBNull(1) ? "" : reader.GetString(1);
+				rows.Add((id, metadata));
+			}
+		}
+		long[] ids = rows.Select((row) => row.Id).Distinct().ToArray();
+		if (ids.Length != 1)
+		{
+			return null;
+		}
+		string stored = rows.First((row) => row.Id == ids[0]).Metadata;
+		if (!ConseillerPublicParcours.AttachmentMetadataIsSquare555(stored))
+		{
+			return null;
+		}
+		return ids[0];
+	}
+
+	private async Task SetFeaturedPortraitAsync(DbConnection connection, long pageId, long attachmentId, CancellationToken cancellationToken)
+	{
+		string value = attachmentId.ToString();
+		List<(long MetaId, string Value)> rows = new List<(long, string)>();
+		await using (DbCommand select = connection.CreateCommand())
+		{
+			select.CommandText = $"SELECT meta_id, meta_value FROM `{DatabaseName}`.`{PostMetaTable}` WHERE post_id = @page AND meta_key = '_thumbnail_id'";
+			Add(select, "@page", pageId);
+			await using DbDataReader reader = await select.ExecuteReaderAsync(cancellationToken);
+			while (await reader.ReadAsync(cancellationToken))
+			{
+				rows.Add((Convert.ToInt64(reader.GetValue(0)), reader.IsDBNull(1) ? "" : reader.GetString(1)));
+			}
+		}
+		if (rows.Count > 1)
+		{
+			_logger.LogWarning("Image mise en avant ambigue pour la page {PageId}.", pageId);
+			return;
+		}
+		if (rows.Count == 1)
+		{
+			if (string.Equals(rows[0].Value, value, StringComparison.Ordinal))
+			{
+				return;
+			}
+			await using DbCommand update = connection.CreateCommand();
+			update.CommandText = $"UPDATE `{DatabaseName}`.`{PostMetaTable}` SET meta_value = @value WHERE meta_id = @meta AND post_id = @page AND meta_key = '_thumbnail_id'";
+			Add(update, "@value", value);
+			Add(update, "@meta", rows[0].MetaId);
+			Add(update, "@page", pageId);
+			await update.ExecuteNonQueryAsync(cancellationToken);
+			return;
+		}
+		await using DbCommand insert = connection.CreateCommand();
+		insert.CommandText = $"INSERT INTO `{DatabaseName}`.`{PostMetaTable}` (post_id, meta_key, meta_value) VALUES (@page, '_thumbnail_id', @value)";
+		Add(insert, "@page", pageId);
+		Add(insert, "@value", value);
+		await insert.ExecuteNonQueryAsync(cancellationToken);
 	}
 }
