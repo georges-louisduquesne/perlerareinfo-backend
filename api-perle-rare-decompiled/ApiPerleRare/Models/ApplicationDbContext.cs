@@ -714,7 +714,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 				.UseCollation("latin1_bin");
 			entity.Property((ContactsRecherche e) => e.CFactureHon).HasColumnName("C_FactureHon");
 			entity.Property((ContactsRecherche e) => e.CFacturePs).HasColumnName("C_FacturePS");
-			entity.Property((ContactsRecherche e) => e.CFraisPercus).HasColumnName("C_FraisPercus");
+			entity.Property((ContactsRecherche e) => e.CFraisPercus).HasPrecision(10, 2).HasColumnName("C_FraisPercus");
 			entity.Property((ContactsRecherche e) => e.CIdTypeMission).HasColumnName("C_Id_TypeMission");
 			entity.Property((ContactsRecherche e) => e.CKeyWord1).IsRequired().HasMaxLength(255)
 				.HasDefaultValueSql("''")

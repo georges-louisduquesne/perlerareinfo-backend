@@ -93,7 +93,7 @@ public class ContactsRecherche
 
 	public string CQrecherche { get; set; }
 
-	public int? CFraisPercus { get; set; }
+	public decimal? CFraisPercus { get; set; }
 
 	public int? CRemise { get; set; }
 
