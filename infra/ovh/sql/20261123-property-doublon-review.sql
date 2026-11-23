@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS property_doublon_review (
   PDR_ReviewedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (PDR_PropertyIdA, PDR_PropertyIdB),
   INDEX idx_pdr_decision (PDR_Decision)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 SELECT TABLE_NAME, TABLE_ROWS
 FROM information_schema.TABLES
