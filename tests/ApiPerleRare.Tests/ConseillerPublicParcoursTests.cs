@@ -262,7 +262,40 @@ public class ConseillerPublicParcoursTests
 		Assert.Contains("mailto:gld@perle-rare.com", updated);
 		Assert.False(ConseillerPublicParcours.TryReplaceJobTitle(Page, "   ", out _));
 		Assert.False(ConseillerPublicParcours.TryReplaceJobTitle(Page, "Titre <b>interdit</b>", out _));
-		Assert.False(ConseillerPublicParcours.TryReplaceJobTitle("<p class=\"nom-chasseur-immobilier-noir\"><strong>Jean</strong></p>", "Associé", out _));
+		Assert.True(ConseillerPublicParcours.TryReplaceJobTitle("<p class=\"nom-chasseur-immobilier-noir\"><strong>Jean</strong></p>", "Directeur", out string bare));
+		Assert.Contains("<strong>Jean</strong> Directeur</p>", bare);
+		Assert.True(ConseillerPublicParcours.TryReplaceJobTitle("<p class=\"nom-chasseur-immobilier-noir\"><strong>Catherine BLANCHARD</strong>\nPersonal consultant</p>", "Property hunter", out string english));
+		Assert.Contains("<strong>Catherine BLANCHARD</strong>\nProperty hunter</p>", english);
+		Assert.DoesNotContain("Personal consultant", english);
+	}
+
+	[Fact]
+	public void Publish_button_rewrites_a_page_even_when_the_column_is_unchanged()
+	{
+		Assert.True(ConseillerPublicParcours.PublishEvenIfUnchanged(force: true, changed: false));
+		Assert.False(ConseillerPublicParcours.PublishEvenIfUnchanged(force: false, changed: false));
+		Assert.True(ConseillerPublicParcours.PublishEvenIfUnchanged(force: false, changed: true));
+	}
+
+	[Fact]
+	public void English_raw_biography_replaces_a_single_word_and_keeps_the_mail_link()
+	{
+		string page = Dedent("""
+			[vc_row][vc_column width="1/2"][vc_column_text]
+			<p class="nom-chasseur-immobilier-noir"><strong>Catherine BLANCHARD</strong>
+			Personal consultant</p>
+			Our overqualified women !
+
+			Catherine is a former specialist in change management.
+
+			<a class="lien-noir" href="mailto:cb@perle-rare.com">cb@perle-rare.com</a>[/vc_column_text][/vc_column][/vc_row]
+			""");
+		string parcours = "Our overqualified woman !\n\nCatherine is a former specialist in change management.";
+		Assert.True(ConseillerPublicParcours.TryReplaceBiography(page, parcours, out string updated));
+		Assert.Contains("Our overqualified woman !", updated);
+		Assert.DoesNotContain("women", updated);
+		Assert.Contains("href=\"mailto:cb@perle-rare.com\"", updated);
+		Assert.Contains("Personal consultant", updated);
 	}
 
 	[Fact]

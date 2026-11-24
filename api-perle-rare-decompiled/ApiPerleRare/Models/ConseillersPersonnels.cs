@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ApiPerleRare.Models;
 
@@ -62,6 +63,13 @@ public class ConseillersPersonnels
 	public string CpParcoursFr { get; set; }
 
 	public string CpParcoursEn { get; set; }
+
+	/// <summary>
+	/// Demande du bouton « Publier sur le site ». N'est pas une colonne :
+	/// la fiche est recopiée sur les pages même si la base a déjà cette valeur.
+	/// </summary>
+	[NotMapped]
+	public bool PublishSite { get; set; }
 
 	public string CpPhoto { get; set; }
 

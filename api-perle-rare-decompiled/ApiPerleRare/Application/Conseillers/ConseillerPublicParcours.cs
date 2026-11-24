@@ -157,6 +157,15 @@ internal static class ConseillerPublicParcours
 	}
 
 	/// <summary>
+	/// Le bouton Publier sur le site recopie la fiche même lorsque la colonne n'a pas changé,
+	/// pour rattraper une page restée sur l'ancien texte.
+	/// </summary>
+	internal static bool PublishEvenIfUnchanged(bool force, bool changed)
+	{
+		return force || changed;
+	}
+
+	/// <summary>
 	/// URL maîtresse du portrait publié : https://perle-rare.com/wp-content/uploads/AAAA/MM/fichier.jpg
 	/// </summary>
 	internal static bool TryParseSitePortraitUrl(string url, out string relativePath)
@@ -431,12 +440,21 @@ internal static class ConseillerPublicParcours
 			return false;
 		}
 		MatchCollection breaks = Regex.Matches(namePara.Value, "<br\\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-		if (breaks.Count == 0)
+		int textStart;
+		if (breaks.Count > 0)
 		{
-			return false;
+			Match br = breaks[breaks.Count - 1];
+			textStart = br.Index + br.Length;
 		}
-		Match br = breaks[breaks.Count - 1];
-		int textStart = br.Index + br.Length;
+		else
+		{
+			Match strong = NameStrongTag.Match(namePara.Value);
+			if (!strong.Success)
+			{
+				return false;
+			}
+			textStart = strong.Index + strong.Length;
+		}
 		int close = namePara.Value.LastIndexOf("</p>", StringComparison.OrdinalIgnoreCase);
 		if (close < textStart)
 		{

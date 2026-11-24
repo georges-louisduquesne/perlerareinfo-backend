@@ -51,22 +51,23 @@ public sealed class PublicParcoursPublisher
 		{
 			return;
 		}
-		bool pageFrChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpPageWebFr, next.CpPageWebFr);
-		bool pageEnChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpPageWebEn, next.CpPageWebEn);
-		bool parcoursFrChanged = ConseillerPublicParcours.ShouldPublish(previous.CpPageWebFr, previous.CpParcoursFr, next.CpPageWebFr, next.CpParcoursFr);
-		bool parcoursEnChanged = ConseillerPublicParcours.ShouldPublish(previous.CpPageWebEn, previous.CpParcoursEn, next.CpPageWebEn, next.CpParcoursEn);
+		bool force = next.PublishSite;
+		bool pageFrChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpPageWebFr, next.CpPageWebFr));
+		bool pageEnChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpPageWebEn, next.CpPageWebEn));
+		bool parcoursFrChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublish(previous.CpPageWebFr, previous.CpParcoursFr, next.CpPageWebFr, next.CpParcoursFr));
+		bool parcoursEnChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublish(previous.CpPageWebEn, previous.CpParcoursEn, next.CpPageWebEn, next.CpParcoursEn));
 		string prevName = ConseillerPublicParcours.BuildFullName(previous.CpPrenom, previous.CpNomFamille);
 		string nextName = ConseillerPublicParcours.BuildFullName(next.CpPrenom, next.CpNomFamille);
-		bool nameChanged = !string.Equals(prevName, nextName, StringComparison.Ordinal);
-		bool emailChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpMel, next.CpMel);
+		bool nameChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, !string.Equals(prevName, nextName, StringComparison.Ordinal));
+		bool emailChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpMel, next.CpMel));
 		string prevRsac = ConseillerPublicParcours.EffectiveRsac(previous.CpStatut, previous.CpNumrsac);
 		string nextRsac = ConseillerPublicParcours.EffectiveRsac(next.CpStatut, next.CpNumrsac);
-		bool rsacChanged = !string.Equals(prevRsac ?? "", nextRsac ?? "", StringComparison.Ordinal);
-		bool linkedInChanged = ConseillerPublicParcours.ShouldPublishLinkedIn(previous.CpLinkedIn, next.CpLinkedIn);
-		bool googleChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpGoogle, next.CpGoogle);
-		bool photoChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpPhotoWeb, next.CpPhotoWeb);
-		bool fonctionChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpFonction, next.CpFonction);
-		bool fonctionEnChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpFonctionEn, next.CpFonctionEn);
+		bool rsacChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, !string.Equals(prevRsac ?? "", nextRsac ?? "", StringComparison.Ordinal));
+		bool linkedInChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishLinkedIn(previous.CpLinkedIn, next.CpLinkedIn));
+		bool googleChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpGoogle, next.CpGoogle));
+		bool photoChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpPhotoWeb, next.CpPhotoWeb));
+		bool fonctionChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpFonction, next.CpFonction));
+		bool fonctionEnChanged = ConseillerPublicParcours.PublishEvenIfUnchanged(force, ConseillerPublicParcours.ShouldPublishText(previous.CpFonctionEn, next.CpFonctionEn));
 		ClearPurge();
 		try
 		{
