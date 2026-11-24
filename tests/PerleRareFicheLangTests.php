@@ -35,6 +35,12 @@ $schema = perle_rare_english_fiche_schema(
     'Georges-Louis Duquesne – Director & Co-founder | Perle Rare',
     'Georges-Louis Duquesne'
 );
+$encoded = perle_rare_english_fiche_schema(
+    'https://perle-rare.com/en/georges-louis-duquesne-director/',
+    'Georges-Louis Duquesne – Director &amp; Co-founder | Perle Rare',
+    'Georges-Louis Duquesne'
+);
+expect_same('title ampersand decoded', $encoded['@graph'][0]['name'], 'Georges-Louis Duquesne – Director & Co-founder | Perle Rare');
 expect_same('page language', $schema['@graph'][0]['inLanguage'], 'en-GB');
 expect_same('breadcrumb home name', $schema['@graph'][1]['itemListElement'][0]['name'], 'Home');
 expect_same('breadcrumb home url', $schema['@graph'][1]['itemListElement'][0]['item'], 'https://perle-rare.com/en/');
@@ -65,6 +71,18 @@ expect_same('breadcrumb rewritten', $fixed[2]['itemListElement'][0], array('name
 expect_same('person kept', $fixed[2]['itemListElement'][1]['name'], 'Fabiola Hemmet');
 expect_same('website stays french', $fixed[3]['inLanguage'], 'fr-FR');
 expect_same('organization logo stays', $fixed[4]['logo']['inLanguage'], 'fr-FR');
+
+expect_same('pair count', count(perle_rare_advisor_language_pairs()), 40);
+$fabiola = perle_rare_advisor_language_pair('https://perle-rare.com/en/fabiola-hemmet-personal-consultant-perle-rare');
+expect_same('fabiola french url', $fabiola[0], 'https://perle-rare.com/fr/fabiola-hemmet-conseiller-personnel-perle-rare/');
+expect_same('unknown page has no pair', perle_rare_advisor_language_pair('https://perle-rare.com/en/property-hunter-courbevoie/'), null);
+
+$bare = '<html><head><link rel="canonical" href="https://perle-rare.com/en/fabiola-hemmet-personal-consultant-perle-rare/" /></head><body></body></html>';
+$withLinks = perle_rare_insert_missing_hreflang($bare);
+expect_same('missing hreflang is added', strpos($withLinks, 'hreflang="fr"') !== false && strpos($withLinks, 'hreflang="en"') !== false, true);
+expect_same('already linked page is unchanged', perle_rare_insert_missing_hreflang($withLinks), $withLinks);
+$other = '<html><head><link rel="canonical" href="https://perle-rare.com/en/property-hunter-courbevoie/" /></head></html>';
+expect_same('non advisor page unchanged', perle_rare_insert_missing_hreflang($other), $other);
 
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");
