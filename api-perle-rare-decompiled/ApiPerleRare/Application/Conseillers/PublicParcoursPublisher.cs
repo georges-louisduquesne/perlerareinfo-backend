@@ -448,6 +448,11 @@ public sealed class PublicParcoursPublisher
 				_logger.LogWarning("Impossible de mettre a jour la fonction sur la page {Slug}.", slug);
 			}
 		}
+		if (ConseillerPublicParcours.TryPreferContactEnvelope(nextContent, out string withEnvelope))
+		{
+			nextContent = withEnvelope;
+			applied.Add("enveloppe");
+		}
 
 		bool contentChanged = !string.Equals(nextContent, postContent, StringComparison.Ordinal);
 		bool titleChanged = !string.Equals(nextTitle, postTitle, StringComparison.Ordinal);

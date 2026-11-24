@@ -562,6 +562,40 @@ internal static class ConseillerPublicParcours
 	}
 
 	/// <summary>
+	/// Quand la ligne de contact a déjà LinkedIn ou Google, l'adresse écrite
+	/// redevient l'icône enveloppe. Une fiche qui n'a que le texte garde ce texte.
+	/// </summary>
+	internal static bool TryPreferContactEnvelope(string postContent, out string updated)
+	{
+		updated = null;
+		if (string.IsNullOrEmpty(postContent) || !TryProfileRegions(postContent, out ProfileRegions regions))
+		{
+			return false;
+		}
+		string contact = postContent.Substring(regions.ContactInnerStart, regions.ContactInnerLength);
+		if (!ContactShowsIconRow(contact))
+		{
+			return false;
+		}
+		MatchCollection matches = MailAnchor.Matches(contact);
+		if (matches.Count != 1)
+		{
+			return false;
+		}
+		string inner = matches[0].Groups[1].Value;
+		if (inner.IndexOf("<img", StringComparison.OrdinalIgnoreCase) >= 0 || !IsEmailLabel(inner))
+		{
+			return false;
+		}
+		Match href = Regex.Match(matches[0].Value, "\\bhref\\s*=\\s*[\"']mailto:([^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+		if (!href.Success || !TryEmail(WebUtility.HtmlDecode(href.Groups[1].Value), out string email))
+		{
+			return false;
+		}
+		return TryReplaceEmail(postContent, email, out updated);
+	}
+
+	/// <summary>
 	/// Pose l'URL de fiche Google sur la page dédiée du conseiller.
 	/// Une valeur vide retire l'icône. Une adresse hors Google est refusée.
 	/// </summary>
@@ -877,6 +911,19 @@ internal static class ConseillerPublicParcours
 		return "<p class=\"rsac-conseiller\">Agent commercial inscrit au RSAC sous le numéro " + encoded + "</p>";
 	}
 
+	private static bool ContactShowsIconRow(string contact)
+	{
+		return contact.IndexOf("linkedin-brands", StringComparison.OrdinalIgnoreCase) >= 0
+			|| contact.IndexOf("google-brands", StringComparison.OrdinalIgnoreCase) >= 0;
+	}
+
+	private static bool IsEmailLabel(string inner)
+	{
+		string text = Regex.Replace(inner ?? "", "<[^>]+>", "");
+		text = WebUtility.HtmlDecode(text).Replace('\u00a0', ' ').Trim();
+		return TryEmail(text, out _);
+	}
+
 	private static bool TryApplyEmail(string contact, bool wantsEmail, string email, string envelopeIcon, out string updated)
 	{
 		updated = contact;
@@ -906,6 +953,10 @@ internal static class ConseillerPublicParcours
 			if (inner.IndexOf("<img", StringComparison.OrdinalIgnoreCase) >= 0)
 			{
 				nextAnchor = AnchorHrefAttr.Replace(match.Value, "$1mailto:" + encodedEmail + "$2", 1);
+			}
+			else if (ContactShowsIconRow(contact) && IsEmailLabel(inner))
+			{
+				nextAnchor = "<a href=\"mailto:" + encodedEmail + "\">" + envelopeIcon + "</a>";
 			}
 			else
 			{

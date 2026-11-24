@@ -319,7 +319,10 @@ public class ConseillerPublicParcoursTests
 			"<a href=\"mailto:gld@perle-rare.com\"> <img class=\"alignnone size-full wp-image-4359\" src=\"https://perle-rare.com/wp-content/uploads/2021/02/envelope-solid.png\" alt=\"\" width=\"30\" height=\"30\" /></a>",
 			"<a class=\"lien-noir\" href=\"mailto:georges-louis@perle-rare.com\">gld@perle-rare.com</a>");
 		Assert.True(ConseillerPublicParcours.TryReplaceEmail(textPage, "georges-louis.duquesne@perle-rare.com", out string textUpdated));
-		Assert.Contains("<a class=\"lien-noir\" href=\"mailto:georges-louis.duquesne@perle-rare.com\">georges-louis.duquesne@perle-rare.com</a>", textUpdated);
+		Assert.Contains("href=\"mailto:georges-louis.duquesne@perle-rare.com\"", textUpdated);
+		Assert.Contains("envelope-solid.png", textUpdated);
+		Assert.DoesNotContain(">georges-louis.duquesne@perle-rare.com</a>", textUpdated);
+		Assert.Contains("linkedin-brands.png", textUpdated);
 
 		Assert.True(ConseillerPublicParcours.TryReplaceEmail(RawMargotPage, "margot.saidy@perle-rare.com", out string fixedMissingScheme));
 		Assert.Contains("href=\"mailto:margot.saidy@perle-rare.com\"", fixedMissingScheme);
@@ -483,6 +486,12 @@ public class ConseillerPublicParcoursTests
 		Assert.Contains("href=\"https://www.google.com/maps/search/?api=1&amp;query=Fabiola\"", s3);
 		Assert.Contains("google-brands.png", s3);
 		Assert.Contains("[/vc_column_text]", s3);
+		Assert.True(ConseillerPublicParcours.TryPreferContactEnvelope(s3, out string withEnvelope));
+		Assert.Contains("envelope-solid.png", withEnvelope);
+		Assert.Contains("href=\"mailto:fabiola.hemmet@perle-rare.com\"", withEnvelope);
+		Assert.DoesNotContain(">fabiola.hemmet@perle-rare.com</a>", withEnvelope);
+		Assert.Contains("google-brands.png", withEnvelope);
+		Assert.False(ConseillerPublicParcours.TryPreferContactEnvelope(s1, out _));
 	}
 
 	private static readonly string RawMargotPage = Dedent("""
