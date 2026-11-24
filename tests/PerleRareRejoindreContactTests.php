@@ -1,6 +1,6 @@
 <?php
 /**
- * Bouton « Prenez contact ICI » en bas de la page Nous rejoindre.
+ * Bouton « Prenez contact ICI » en haut et en bas de la page Nous rejoindre.
  * Usage : php tests/PerleRareRejoindreContactTests.php
  */
 
@@ -38,18 +38,18 @@ expect_same('other page stays out', perle_rare_rejoindre_contact_page(1), false)
 expect_same('label', perle_rare_rejoindre_contact_label(), 'Prenez contact ICI');
 expect_same('href', perle_rare_rejoindre_contact_href(), 'https://perle-rare.typeform.com/to/sbGYNJaj');
 
-$once = perle_rare_rejoindre_contact_replace_last($page);
-expect_same('top link stays', substr_count($once, $phrase), 1);
-expect_same('one button', substr_count($once, 'pr-rejoindre-contact__btn'), 1);
-expect_same('button is last', strpos($once, $phrase) < strpos($once, 'pr-rejoindre-contact'), true);
-expect_same('button label', strpos($once, '>Prenez contact ICI</a>') !== false, true);
+$once = perle_rare_rejoindre_contact_replace($page);
+expect_same('both phrases become buttons', substr_count($once, $phrase), 0);
+expect_same('two buttons', substr_count($once, 'pr-rejoindre-contact__btn'), 2);
+expect_same('top block has a button', strpos($once, 'element-bottom-40') < strpos($once, 'pr-rejoindre-contact'), true);
+expect_same('button label', substr_count($once, '>Prenez contact ICI</a>'), 2);
 expect_same('same form', substr_count($once, 'https://perle-rare.typeform.com/to/sbGYNJaj'), 2);
 
-$twice = perle_rare_rejoindre_contact_replace_last($once);
-expect_same('second pass keeps the top link', substr_count($twice, $phrase), 1);
-expect_same('second pass keeps one button', substr_count($twice, 'pr-rejoindre-contact__btn'), 1);
+$twice = perle_rare_rejoindre_contact_replace($once);
+expect_same('second pass stays at two buttons', substr_count($twice, 'pr-rejoindre-contact__btn'), 2);
+expect_same('second pass adds no phrase', substr_count($twice, $phrase), 0);
 
-$other = perle_rare_rejoindre_contact_replace_last('<p>Prenez contact <a href="https://example.com/"><strong>ICI</strong></a></p>');
+$other = perle_rare_rejoindre_contact_replace('<p>Prenez contact <a href="https://example.com/"><strong>ICI</strong></a></p>');
 expect_same('other link stays', $other, '<p>Prenez contact <a href="https://example.com/"><strong>ICI</strong></a></p>');
 
 $css = perle_rare_rejoindre_contact_css();

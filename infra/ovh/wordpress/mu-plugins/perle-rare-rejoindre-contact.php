@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Perle Rare — bouton contact Nous rejoindre
- * Description: En bas de la page « Nous rejoindre », remplace « Prenez contact ICI » par un bouton 150×42 qui ouvre le même formulaire.
+ * Description: Sur la page « Nous rejoindre », remplace chaque « Prenez contact ICI » par un bouton 150×42 qui ouvre le même formulaire.
  */
 
 if (!defined('ABSPATH')) {
@@ -43,25 +43,16 @@ function perle_rare_rejoindre_contact_css()
 }
 
 /**
- * Remplace seulement la dernière occurrence. Un second passage laisse le lien du haut intact.
+ * Remplace chaque « Prenez contact ICI » du formulaire. Un second passage ne change plus rien.
  */
-function perle_rare_rejoindre_contact_replace_last($content)
+function perle_rare_rejoindre_contact_replace($content)
 {
     if (!is_string($content) || $content === '') {
         return $content;
     }
     $pattern = '#<p>\s*Prenez contact\s*<a\b[^>]*\bhref\s*=\s*(["\'])https://perle-rare\.typeform\.com/to/sbGYNJaj\1[^>]*>\s*<strong>\s*ICI\s*</strong>\s*</a>\s*</p>#';
-    if (!preg_match_all($pattern, $content, $matches, PREG_OFFSET_CAPTURE)) {
-        return $content;
-    }
-    $last = $matches[0][count($matches[0]) - 1];
-    $pos = $last[1];
-    $buttonAt = strpos($content, 'pr-rejoindre-contact');
-    if ($buttonAt !== false && $pos < $buttonAt) {
-        return $content;
-    }
-    $markup = perle_rare_rejoindre_contact_markup();
-    return substr($content, 0, $pos) . $markup . substr($content, $pos + strlen($last[0]));
+    $replaced = preg_replace($pattern, perle_rare_rejoindre_contact_markup(), $content);
+    return is_string($replaced) ? $replaced : $content;
 }
 
 add_action('wp_head', static function () {
@@ -78,5 +69,5 @@ add_filter('the_content', static function ($content) {
     if (function_exists('in_the_loop') && function_exists('is_main_query') && (!in_the_loop() || !is_main_query())) {
         return $content;
     }
-    return perle_rare_rejoindre_contact_replace_last($content);
+    return perle_rare_rejoindre_contact_replace($content);
 }, 30);
