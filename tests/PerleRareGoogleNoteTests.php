@@ -74,6 +74,11 @@ expect_same('score and count are replaced', $after['rating_score'] === '4.9' && 
 expect_same('name and review url stay', $after['name'] === 'Perle Rare' && $after['review_url'] === $stored, true);
 expect_same('same score is not a change', perle_rare_google_note_changed($before, $before), false);
 expect_same('a new score is a change', perle_rare_google_note_changed($before, $after), true);
+expect_same(
+    'the places call stays on ipv4',
+    strpos(file_get_contents(dirname(__DIR__) . '/infra/ovh/wordpress/mu-plugins/perle-rare-google-note.php'), 'CURL_IPRESOLVE_V4') !== false,
+    true
+);
 
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");

@@ -143,6 +143,16 @@ add_action('init', static function () {
 add_action('perle_rare_google_note_refresh', 'perle_rare_google_note_refresh');
 
 /**
+ * La clé n'autorise que l'IPv4 du serveur. PHP sort sinon en IPv6, et Google refuse.
+ */
+function perle_rare_google_note_force_ipv4($handle)
+{
+    if (function_exists('curl_setopt')) {
+        curl_setopt($handle, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    }
+}
+
+/**
  * Relit la note Google. Sans clé, ou si Google ne répond pas, la note affichée ne change pas.
  */
 function perle_rare_google_note_refresh()
@@ -157,6 +167,7 @@ function perle_rare_google_note_refresh()
     $placeId = isset($details['id']) && is_string($details['id']) && preg_match('/^ChIJ[A-Za-z0-9_-]+$/', $details['id'])
         ? $details['id']
         : perle_rare_google_note_place_id();
+    add_action('http_api_curl', 'perle_rare_google_note_force_ipv4');
     $response = wp_remote_get(
         'https://places.googleapis.com/v1/places/' . rawurlencode($placeId),
         array(
@@ -167,6 +178,7 @@ function perle_rare_google_note_refresh()
             ),
         )
     );
+    remove_action('http_api_curl', 'perle_rare_google_note_force_ipv4');
     if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
         return;
     }
