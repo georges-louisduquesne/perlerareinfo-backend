@@ -13,8 +13,8 @@ namespace ApiPerleRare.Application.Conseillers;
 
 /// <summary>
 /// Publie les données maîtresses d'un conseiller (conseillers_personnels) sur https://perle-rare.com :
-/// prénom/nom, fonction de la page française, parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
-/// Le parcours, le RSAC et la fonction vont sur la page dédiée. La fonction n'est recopiée que sur la page française.
+/// prénom/nom, titre sous le nom (CP_Fonction en français, CP_FonctionEn en anglais), parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
+/// Le parcours, le RSAC et le titre vont sur la page dédiée. CP_FonctionEn met à jour la page anglaise dès que la colonne change, puis la page est republiée.
 /// Le prénom/nom, l'e-mail, LinkedIn et Google vont sur cette page et sur les cartes qui y renvoient.
 /// Après écriture, les pages touchées sont republiées (purge du cache NitroPack).
 /// Un champ affiché sur la carte virtuelle republie aussi cette carte, sans attendre le bouton Publier.

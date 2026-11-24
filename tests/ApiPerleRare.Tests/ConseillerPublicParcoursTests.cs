@@ -340,7 +340,20 @@ public class ConseillerPublicParcoursTests
 			CpCarteVirtuelle = previous.CpCarteVirtuelle,
 			CpVille = "Paris"
 		};
+		ConseillersPersonnels englishTitle = new ConseillersPersonnels
+		{
+			CpPrenom = previous.CpPrenom,
+			CpNomFamille = previous.CpNomFamille,
+			CpFonction = previous.CpFonction,
+			CpFonctionEn = "Property hunter",
+			CpMel = previous.CpMel,
+			CpTelPersonnel = previous.CpTelPersonnel,
+			CpPhoto = previous.CpPhoto,
+			CpLinkedIn = previous.CpLinkedIn,
+			CpCarteVirtuelle = previous.CpCarteVirtuelle
+		};
 		Assert.True(ConseillerPublicParcours.CardDisplayChanged(previous, phone));
+		Assert.True(ConseillerPublicParcours.CardDisplayChanged(previous, englishTitle));
 		Assert.False(ConseillerPublicParcours.CardDisplayChanged(previous, city));
 		List<string> urls = new List<string>();
 		ConseillerPublicParcours.CollectCardUrls(previous, phone, urls);

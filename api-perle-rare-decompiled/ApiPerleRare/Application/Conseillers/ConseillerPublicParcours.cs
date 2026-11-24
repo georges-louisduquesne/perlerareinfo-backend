@@ -10,7 +10,8 @@ namespace ApiPerleRare.Application.Conseillers;
 /// <summary>
 /// Met à jour une page conseiller WPBakery (perle-rare.com) et les cartes qui y renvoient.
 /// Données maîtresses synchronisées depuis conseillers_personnels :
-/// prénom/nom, fonction (page française), parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
+/// prénom/nom, titre sous le nom (CP_Fonction sur la page française, CP_FonctionEn sur la page anglaise),
+/// parcours FR/EN, numéro RSAC, e-mail, LinkedIn, fiche Google et portrait 555×555.
 /// Un paragraphe du parcours dont le texte visible ne change pas garde son HTML (lien inclus).
 /// </summary>
 internal enum LinkedInCardUpdate

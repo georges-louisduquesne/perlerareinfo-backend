@@ -8,6 +8,18 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Texte de l'avertissement éditeur. La page personnelle rappelle que le titre
+ * sous le nom (CP_Fonction ou CP_FonctionEn) est recopié depuis la fiche.
+ */
+function perle_rare_crm_master_notice($is_profile)
+{
+    if ($is_profile) {
+        return '<strong>Prénom/nom, titre sous le nom, parcours, RSAC, e-mail, LinkedIn et fiche Google pilotés par perle-rare.info.</strong> Ces informations sont enregistrées sur la fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de cette fiche.';
+    }
+    return '<strong>Prénom/nom, e-mail, LinkedIn et fiche Google des conseillers pilotés par perle-rare.info.</strong> Ils sont enregistrés sur chaque fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de la fiche.';
+}
+
 add_action('admin_notices', static function () {
     if (!is_admin() || !function_exists('get_current_screen')) {
         return;
@@ -32,10 +44,6 @@ add_action('admin_notices', static function () {
         return;
     }
     $is_profile = strpos($content, 'nom-chasseur-immobilier-noir') !== false;
-    if ($is_profile) {
-        $message = '<strong>Prénom/nom, parcours, RSAC, e-mail, LinkedIn et fiche Google pilotés par perle-rare.info.</strong> Ces informations sont enregistrées sur la fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de cette fiche.';
-    } else {
-        $message = '<strong>Prénom/nom, e-mail, LinkedIn et fiche Google des conseillers pilotés par perle-rare.info.</strong> Ils sont enregistrés sur chaque fiche conseiller. Une modification faite ici sera remplacée au prochain enregistrement de la fiche.';
-    }
+    $message = perle_rare_crm_master_notice($is_profile);
     echo '<div class="notice notice-warning"><p>' . $message . '</p></div>';
 });
