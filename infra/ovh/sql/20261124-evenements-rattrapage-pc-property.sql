@@ -1,5 +1,6 @@
 -- Complète E_PropertyId sur les évènements RV VISITE SEUL, RV VISITE CLIENT, OFFRE,
--- OFFRE REFUSEE, OFFRE ACCEPTEE, RV COMPROMIS, RV ACTE AUTHENT. et RV ACTE AUTHENT
+-- OFFRE REFUSEE, OFFRE ACCEPTEE, RV COMPROMIS, RV ACTE AUTHENT., RV ACTE AUTHENT
+-- et CR VISITE
 -- dont le contact et le bien sont renseignés, E_PC_Id et E_PropertyId sont vides,
 -- et le même contact + le même bien ont déjà un seul couple (E_PropertyId, E_PC_Id)
 -- repris par une seule fiche property_contact de ce contact.
@@ -80,7 +81,8 @@ SELECT c.E_RefEvenement,
          'OFFRE ACCEPTEE',
          'RV COMPROMIS',
          'RV ACTE AUTHENT.',
-         'RV ACTE AUTHENT'
+         'RV ACTE AUTHENT',
+         'CR VISITE'
        )
    AND c.E_RefContact IS NOT NULL AND c.E_RefContact <> 0
    AND c.E_RefBien IS NOT NULL AND c.E_RefBien <> 0
@@ -141,7 +143,8 @@ SELECT c.E_RefEvenement, c.E_TypeEvenement, c.E_Statut, c.E_RefContact, c.E_RefB
          'OFFRE ACCEPTEE',
          'RV COMPROMIS',
          'RV ACTE AUTHENT.',
-         'RV ACTE AUTHENT'
+         'RV ACTE AUTHENT',
+         'CR VISITE'
        )
    AND c.E_RefContact IS NOT NULL AND c.E_RefContact <> 0
    AND c.E_RefBien IS NOT NULL AND c.E_RefBien <> 0
@@ -176,7 +179,8 @@ SELECT c.E_RefEvenement, c.E_RefContact, c.E_RefBien,
          'OFFRE ACCEPTEE',
          'RV COMPROMIS',
          'RV ACTE AUTHENT.',
-         'RV ACTE AUTHENT'
+         'RV ACTE AUTHENT',
+         'CR VISITE'
        )
    AND c.E_RefContact IS NOT NULL AND c.E_RefContact <> 0
    AND c.E_RefBien IS NOT NULL AND c.E_RefBien <> 0

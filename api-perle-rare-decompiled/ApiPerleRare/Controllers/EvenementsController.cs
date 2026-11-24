@@ -242,6 +242,7 @@ public class EvenementsController : ControllerBase
 		try
 		{
 			await _context.SaveChangesAsync();
+			await EventPropertyLinkPropagation.ApplyAsync(_context, evenements.ERefEvenement, HttpContext.RequestAborted);
 		}
 		catch (DbUpdateConcurrencyException)
 		{
@@ -265,6 +266,7 @@ public class EvenementsController : ControllerBase
 			}
 			_context.Evenements.Add(evenements);
 			await _context.SaveChangesAsync();
+			await EventPropertyLinkPropagation.ApplyAsync(_context, evenements.ERefEvenement, HttpContext.RequestAborted);
 			return CreatedAtAction("GetEvenements", new
 			{
 				id = evenements.ERefEvenement
