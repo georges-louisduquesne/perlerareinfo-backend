@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using ApiPerleRare.Models;
 
 namespace ApiPerleRare.Application.Conseillers;
 
@@ -390,6 +391,56 @@ internal static class ConseillerPublicParcours
 		language = parts[0];
 		slug = parts[1];
 		return true;
+	}
+
+	/// <summary>
+	/// Champs de conseillers_personnels repris sur la carte virtuelle.
+	/// Une modification de l'un d'eux doit republier la carte.
+	/// </summary>
+	internal static bool CardDisplayChanged(ConseillersPersonnels previous, ConseillersPersonnels next)
+	{
+		if (previous == null || next == null)
+		{
+			return false;
+		}
+		return !Same(previous.CpPrenom, next.CpPrenom)
+			|| !Same(previous.CpNomFamille, next.CpNomFamille)
+			|| !Same(previous.CpFonction, next.CpFonction)
+			|| !Same(previous.CpFonctionEn, next.CpFonctionEn)
+			|| !Same(previous.CpMel, next.CpMel)
+			|| !Same(previous.CpTelPersonnel, next.CpTelPersonnel)
+			|| !Same(previous.CpPhoto, next.CpPhoto)
+			|| !Same(previous.CpLinkedIn, next.CpLinkedIn)
+			|| !Same(previous.CpGoogle, next.CpGoogle)
+			|| !Same(previous.CpPageWebFr, next.CpPageWebFr)
+			|| !Same(previous.CpPageWebEn, next.CpPageWebEn)
+			|| !Same(previous.CpCarteVirtuelle, next.CpCarteVirtuelle);
+	}
+
+	internal static void CollectCardUrls(ConseillersPersonnels previous, ConseillersPersonnels next, ICollection<string> urls)
+	{
+		if (urls == null)
+		{
+			return;
+		}
+		AddCardUrl(next?.CpCarteVirtuelle, urls);
+		if (!Same(previous?.CpCarteVirtuelle, next?.CpCarteVirtuelle))
+		{
+			AddCardUrl(previous?.CpCarteVirtuelle, urls);
+		}
+	}
+
+	private static void AddCardUrl(string url, ICollection<string> urls)
+	{
+		if (PublicPageRepublish.TryProfileUrl(url, out string canonical) && !urls.Contains(canonical))
+		{
+			urls.Add(canonical);
+		}
+	}
+
+	private static bool Same(string previous, string next)
+	{
+		return string.Equals(previous ?? "", next ?? "", StringComparison.Ordinal);
 	}
 
 	/// <summary>

@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Linq;
 using ApiPerleRare.Application.Conseillers;
+using ApiPerleRare.Models;
 using Xunit;
 
 namespace ApiPerleRare.Tests;
@@ -296,6 +298,53 @@ public class ConseillerPublicParcoursTests
 		Assert.DoesNotContain("women", updated);
 		Assert.Contains("href=\"mailto:cb@perle-rare.com\"", updated);
 		Assert.Contains("Personal consultant", updated);
+	}
+
+	[Fact]
+	public void Card_display_change_is_a_phone_or_title_and_not_an_unrelated_column()
+	{
+		ConseillersPersonnels previous = new ConseillersPersonnels
+		{
+			CpPrenom = "Laurence",
+			CpNomFamille = "Berry",
+			CpFonction = "Conseiller personnel",
+			CpFonctionEn = "Personal consultant",
+			CpMel = "lb@perle-rare.com",
+			CpTelPersonnel = "0600000000",
+			CpPhoto = "https://perle-rare.info/lb.png",
+			CpLinkedIn = "https://www.linkedin.com/in/laurence-berry/",
+			CpCarteVirtuelle = "https://perle-rare.com/fr/carte-virtuelle-laurence-berry/"
+		};
+		ConseillersPersonnels phone = new ConseillersPersonnels
+		{
+			CpPrenom = previous.CpPrenom,
+			CpNomFamille = previous.CpNomFamille,
+			CpFonction = previous.CpFonction,
+			CpFonctionEn = previous.CpFonctionEn,
+			CpMel = previous.CpMel,
+			CpTelPersonnel = "0611111111",
+			CpPhoto = previous.CpPhoto,
+			CpLinkedIn = previous.CpLinkedIn,
+			CpCarteVirtuelle = previous.CpCarteVirtuelle
+		};
+		ConseillersPersonnels city = new ConseillersPersonnels
+		{
+			CpPrenom = previous.CpPrenom,
+			CpNomFamille = previous.CpNomFamille,
+			CpFonction = previous.CpFonction,
+			CpFonctionEn = previous.CpFonctionEn,
+			CpMel = previous.CpMel,
+			CpTelPersonnel = previous.CpTelPersonnel,
+			CpPhoto = previous.CpPhoto,
+			CpLinkedIn = previous.CpLinkedIn,
+			CpCarteVirtuelle = previous.CpCarteVirtuelle,
+			CpVille = "Paris"
+		};
+		Assert.True(ConseillerPublicParcours.CardDisplayChanged(previous, phone));
+		Assert.False(ConseillerPublicParcours.CardDisplayChanged(previous, city));
+		List<string> urls = new List<string>();
+		ConseillerPublicParcours.CollectCardUrls(previous, phone, urls);
+		Assert.Equal(new[] { "https://perle-rare.com/fr/carte-virtuelle-laurence-berry/" }, urls);
 	}
 
 	[Fact]

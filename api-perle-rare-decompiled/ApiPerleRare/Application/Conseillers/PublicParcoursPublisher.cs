@@ -17,6 +17,7 @@ namespace ApiPerleRare.Application.Conseillers;
 /// Le parcours, le RSAC et la fonction vont sur la page dédiée. La fonction n'est recopiée que sur la page française.
 /// Le prénom/nom, l'e-mail, LinkedIn et Google vont sur cette page et sur les cartes qui y renvoient.
 /// Après écriture, les pages touchées sont republiées (purge du cache NitroPack).
+/// Un champ affiché sur la carte virtuelle republie aussi cette carte, sans attendre le bouton Publier.
 /// La base WordPress est sur le même MariaDB. Un échec n'annule jamais l'enregistrement CRM.
 /// </summary>
 public sealed class PublicParcoursPublisher
@@ -114,6 +115,10 @@ public sealed class PublicParcoursPublisher
 			updatePhoto: photoChanged || pageEnChanged,
 			updateJobTitle: fonctionEnChanged || pageEnChanged,
 			cancellationToken);
+			if (force || ConseillerPublicParcours.CardDisplayChanged(previous, next))
+			{
+				ConseillerPublicParcours.CollectCardUrls(previous, next, _purgeUrls);
+			}
 		}
 		finally
 		{
