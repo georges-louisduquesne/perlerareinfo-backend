@@ -64,7 +64,7 @@ expect_same(
 $css = perle_rare_fiche_banner_css();
 expect_same(
     'banner is limited to personal pages',
-    strpos($css, 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media){height:100px;max-height:100px}') !== false,
+    strpos($css, 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media){height:130px;max-height:130px}') !== false,
     true
 );
 expect_same(

@@ -66,7 +66,7 @@ function perle_rare_render_fiche_headings($html)
 }
 
 /**
- * Le bandeau photo des fiches passe de 188 px à 100 px.
+ * Le bandeau photo des fiches passe de 188 px à 130 px.
  * La photo garde sa taille d'origine : le bas est rogné, le haut reste visible.
  */
 function perle_rare_fiche_banner_css()
@@ -74,7 +74,7 @@ function perle_rare_fiche_banner_css()
     return 'body.pr-fiche-conseiller .perle-rare-head{visibility:hidden}'
         . 'body.pr-fiche-conseiller h1.nom-chasseur-immobilier-noir{margin:0 0 11.5px;font-weight:400;font-size:24px;line-height:30px;color:#343434;padding-bottom:30px;font-family:inherit;text-transform:none;letter-spacing:normal}'
         . 'body.pr-fiche-conseiller h1.nom-chasseur-immobilier-noir strong{font-weight:700;text-transform:uppercase}'
-        . 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media){height:100px;max-height:100px}'
+        . 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media){height:130px;max-height:130px}'
         . 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media)>.background-media{height:188px;bottom:auto}';
 }
 
