@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Perle Rare — langue des fiches anglaises
- * Description: Sur les fiches conseiller en anglais, le balisage déclare l'anglais et le fil d'Ariane pointe vers l'accueil anglais. Ajoute le hreflang réciproque quand le site ne l'a pas déjà émis.
+ * Description: Sur les fiches conseiller, déclare une personne (nom, fonction, portrait 555, LinkedIn). Les pages anglaises indiquent l'anglais et l'accueil anglais. Le hreflang manquant est ajouté.
  */
 
 if (!defined('ABSPATH')) {
@@ -234,6 +234,137 @@ function perle_rare_insert_missing_hreflang($html)
     return is_string($updated) ? $updated : $html;
 }
 
+function perle_rare_visible_text($html)
+{
+    $text = preg_replace('/<br\s*\/?>/i', ' ', (string) $html);
+    $text = strip_tags($text);
+    $text = perle_rare_plain_text($text);
+    $text = preg_replace('/\s+/u', ' ', $text);
+    return trim($text);
+}
+
+/**
+ * Nom et fonction lus dans le bloc nom-chasseur-immobilier-noir.
+ * Les cartes (nom-chasseur-immobilier, sans -noir) ne sont pas lues.
+ */
+function perle_rare_advisor_identity_from_content($html)
+{
+    $empty = array('name' => '', 'jobTitle' => '');
+    if (!is_string($html) || strpos($html, 'nom-chasseur-immobilier-noir') === false) {
+        return $empty;
+    }
+    if (!preg_match('/<(?:p|h1)\b[^>]*\bclass\s*=\s*(["\'])[^"\']*\bnom-chasseur-immobilier-noir\b[^"\']*\1[^>]*>(.*?)<\/(?:p|h1)>/is', $html, $block)) {
+        return $empty;
+    }
+    $inner = $block[2];
+    $name = '';
+    if (preg_match('/<(?:strong|b)\b[^>]*>(.*?)<\/(?:strong|b)>/is', $inner, $nameMatch)) {
+        $name = perle_rare_visible_text($nameMatch[1]);
+        $inner = preg_replace('/<(?:strong|b)\b[^>]*>.*?<\/(?:strong|b)>/is', '', $inner, 1);
+    }
+    $job = perle_rare_visible_text($inner);
+    if ($job === $name) {
+        $job = '';
+    }
+    return array('name' => $name, 'jobTitle' => $job);
+}
+
+function perle_rare_first_linkedin_url($html)
+{
+    if (!is_string($html)) {
+        return '';
+    }
+    if (!preg_match_all('/href\s*=\s*(["\'])(https?:\/\/(?:[\w.-]+\.)?linkedin\.com\/[^"\']+)\1/i', $html, $matches)) {
+        return '';
+    }
+    foreach ($matches[2] as $href) {
+        $href = perle_rare_plain_text($href);
+        $path = parse_url($href, PHP_URL_PATH);
+        if (is_string($path) && preg_match('#/(?:in|pub)/#i', $path)) {
+            return $href;
+        }
+    }
+    return '';
+}
+
+function perle_rare_advisor_portrait_url()
+{
+    if (!function_exists('get_post_thumbnail_id') || !function_exists('wp_get_attachment_metadata')) {
+        return '';
+    }
+    $id = (int) get_post_thumbnail_id();
+    if ($id <= 0) {
+        return '';
+    }
+    $meta = wp_get_attachment_metadata($id);
+    $width = is_array($meta) && isset($meta['width']) ? (int) $meta['width'] : 0;
+    $height = is_array($meta) && isset($meta['height']) ? (int) $meta['height'] : 0;
+    if ($width !== 555 || $height !== 555) {
+        return '';
+    }
+    $url = function_exists('wp_get_attachment_url') ? wp_get_attachment_url($id) : '';
+    return is_string($url) ? $url : '';
+}
+
+function perle_rare_advisor_person($url, $name, $jobTitle, $image, $linkedIn, $language)
+{
+    $person = array(
+        '@type' => 'Person',
+        '@id' => $url . '#person',
+        'name' => perle_rare_plain_text($name),
+        'url' => $url,
+        'inLanguage' => $language,
+        'worksFor' => array(
+            '@type' => 'Organization',
+            'name' => 'Perle Rare',
+            'url' => 'https://perle-rare.com/',
+        ),
+    );
+    $job = perle_rare_plain_text($jobTitle);
+    if ($job !== '') {
+        $person['jobTitle'] = $job;
+    }
+    $image = trim((string) $image);
+    if ($image !== '') {
+        $person['image'] = $image;
+    }
+    $linkedIn = trim((string) $linkedIn);
+    if ($linkedIn !== '') {
+        $person['sameAs'] = array($linkedIn);
+    }
+    return $person;
+}
+
+function perle_rare_attach_person($schema, $person)
+{
+    if (!is_array($schema) || !isset($schema['@graph']) || !is_array($schema['@graph'])) {
+        return $schema;
+    }
+    foreach ($schema['@graph'] as $index => $piece) {
+        if (is_array($piece) && isset($piece['@type']) && $piece['@type'] === 'WebPage') {
+            $schema['@graph'][$index]['mainEntity'] = array('@id' => $person['@id']);
+        }
+    }
+    $schema['@graph'][] = $person;
+    return $schema;
+}
+
+function perle_rare_french_fiche_schema($url, $seoTitle, $person)
+{
+    return perle_rare_attach_person(array(
+        '@context' => 'https://schema.org',
+        '@graph' => array(
+            array(
+                '@type' => 'WebPage',
+                '@id' => (string) $url,
+                'url' => (string) $url,
+                'name' => perle_rare_plain_text($seoTitle),
+                'inLanguage' => 'fr-FR',
+            ),
+        ),
+    ), $person);
+}
+
 add_filter('wpseo_schema_graph', static function ($graph) {
     if (!perle_rare_is_english_advisor_page()) {
         return $graph;
@@ -242,12 +373,29 @@ add_filter('wpseo_schema_graph', static function ($graph) {
 }, 20);
 
 add_action('wp_head', static function () {
-    if (!perle_rare_is_english_advisor_page()) {
+    if (!perle_rare_is_advisor_fiche()) {
+        return;
+    }
+    $post = get_post();
+    $content = $post instanceof WP_Post ? (string) $post->post_content : '';
+    $identity = perle_rare_advisor_identity_from_content($content);
+    if ($identity['name'] === '') {
         return;
     }
     $url = get_permalink();
-    $seoTitle = function_exists('wp_get_document_title') ? wp_get_document_title() : get_the_title();
-    $data = perle_rare_english_fiche_schema($url, $seoTitle, get_the_title());
+    $english = perle_rare_is_english_advisor_page();
+    $seoTitle = function_exists('wp_get_document_title') ? wp_get_document_title() : $identity['name'];
+    $person = perle_rare_advisor_person(
+        $url,
+        $identity['name'],
+        $identity['jobTitle'],
+        perle_rare_advisor_portrait_url(),
+        perle_rare_first_linkedin_url($content),
+        $english ? 'en-GB' : 'fr-FR'
+    );
+    $data = $english
+        ? perle_rare_attach_person(perle_rare_english_fiche_schema($url, $seoTitle, $identity['name']), $person)
+        : perle_rare_french_fiche_schema($url, $seoTitle, $person);
     $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
     $json = function_exists('wp_json_encode') ? wp_json_encode($data, $flags) : json_encode($data, $flags);
     if (!is_string($json) || $json === '') {

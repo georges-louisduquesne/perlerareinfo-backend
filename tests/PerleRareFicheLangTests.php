@@ -84,6 +84,41 @@ expect_same('already linked page is unchanged', perle_rare_insert_missing_hrefla
 $other = '<html><head><link rel="canonical" href="https://perle-rare.com/en/property-hunter-courbevoie/" /></head></html>';
 expect_same('non advisor page unchanged', perle_rare_insert_missing_hreflang($other), $other);
 
+$identity = perle_rare_advisor_identity_from_content('<p class="nom-chasseur-immobilier-noir"><strong>Georges-Louis Duquesne</strong><br /> Dirigeant co-fondateur</p>');
+expect_same('french name', $identity['name'], 'Georges-Louis Duquesne');
+expect_same('french job', $identity['jobTitle'], 'Dirigeant co-fondateur');
+$englishIdentity = perle_rare_advisor_identity_from_content("<h1 class=\"nom-chasseur-immobilier-noir\"><strong>Fabiola Hemmet</strong>\nPersonal consultant</h1>");
+expect_same('english job', $englishIdentity['jobTitle'], 'Personal consultant');
+$card = perle_rare_advisor_identity_from_content('<p class="nom-chasseur-immobilier"><strong>Jeanne</strong><br />Conseiller</p>');
+expect_same('card is not a fiche', $card['name'], '');
+
+$content = '<a href="mailto:a@perle-rare.com"><img src="https://perle-rare.com/wp-content/uploads/2021/02/envelope-solid.png" /></a> <a href="https://www.linkedin.com/in/glduquesne/"><img src="https://perle-rare.com/wp-content/uploads/2021/02/linkedin-brands.png" /></a>';
+expect_same('linkedin profile', perle_rare_first_linkedin_url($content), 'https://www.linkedin.com/in/glduquesne/');
+expect_same('no linkedin', perle_rare_first_linkedin_url('<img src="linkedin-brands.png" />'), '');
+
+$person = perle_rare_advisor_person(
+    'https://perle-rare.com/fr/georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier/',
+    'Georges-Louis Duquesne',
+    'Dirigeant co-fondateur',
+    'https://perle-rare.com/wp-content/uploads/2023/01/chasseur-immobilier-perle-rare-georges-louis-duquesne-1.jpg',
+    'https://www.linkedin.com/in/glduquesne/',
+    'fr-FR'
+);
+expect_same('person language', $person['inLanguage'], 'fr-FR');
+expect_same('person employer', $person['worksFor']['name'], 'Perle Rare');
+expect_same('person linkedin', $person['sameAs'][0], 'https://www.linkedin.com/in/glduquesne/');
+$barePerson = perle_rare_advisor_person('https://perle-rare.com/en/marion-normand-2/', 'Marion Normand', '', '', '', 'en-GB');
+expect_same('optional fields omitted', isset($barePerson['jobTitle']) || isset($barePerson['image']) || isset($barePerson['sameAs']), false);
+
+$french = perle_rare_french_fiche_schema(
+    'https://perle-rare.com/fr/georges-louis-duquesne-dirigeant-co-fondateur-perle-rare-chasseur-immobilier/',
+    'Georges-Louis Duquesne – Dirigeant co-fondateur | Perle Rare',
+    $person
+);
+expect_same('french page language', $french['@graph'][0]['inLanguage'], 'fr-FR');
+expect_same('french page points at the person', $french['@graph'][0]['mainEntity']['@id'], $person['@id']);
+expect_same('french schema has no english home', strpos(json_encode($french), 'https://perle-rare.com/en/') === false, true);
+
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");
     exit(1);
