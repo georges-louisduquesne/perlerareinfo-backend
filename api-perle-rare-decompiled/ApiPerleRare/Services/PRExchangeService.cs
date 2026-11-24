@@ -69,11 +69,6 @@ internal class PRExchangeService : IExchangeService
 		}
 		try
 		{
-			string html = contents ?? "";
-			if (!html.Contains("<html>"))
-			{
-				html = "<html><head><style>html,body{font-family:Verdana,sans-serif;font-size:15px;line-height:1.5}</style></head><body>" + html + "</body></html>";
-			}
 			if (SendEmailUseCase.IsSupportFrom(senderEmail))
 			{
 				// support@ est la boîte authentifiée. Un loginEmail différent poserait un From étranger.
@@ -96,7 +91,7 @@ internal class PRExchangeService : IExchangeService
 			EmailAddress sender = string.IsNullOrWhiteSpace(senderName) ? new EmailAddress(visibleFrom) : new EmailAddress(senderName, visibleFrom);
 			EmailMessage em = new EmailMessage(service);
 			em.Subject = subject;
-			em.Body = new MessageBody(BodyType.HTML, html);
+			ExchangeMailHtml.Apply(em, contents);
 			em.Sender = sender;
 			if (foreignFrom)
 			{
