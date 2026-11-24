@@ -65,6 +65,19 @@ function perle_rare_render_fiche_headings($html)
     return perle_rare_demote_banner_heading(perle_rare_promote_visible_name_heading($html));
 }
 
+/**
+ * Le bandeau photo des fiches passe de 188 px à 100 px.
+ * La photo garde sa taille d'origine : le bas est rogné, le haut reste visible.
+ */
+function perle_rare_fiche_banner_css()
+{
+    return 'body.pr-fiche-conseiller .perle-rare-head{visibility:hidden}'
+        . 'body.pr-fiche-conseiller h1.nom-chasseur-immobilier-noir{margin:0 0 11.5px;font-weight:400;font-size:24px;line-height:30px;color:#343434;padding-bottom:30px;font-family:inherit;text-transform:none;letter-spacing:normal}'
+        . 'body.pr-fiche-conseiller h1.nom-chasseur-immobilier-noir strong{font-weight:700;text-transform:uppercase}'
+        . 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media){height:100px;max-height:100px}'
+        . 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media)>.background-media{height:188px;bottom:auto}';
+}
+
 add_filter('body_class', static function ($classes) {
     if (perle_rare_is_fiche_conseiller()) {
         $classes[] = 'pr-fiche-conseiller';
@@ -76,11 +89,7 @@ add_action('wp_head', static function () {
     if (!perle_rare_is_fiche_conseiller()) {
         return;
     }
-    echo "<style id=\"pr-fiche-banner\">"
-        . "body.pr-fiche-conseiller .perle-rare-head{visibility:hidden}"
-        . "body.pr-fiche-conseiller h1.nom-chasseur-immobilier-noir{margin:0 0 11.5px;font-weight:400;font-size:24px;line-height:30px;color:#343434;padding-bottom:30px;font-family:inherit;text-transform:none;letter-spacing:normal}"
-        . "body.pr-fiche-conseiller h1.nom-chasseur-immobilier-noir strong{font-weight:700;text-transform:uppercase}"
-        . "</style>\n";
+    echo '<style id="pr-fiche-banner">' . perle_rare_fiche_banner_css() . "</style>\n";
 }, 99);
 
 add_filter('the_content', static function ($content) {

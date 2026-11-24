@@ -61,6 +61,18 @@ expect_same(
     '<h1 class="entry-title">Autre</h1><h1 class="nom-chasseur-immobilier-noir"><strong>Diane</strong><br />Chasseur</h1>'
 );
 
+$css = perle_rare_fiche_banner_css();
+expect_same(
+    'banner is limited to personal pages',
+    strpos($css, 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media){height:100px;max-height:100px}') !== false,
+    true
+);
+expect_same(
+    'photo keeps its height so the bottom is clipped',
+    strpos($css, '>.background-media{height:188px;bottom:auto}') !== false,
+    true
+);
+
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");
     exit(1);
