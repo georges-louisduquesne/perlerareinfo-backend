@@ -438,6 +438,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((ConseillersPersonnels e) => e.CpAlerteAgenda).HasDefaultValueSql("'1'").HasColumnName("CP_AlerteAgenda");
 			entity.Property((ConseillersPersonnels e) => e.CpEnSociete).HasColumnName("CP_EnSociete");
 			entity.Property((ConseillersPersonnels e) => e.CpFonction).HasMaxLength(50).HasColumnName("CP_Fonction");
+			entity.Property((ConseillersPersonnels e) => e.CpFonctionEn).HasMaxLength(70).HasColumnName("CP_FonctionEn");
 			entity.Property((ConseillersPersonnels e) => e.CpInitiales).HasMaxLength(3).HasColumnName("CP_Initiales");
 			entity.Property((ConseillersPersonnels e) => e.CpLibelle).HasMaxLength(50).HasColumnName("CP_Libelle");
 			entity.Property((ConseillersPersonnels e) => e.CpLogin).HasMaxLength(15).HasColumnName("CP_Login");

@@ -413,9 +413,9 @@ internal static class ConseillerPublicParcours
 	}
 
 	/// <summary>
-	/// Remplace la ligne de fonction sous le nom (page française).
-	/// Une fonction vide ne retire pas le titre déjà publié.
-	/// La page anglaise garde sa traduction : elle n'a pas de colonne dédiée.
+	/// Remplace la ligne de titre sous le nom.
+	/// Un titre vide ne retire pas le titre déjà publié.
+	/// La page française lit CP_Fonction, la page anglaise CP_FonctionEn.
 	/// </summary>
 	internal static bool TryReplaceJobTitle(string postContent, string jobTitle, out string updated)
 	{

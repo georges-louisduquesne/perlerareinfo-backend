@@ -66,6 +66,7 @@ public sealed class PublicParcoursPublisher
 		bool googleChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpGoogle, next.CpGoogle);
 		bool photoChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpPhotoWeb, next.CpPhotoWeb);
 		bool fonctionChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpFonction, next.CpFonction);
+		bool fonctionEnChanged = ConseillerPublicParcours.ShouldPublishText(previous.CpFonctionEn, next.CpFonctionEn);
 		ClearPurge();
 		try
 		{
@@ -102,7 +103,7 @@ public sealed class PublicParcoursPublisher
 			next.CpLinkedIn,
 			next.CpGoogle,
 			next.CpPhotoWeb,
-			next.CpFonction,
+			next.CpFonctionEn,
 			updateParcours: parcoursEnChanged,
 			updateName: nameChanged || pageEnChanged,
 			updateEmail: emailChanged || pageEnChanged,
@@ -110,7 +111,7 @@ public sealed class PublicParcoursPublisher
 			updateLinkedIn: linkedInChanged || pageEnChanged,
 			updateGoogle: googleChanged || pageEnChanged,
 			updatePhoto: photoChanged || pageEnChanged,
-			updateJobTitle: false,
+			updateJobTitle: fonctionEnChanged || pageEnChanged,
 			cancellationToken);
 		}
 		finally

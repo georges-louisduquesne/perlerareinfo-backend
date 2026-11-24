@@ -62,6 +62,7 @@ public class ConseillersPersonnelsNonAdminTests
 			CpPageWebFr = "https://perle-rare.com/fr/georges-louis-duquesne-director/",
 			CpPageWebEn = "https://perle-rare.com/en/georges-louis-duquesne-director/",
 			CpPhotoWeb = "https://perle-rare.com/wp-content/uploads/2023/01/chasseur-immobilier-perle-rare-georges-louis-duquesne-1.jpg",
+			CpFonctionEn = "Founding co-director",
 			CpParcoursFr = "Parcours français",
 			CpParcoursEn = "English bio",
 			CpLinkedIn = "https://www.linkedin.com/in/glduquesne/",
@@ -73,6 +74,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal(stored.CpPageWebFr, omitted.CpPageWebFr);
 		Assert.Equal(stored.CpPageWebEn, omitted.CpPageWebEn);
 		Assert.Equal(stored.CpPhotoWeb, omitted.CpPhotoWeb);
+		Assert.Equal(stored.CpFonctionEn, omitted.CpFonctionEn);
 		Assert.Equal(stored.CpParcoursFr, omitted.CpParcoursFr);
 		Assert.Equal(stored.CpParcoursEn, omitted.CpParcoursEn);
 		Assert.Equal(stored.CpLinkedIn, omitted.CpLinkedIn);
@@ -84,6 +86,7 @@ public class ConseillersPersonnelsNonAdminTests
 			CpPageWebFr = "",
 			CpPageWebEn = "https://perle-rare.com/en/autre/",
 			CpPhotoWeb = "",
+			CpFonctionEn = "",
 			CpParcoursFr = "",
 			CpParcoursEn = "New bio",
 			CpLinkedIn = "",
@@ -94,6 +97,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal("", cleared.CpPageWebFr);
 		Assert.Equal("https://perle-rare.com/en/autre/", cleared.CpPageWebEn);
 		Assert.Equal("", cleared.CpPhotoWeb);
+		Assert.Equal("", cleared.CpFonctionEn);
 		Assert.Equal("", cleared.CpParcoursFr);
 		Assert.Equal("New bio", cleared.CpParcoursEn);
 		Assert.Equal("", cleared.CpLinkedIn);

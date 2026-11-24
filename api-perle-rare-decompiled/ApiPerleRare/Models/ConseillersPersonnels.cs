@@ -85,6 +85,8 @@ public class ConseillersPersonnels
 
 	public string CpFonction { get; set; }
 
+	public string CpFonctionEn { get; set; }
+
 	public DateOnly? CpDateCreation { get; set; }
 
 	public string CpLibelle { get; set; }
