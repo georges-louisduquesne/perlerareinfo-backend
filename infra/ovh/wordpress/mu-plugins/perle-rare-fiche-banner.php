@@ -78,6 +78,16 @@ function perle_rare_fiche_banner_css()
         . 'body.pr-fiche-conseiller #content>section:first-of-type:has(.background-media)>.background-media{height:188px;bottom:auto}';
 }
 
+/**
+ * Survol du bouton « Carte virtuelle » : rose de la charte (#F6D0D5), texte anthracite.
+ */
+function perle_rare_fiche_carte_button_css()
+{
+    return 'body.pr-fiche-conseiller .pr-card-launch a:hover,'
+        . 'body.pr-fiche-conseiller .pr-card-launch a:focus{'
+        . 'background:#F6D0D5;border-color:#F6D0D5;color:#1D242C}';
+}
+
 add_filter('body_class', static function ($classes) {
     if (perle_rare_is_fiche_conseiller()) {
         $classes[] = 'pr-fiche-conseiller';
@@ -89,7 +99,7 @@ add_action('wp_head', static function () {
     if (!perle_rare_is_fiche_conseiller()) {
         return;
     }
-    echo '<style id="pr-fiche-banner">' . perle_rare_fiche_banner_css() . "</style>\n";
+    echo '<style id="pr-fiche-banner">' . perle_rare_fiche_banner_css() . perle_rare_fiche_carte_button_css() . "</style>\n";
 }, 99);
 
 add_filter('the_content', static function ($content) {

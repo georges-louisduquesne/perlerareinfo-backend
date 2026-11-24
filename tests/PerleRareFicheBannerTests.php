@@ -73,6 +73,15 @@ expect_same(
     true
 );
 
+$hover = perle_rare_fiche_carte_button_css();
+expect_same(
+    'virtual card button hover uses the charter pink',
+    strpos($hover, 'background:#F6D0D5;border-color:#F6D0D5;color:#1D242C') !== false
+        && strpos($hover, '#b49a76') === false
+        && strpos($hover, 'body.pr-fiche-conseiller .pr-card-launch a:hover') !== false,
+    true
+);
+
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");
     exit(1);
