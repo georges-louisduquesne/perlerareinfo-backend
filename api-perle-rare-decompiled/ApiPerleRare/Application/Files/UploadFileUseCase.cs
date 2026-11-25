@@ -30,7 +30,8 @@ public sealed class UploadFileUseCase : IUploadFileUseCase
 			{
 				throw new InvalidOperationException("Fichier trop volumineux");
 			}
-			_storage.WriteAllBytes(fullPath, Convert.FromBase64String(request.FileContent));
+			byte[] content = OodriveMacPdfRepair.Repair(Convert.FromBase64String(request.FileContent));
+			_storage.WriteAllBytes(fullPath, content);
 			return new FileResponse
 			{
 				IsSuccess = true,
