@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Perle Rare — carte virtuelle des fiches
- * Description: Bouton Carte virtuelle / Virtual card sur les pages personnelles FR et EN. En anglais, l'enveloppe et LinkedIn viennent de la fiche CRM.
+ * Description: Sur les pages personnelles FR et EN : bouton Carte virtuelle, enveloppe mailto, et LinkedIn quand la fiche en a un.
  */
 
 if (!defined('ABSPATH')) {
@@ -75,33 +75,48 @@ function perle_rare_fiche_linkedin_img()
     return '<img class="alignnone size-full wp-image-4358" src="https://perle-rare.com/wp-content/uploads/2021/02/linkedin-brands.png" alt="" width="30" height="30" />';
 }
 
+function perle_rare_fiche_insert_block($content, $block)
+{
+    $inColumn = perle_rare_fiche_insert_in_text_column($content, $block);
+    return is_string($inColumn) ? $inColumn : $content . $block;
+}
+
 /**
- * Page anglaise : l'adresse écrite devient l'enveloppe, et LinkedIn s'ajoute quand la fiche en a un.
+ * L'adresse écrite devient l'enveloppe. Le mailto déjà publié est conservé.
+ * LinkedIn s'ajoute à côté quand la fiche CRM en a un et que la page ne l'affiche pas.
  */
 function perle_rare_fiche_present_english_contacts($content, $email, $linkedin)
 {
     if (!is_string($content)) {
         return $content;
     }
-    $email = perle_rare_fiche_email($email);
+    $crmEmail = perle_rare_fiche_email($email);
     $linkedin = perle_rare_fiche_linkedin_href($linkedin);
-    if ($email !== '' && stripos($content, 'envelope-solid') === false) {
+    $mailtoCount = preg_match_all('/<a\b[^>]*mailto:/i', $content);
+    if (stripos($content, 'envelope-solid') === false && ($crmEmail !== '' || $mailtoCount > 0)) {
         $icon = perle_rare_fiche_envelope_img();
-        $anchor = '<a href="mailto:' . htmlspecialchars($email, ENT_QUOTES) . '">' . $icon . '</a>';
         $count = 0;
         $replaced = preg_replace_callback(
-            '/<a\b[^>]*\bhref\s*=\s*(["\'])mailto:[^"\']+\1[^>]*>.*?<\/a>/is',
-            static function () use ($anchor) {
-                return $anchor;
+            '/<a\b[^>]*\bhref\s*=\s*(["\'])mailto:([^"\']+)\1[^>]*>.*?<\/a>/is',
+            static function ($match) use ($icon, $crmEmail) {
+                $pageEmail = perle_rare_fiche_email(rawurldecode(html_entity_decode($match[2], ENT_QUOTES)));
+                $use = $pageEmail !== '' ? $pageEmail : $crmEmail;
+                if ($use === '') {
+                    return $match[0];
+                }
+                return '<a href="mailto:' . htmlspecialchars($use, ENT_QUOTES) . '">' . $icon . '</a>';
             },
             $content,
             1,
             $count
         );
-        if (is_string($replaced) && $count === 1 && preg_match_all('/<a\b[^>]*mailto:/i', $content) === 1) {
+        if (is_string($replaced) && $count === 1 && $mailtoCount === 1) {
             $content = $replaced;
-        } elseif (preg_match_all('/<a\b[^>]*mailto:/i', $content) === 0) {
-            $content .= '<p>' . $anchor . '</p>';
+        } elseif ($mailtoCount === 0 && $crmEmail !== '') {
+            $content = perle_rare_fiche_insert_block(
+                $content,
+                '<p><a href="mailto:' . htmlspecialchars($crmEmail, ENT_QUOTES) . '">' . $icon . '</a></p>'
+            );
         }
     }
     if ($linkedin !== '' && stripos($content, 'linkedin-brands') === false) {
@@ -117,7 +132,7 @@ function perle_rare_fiche_present_english_contacts($content, $email, $linkedin)
         if (is_string($with) && $count === 1) {
             $content = $with;
         } else {
-            $content .= '<p>' . $link . '</p>';
+            $content = perle_rare_fiche_insert_block($content, '<p>' . $link . '</p>');
         }
     }
     return $content;
@@ -302,8 +317,6 @@ add_filter('the_content', static function ($content) {
     if ($row === null) {
         return $content;
     }
-    if (!empty($row['english'])) {
-        $content = perle_rare_fiche_present_english_contacts($content, $row['email'], $row['linkedin']);
-    }
+    $content = perle_rare_fiche_present_english_contacts($content, $row['email'], $row['linkedin']);
     return perle_rare_fiche_with_carte_button($content, $row['carte'], !empty($row['english']));
 }, 40);

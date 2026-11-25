@@ -82,6 +82,41 @@ $column = '<div class="col-text-1"><h1 class="nom-chasseur-immobilier-noir">Nom<
 $inColumn = perle_rare_fiche_with_carte_button($column, 'https://perle-rare.com/fr/carte-virtuelle-laurence-berry/', false);
 expect_same('button stays inside the text column', strpos($inColumn, 'pr-card-launch') < strpos($inColumn, '</div>'), true);
 
+$caroline = '<section class="section"><div class="col-text-1"><p>Bio.</p>'
+    . '<p><a class="lien-noir" href="mailto:crt@perle-rare.com">crt@perle-rare.com</a></p></div></section>';
+$carolineShown = perle_rare_fiche_present_english_contacts(
+    $caroline,
+    'caroline.rapptrevisan@perle-rare.com',
+    'https://www.linkedin.com/in/caroline-rapp-tr%C3%A9visan-423211211/'
+);
+$carolineShown = perle_rare_fiche_with_carte_button(
+    $carolineShown,
+    'https://perle-rare.com/fr/carte-virtuelle-caroline-rapp-trevisan/',
+    false
+);
+expect_same('french page keeps the published mailto', strpos($carolineShown, 'mailto:crt@perle-rare.com') !== false, true);
+expect_same('french page hides the written address', strpos($carolineShown, '>crt@perle-rare.com</a>') === false, true);
+expect_same('french page shows the envelope inside the fiche', strpos($carolineShown, 'envelope-solid.png') < strpos($carolineShown, '</section>'), true);
+expect_same('french page shows linkedin inside the fiche', strpos($carolineShown, 'linkedin-brands.png') < strpos($carolineShown, '</section>'), true);
+expect_same('french page shows the card inside the fiche', strpos($carolineShown, 'pr-card-launch') < strpos($carolineShown, '</section>'), true);
+expect_same('accented linkedin is kept', strpos($carolineShown, 'caroline-rapp-tr%C3%A9visan-423211211') !== false, true);
+
+$complete = '<div class="col-text-1"><p><a href="mailto:claire-charlotte.foity@perle-rare.com">'
+    . '<img src="https://perle-rare.com/wp-content/uploads/2021/02/envelope-solid-2.png"></a> '
+    . '<a href="https://www.linkedin.com/in/clairecharlottefoity/">'
+    . '<img src="https://perle-rare.com/wp-content/uploads/2021/02/linkedin-brands-2.png"></a></p></div>';
+$unchanged = perle_rare_fiche_present_english_contacts(
+    $complete,
+    'claire-charlotte.foity@perle-rare.com',
+    'https://www.linkedin.com/in/clairecharlottefoity/'
+);
+expect_same('existing envelope is not duplicated', substr_count($unchanged, 'envelope-solid'), 1);
+expect_same('existing linkedin is not duplicated', substr_count($unchanged, 'linkedin-brands'), 1);
+
+$noLinkedin = perle_rare_fiche_present_english_contacts($caroline, 'caroline.rapptrevisan@perle-rare.com', '');
+expect_same('missing linkedin stays absent on a french page', strpos($noLinkedin, 'linkedin-brands') === false, true);
+expect_same('envelope still replaces the french address', strpos($noLinkedin, 'envelope-solid.png') !== false, true);
+
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");
     exit(1);
