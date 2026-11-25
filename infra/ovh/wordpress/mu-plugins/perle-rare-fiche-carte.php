@@ -206,9 +206,33 @@ function perle_rare_fiche_insert_in_text_column($content, $button)
     return null;
 }
 
+/**
+ * Une fiche n'a qu'un bouton. Un second paragraphe déjà publié (copie du premier) disparaît.
+ */
+function perle_rare_fiche_single_carte_button($content)
+{
+    if (!is_string($content) || substr_count(strtolower($content), 'pr-card-launch') < 2) {
+        return $content;
+    }
+    $seen = 0;
+    $single = preg_replace_callback(
+        '/<p\b[^>]*\bpr-card-launch\b[^>]*>.*?<\/p>/is',
+        static function ($match) use (&$seen) {
+            $seen++;
+            return $seen === 1 ? $match[0] : '';
+        },
+        $content
+    );
+    return is_string($single) ? $single : $content;
+}
+
 function perle_rare_fiche_with_carte_button($content, $carteUrl, $english)
 {
-    if (!is_string($content) || stripos($content, 'pr-card-launch') !== false) {
+    if (!is_string($content)) {
+        return $content;
+    }
+    $content = perle_rare_fiche_single_carte_button($content);
+    if (stripos($content, 'pr-card-launch') !== false) {
         return $content;
     }
     $button = perle_rare_fiche_carte_button_html($carteUrl, $english);

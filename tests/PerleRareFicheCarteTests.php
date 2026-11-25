@@ -61,6 +61,20 @@ expect_same(
     1
 );
 
+$storedTwice = '<div class="col-text-1"><p><a href="mailto:gld@perle-rare.com"><img src="https://perle-rare.com/wp-content/uploads/2021/02/envelope-solid.png"></a> '
+    . '<a href="https://www.linkedin.com/in/glduquesne/"><img src="https://perle-rare.com/wp-content/uploads/2021/02/linkedin-brands.png"></a></p>'
+    . '<p class="pr-card-launch"><a href="https://perle-rare.com/fr/carte-virtuelle-georges-louis-duquesne/">Carte virtuelle</a></p>'
+    . '<p class="pr-card-launch"><a href="https://perle-rare.com/fr/carte-virtuelle-georges-louis-duquesne/">Carte virtuelle</a></p></div>';
+$oneButton = perle_rare_fiche_with_carte_button(
+    $storedTwice,
+    'https://perle-rare.com/fr/carte-virtuelle-georges-louis-duquesne/',
+    false
+);
+expect_same('a stored second button is removed', substr_count($oneButton, 'pr-card-launch'), 1);
+expect_same('the first stored button stays', substr_count($oneButton, '>Carte virtuelle</a>'), 1);
+expect_same('contact icons stay when the extra button goes', substr_count($oneButton, 'envelope-solid'), 1);
+expect_same('the remaining button stays in the column', strpos($oneButton, 'pr-card-launch') < strpos($oneButton, '</div>'), true);
+
 $french = '<p>Déjà publié.</p>';
 $frenchButton = perle_rare_fiche_with_carte_button($french, 'https://perle-rare.com/fr/carte-virtuelle-laurence-berry/', false);
 expect_same('french button label', strpos($frenchButton, '>Carte virtuelle</a>') !== false, true);
