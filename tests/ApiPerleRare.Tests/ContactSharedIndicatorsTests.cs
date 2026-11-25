@@ -13,30 +13,24 @@ public class ContactSharedIndicatorsTests
 	}
 
 	[Fact]
-	public void Visit_types_keep_defaults_when_table_is_empty()
+	public void Property_pills_include_offre_offre_acceptee_and_visite()
 	{
-		var types = ContactSharedIndicatorsQuery.SelectVisitTypes(null);
-		Assert.Contains("RV VISITE SEUL", types);
-		Assert.Contains("RV VISITE CLIENT", types);
-		Assert.Equal(2, types.Count);
+		Assert.True(ContactSharedIndicatorsQuery.IncludeAnyActiveEventType("OFFRE"));
+		Assert.True(ContactSharedIndicatorsQuery.IncludeAnyActiveEventType("OFFRE ACCEPTEE"));
+		Assert.True(ContactSharedIndicatorsQuery.IncludeAnyActiveEventType("RV VISITE CLIENT"));
+		Assert.True(ContactSharedIndicatorsQuery.IncludeAnyActiveEventType("TEL OUT"));
+		Assert.True(ContactSharedIndicatorsQuery.IncludeAnyActiveEventType(null));
+		Assert.True(ContactSharedIndicatorsQuery.IncludeAnyActiveEventType(""));
 	}
 
 	[Fact]
-	public void Visit_types_come_from_refs_5_6_or_vis_category_only()
+	public void Own_pill_links_offre_and_visite_to_the_same_property()
 	{
-		var types = ContactSharedIndicatorsQuery.SelectVisitTypes(new[]
-		{
-			(5, "RV VISITE SEUL", "VISITE"),
-			(6, "RV VISITE CLIENT", "VISITE"),
-			(12, "CR VISITE", "Visite"),
-			(3, "OFFRE", "OFFRE"),
-			(7, "RV PROSPECT", "PROSPECTION"),
-			(9, "  ", "VISITE"),
-		});
-		Assert.Contains("CR VISITE", types);
-		Assert.DoesNotContain("OFFRE", types);
-		Assert.DoesNotContain("RV PROSPECT", types);
-		Assert.Equal(3, types.Count);
+		const string propertyId = "8ba06a00-dd89-11f1-b6ff-9ddb9a4ff125";
+		Assert.True(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			propertyId, 826851, 63777, 826851, propertyId, 63777));
+		Assert.False(ContactSharedIndicatorsQuery.OwnVisitMatchesPropertyContact(
+			"autre-bien", null, 63777, 826851, propertyId, 63777));
 	}
 
 	[Fact]

@@ -101,18 +101,23 @@ public static class ContactSharedIndicatorsQuery
 			.Include((PropertyContact pc) => pc.PcRefContactNavigation)
 			.ToListAsync();
 
-		var visitTypes = await LoadVisitTypesAsync(context);
-
+		// Pastilles verte et rouge : tout évènement actif lié au bien (offre, visite, …).
 		var events = await context.Evenements.AsNoTracking()
-			.Where((Evenements e) => e.EStatut == 1 && idSet.Contains(e.EPropertyId) && visitTypes.Contains(e.ETypeEvenement))
+			.Where((Evenements e) => e.EStatut == 1 && idSet.Contains(e.EPropertyId))
+			.OrderByDescending((Evenements e) => e.EDate)
 			.ToListAsync();
 
 		var ownContactEvents = await context.Evenements.AsNoTracking()
-			.Where((Evenements e) => e.EStatut == 1 && e.ERefContact == contactRef && visitTypes.Contains(e.ETypeEvenement))
+			.Where((Evenements e) => e.EStatut == 1 && e.ERefContact == contactRef)
+			.OrderByDescending((Evenements e) => e.EDate)
 			.ToListAsync();
 
 		foreach (var ev in ownContactEvents)
 		{
+			if (!IncludeAnyActiveEventType(ev.ETypeEvenement))
+			{
+				continue;
+			}
 			foreach (var pc in ownPcs)
 			{
 				if (!OwnVisitMatchesPropertyContact(ev.EPropertyId, ev.EPcId, ev.ERefContact, pc.PcId, pc.PcPropertyId, contactRef))
@@ -164,6 +169,10 @@ public static class ContactSharedIndicatorsQuery
 
 		foreach (var ev in events)
 		{
+			if (!IncludeAnyActiveEventType(ev.ETypeEvenement))
+			{
+				continue;
+			}
 			if (string.IsNullOrWhiteSpace(ev.EPropertyId) || !idSet.Contains(ev.EPropertyId))
 			{
 				continue;
@@ -216,34 +225,13 @@ public static class ContactSharedIndicatorsQuery
 		return response;
 	}
 
-	/// <summary>Visit event types: types_evenements 5 / 6, or a category starting with « vis ».</summary>
-	public static readonly string[] DefaultVisitTypes = { "RV VISITE SEUL", "RV VISITE CLIENT" };
-
-	private static async Task<List<string>> LoadVisitTypesAsync(ApplicationDbContext context)
+	/// <summary>
+	/// Pastilles verte (ce contact) et rouge (un autre contact) : le type ne filtre pas.
+	/// OFFRE, OFFRE ACCEPTEE, RV VISITE CLIENT et les autres types actifs comptent tous.
+	/// </summary>
+	public static bool IncludeAnyActiveEventType(string eventType)
 	{
-		var rows = await context.TypesEvenements.AsNoTracking()
-			.Select((TypesEvenements te) => new { te.TeRefTypeEvenement, te.TeTypeEvenement, te.TeCategorieEvenement })
-			.ToListAsync();
-		return SelectVisitTypes(rows.Select((r) => (r.TeRefTypeEvenement, r.TeTypeEvenement, r.TeCategorieEvenement)));
-	}
-
-	public static List<string> SelectVisitTypes(IEnumerable<(int refType, string type, string category)> rows)
-	{
-		var set = new HashSet<string>(DefaultVisitTypes, StringComparer.OrdinalIgnoreCase);
-		foreach (var (refType, type, category) in rows ?? Enumerable.Empty<(int, string, string)>())
-		{
-			var name = (type ?? "").Trim();
-			if (name.Length == 0)
-			{
-				continue;
-			}
-			var cat = (category ?? "").Trim();
-			if (refType == 5 || refType == 6 || cat.StartsWith("vis", StringComparison.OrdinalIgnoreCase))
-			{
-				set.Add(name);
-			}
-		}
-		return set.ToList();
+		return string.IsNullOrEmpty(eventType) || eventType.Length > 0;
 	}
 
 	private static List<string> NormalizePropertyIds(IReadOnlyList<string> propertyIds)
@@ -271,8 +259,8 @@ public static class ContactSharedIndicatorsQuery
 	}
 
 	/// <summary>
-	/// Pastille verte : visite liée à cette fiche (E_PC_Id) ou au même bien (E_PropertyId).
-	/// Une visite du contact sans ces deux liens ne s'affiche sur aucune carte.
+	/// Pastille verte : évènement lié à cette fiche (E_PC_Id) ou au même bien (E_PropertyId).
+	/// Un évènement du contact sans ces deux liens ne s'affiche sur aucune carte.
 	/// </summary>
 	public static bool OwnVisitMatchesPropertyContact(
 		string eventPropertyId,
