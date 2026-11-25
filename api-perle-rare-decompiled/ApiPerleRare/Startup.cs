@@ -209,6 +209,7 @@ public class Startup
 		services.AddScoped<ICountEvenementsUseCase, CountEvenementsUseCase>();
 		services.AddScoped<IListContactEvenementsUseCase, ListContactEvenementsUseCase>();
 		services.AddScoped<IListOffresEnCoursUseCase, ListOffresEnCoursUseCase>();
+		services.AddScoped<IListConseillerMissionsUseCase, ListConseillerMissionsUseCase>();
 		services.AddScoped<TachesExEnricher>();
 		services.AddScoped<IListTachesExUseCase, ListTachesExUseCase>();
 		services.AddScoped<ICountTachesUseCase, CountTachesUseCase>();

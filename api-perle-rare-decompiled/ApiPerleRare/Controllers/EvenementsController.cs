@@ -39,6 +39,8 @@ public class EvenementsController : ControllerBase
 
 	private readonly IListOffresEnCoursUseCase _offresEnCours;
 
+	private readonly IListConseillerMissionsUseCase _conseillerMissions;
+
 	public EvenementsController(
 		ApplicationDbContext context,
 		IUserSessionService userSessionService,
@@ -49,7 +51,8 @@ public class EvenementsController : ControllerBase
 		IListEvenementsExUseCase listEvenementsEx,
 		ICountEvenementsUseCase countEvenements,
 		IListContactEvenementsUseCase contactEvenements,
-		IListOffresEnCoursUseCase offresEnCours)
+		IListOffresEnCoursUseCase offresEnCours,
+		IListConseillerMissionsUseCase conseillerMissions)
 	{
 		_context = context;
 		_userSessionService = userSessionService;
@@ -61,6 +64,7 @@ public class EvenementsController : ControllerBase
 		_countEvenements = countEvenements;
 		_contactEvenements = contactEvenements;
 		_offresEnCours = offresEnCours;
+		_conseillerMissions = conseillerMissions;
 	}
 
 	[HttpGet]
@@ -213,6 +217,28 @@ public class EvenementsController : ControllerBase
 		{
 			Exception ex2 = ex;
 			return BadRequest(ex2.ToString());
+		}
+	}
+
+	[HttpGet]
+	[Route("Missions")]
+	public async Task<ActionResult<List<ConseillerMissionRow>>> GetConseillerMissions([FromQuery] uint conseillerId)
+	{
+		if (conseillerId == 0)
+		{
+			return BadRequest();
+		}
+		try
+		{
+			return await _conseillerMissions.Execute(conseillerId, HttpContext.RequestAborted);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(ex.ToString());
 		}
 	}
 
