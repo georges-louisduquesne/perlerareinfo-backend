@@ -65,6 +65,23 @@ $french = '<p>Déjà publié.</p>';
 $frenchButton = perle_rare_fiche_with_carte_button($french, 'https://perle-rare.com/fr/carte-virtuelle-laurence-berry/', false);
 expect_same('french button label', strpos($frenchButton, '>Carte virtuelle</a>') !== false, true);
 
+$section = '<section class="section"><div class="container"><div class="row"><div class="col-md-6">'
+    . '<div class="col-text-1"><h1 class="nom-chasseur-immobilier-noir"><strong>Claire-Charlotte FOITY</strong></h1>'
+    . '<p>Bio.</p>'
+    . '<p><a href="mailto:claire-charlotte.foity@perle-rare.com"><img src="https://perle-rare.com/wp-content/uploads/2021/02/envelope-solid-2.png"></a></p>'
+    . '</div></div></div></div></section>';
+$placed = perle_rare_fiche_with_carte_button($section, 'https://perle-rare.com/fr/carte-virtuelle-claire-charlotte-foity/', false);
+expect_same('button stays inside the fiche section', strpos($placed, 'pr-card-launch') < strpos($placed, '</section>'), true);
+expect_same(
+    'button follows the contact line',
+    strpos($placed, 'envelope-solid-2.png"></a></p><p class="pr-card-launch">') !== false,
+    true
+);
+
+$column = '<div class="col-text-1"><h1 class="nom-chasseur-immobilier-noir">Nom</h1><p>Sans contact.</p></div>';
+$inColumn = perle_rare_fiche_with_carte_button($column, 'https://perle-rare.com/fr/carte-virtuelle-laurence-berry/', false);
+expect_same('button stays inside the text column', strpos($inColumn, 'pr-card-launch') < strpos($inColumn, '</div>'), true);
+
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");
     exit(1);

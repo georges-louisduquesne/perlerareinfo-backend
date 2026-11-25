@@ -123,23 +123,98 @@ function perle_rare_fiche_present_english_contacts($content, $email, $linkedin)
     return $content;
 }
 
+function perle_rare_fiche_carte_button_html($carteUrl, $english)
+{
+    $href = perle_rare_fiche_carte_href($carteUrl);
+    if ($href === '') {
+        return '';
+    }
+    return '<p class="pr-card-launch"><a href="' . htmlspecialchars($href, ENT_QUOTES) . '">'
+        . perle_rare_fiche_carte_label($english) . '</a></p>';
+}
+
+/**
+ * Dernier paragraphe de contact (enveloppe, LinkedIn, Google ou mailto).
+ * Le bouton se place juste après, dans la colonne du texte.
+ */
+function perle_rare_fiche_insert_after_contact_line($content, $button)
+{
+    if (!preg_match_all('/<p\b[^>]*>.*?<\/p>/is', $content, $matches, PREG_OFFSET_CAPTURE)) {
+        return null;
+    }
+    $end = null;
+    foreach ($matches[0] as $match) {
+        $html = $match[0];
+        if (
+            stripos($html, 'mailto:') === false
+            && stripos($html, 'envelope-solid') === false
+            && stripos($html, 'linkedin-brands') === false
+            && stripos($html, 'google-brands') === false
+        ) {
+            continue;
+        }
+        $end = $match[1] + strlen($html);
+    }
+    if ($end === null) {
+        return null;
+    }
+    return substr($content, 0, $end) . $button . substr($content, $end);
+}
+
+/**
+ * Fiche sans ligne de contact : le bouton reste dans la colonne de texte.
+ */
+function perle_rare_fiche_insert_in_text_column($content, $button)
+{
+    if (!preg_match('/<div\b[^>]*\bcol-text\b[^>]*>/i', $content, $match, PREG_OFFSET_CAPTURE)) {
+        return null;
+    }
+    $pos = $match[0][1] + strlen($match[0][0]);
+    $depth = 1;
+    $length = strlen($content);
+    while ($pos < $length && $depth > 0) {
+        if (!preg_match('/<\/?div\b[^>]*>/i', $content, $tag, PREG_OFFSET_CAPTURE, $pos)) {
+            return null;
+        }
+        $tagHtml = $tag[0][0];
+        $tagAt = $tag[0][1];
+        if (stripos($tagHtml, '</div') === 0) {
+            $depth--;
+            if ($depth === 0) {
+                return substr($content, 0, $tagAt) . $button . substr($content, $tagAt);
+            }
+        } else {
+            $depth++;
+        }
+        $pos = $tagAt + strlen($tagHtml);
+    }
+    return null;
+}
+
 function perle_rare_fiche_with_carte_button($content, $carteUrl, $english)
 {
     if (!is_string($content) || stripos($content, 'pr-card-launch') !== false) {
         return $content;
     }
-    $href = perle_rare_fiche_carte_href($carteUrl);
-    if ($href === '') {
+    $button = perle_rare_fiche_carte_button_html($carteUrl, $english);
+    if ($button === '') {
         return $content;
     }
-    $button = '<p class="pr-card-launch"><a href="' . htmlspecialchars($href, ENT_QUOTES) . '">'
-        . perle_rare_fiche_carte_label($english) . '</a></p>';
+    $afterContact = perle_rare_fiche_insert_after_contact_line($content, $button);
+    if (is_string($afterContact)) {
+        return $afterContact;
+    }
+    $inColumn = perle_rare_fiche_insert_in_text_column($content, $button);
+    if (is_string($inColumn)) {
+        return $inColumn;
+    }
     return $content . $button;
 }
 
 function perle_rare_fiche_carte_launch_css()
 {
     return 'body.pr-has-carte .pr-card-launch{margin:18px 0 8px}'
+        . 'body.pr-has-carte article>.pr-card-launch{box-sizing:border-box;width:100%;max-width:1170px;margin-left:auto;margin-right:auto;padding-left:15px;padding-right:15px}'
         . 'body.pr-has-carte .pr-card-launch a{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 22px;background:#1d242c;color:#ffffff;border:1px solid #1d242c;font-size:0.875rem;font-weight:600;letter-spacing:0.08em;line-height:1.2;text-align:center;text-decoration:none;text-transform:uppercase}'
         . 'body.pr-has-carte .pr-card-launch a:hover,body.pr-has-carte .pr-card-launch a:focus{background:#F6D0D5;border-color:#F6D0D5;color:#1D242C;text-decoration:none}';
 }
