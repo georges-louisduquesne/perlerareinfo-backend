@@ -5,9 +5,10 @@ using Microsoft.Exchange.WebServices.Data;
 namespace ApiPerleRare.Application.Exchange;
 
 /// <summary>
-/// Exchange enregistre un HTML sans charset en UTF-16. Le Mail de l’iPhone
-/// affiche alors chaque lettre comme un idéogramme. Le meta UTF-8 et la page
-/// de code Internet 65001 font stocker le corps en UTF-8.
+/// Prépare un document HTML complet avec méta UTF-8 pour les mails Exchange.
+/// Ne pas poser PR_INTERNET_CPID (0x3FDE = 65001) en ExtendedProperty sur le
+/// CreateItem : EWS écrit Body (PR_HTML) avant les ExtendedProperties, ce qui
+/// fait relire des octets Windows-1252 comme de l’UTF-8 (caractères U+FFFD «  »).
 /// </summary>
 internal static class ExchangeMailHtml
 {
@@ -19,20 +20,17 @@ internal static class ExchangeMailHtml
 
 	private const string DocumentStyle = "<style>html,body{font-family:Verdana,sans-serif;font-size:15px;line-height:1.5}</style>";
 
-	private static readonly ExtendedPropertyDefinition InternetCodePage = new ExtendedPropertyDefinition(InternetCodePageTag, MapiPropertyType.Integer);
-
 	private static readonly Regex CharsetMetaPattern = new Regex("<meta\\b[^>]*charset\\s*=", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
 	internal static void Apply(EmailMessage message, string contents)
 	{
-		message.SetExtendedProperty(InternetCodePage, Utf8CodePage);
 		message.Body = new MessageBody(BodyType.HTML, Prepare(contents));
 	}
 
 	internal static string Prepare(string contents)
 	{
 		string html = contents ?? string.Empty;
-		if (html.IndexOf("<html>", StringComparison.Ordinal) < 0)
+		if (TagEnd(html, "html") < 0)
 		{
 			return Wrap(html);
 		}
