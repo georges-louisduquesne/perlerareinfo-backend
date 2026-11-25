@@ -94,7 +94,8 @@ $carolineShown = perle_rare_fiche_with_carte_button(
     'https://perle-rare.com/fr/carte-virtuelle-caroline-rapp-trevisan/',
     false
 );
-expect_same('french page keeps the published mailto', strpos($carolineShown, 'mailto:crt@perle-rare.com') !== false, true);
+expect_same('french page uses CP_Mel', strpos($carolineShown, 'mailto:caroline.rapptrevisan@perle-rare.com') !== false, true);
+expect_same('french page drops the wordpress alias', strpos($carolineShown, 'mailto:crt@perle-rare.com') === false, true);
 expect_same('french page hides the written address', strpos($carolineShown, '>crt@perle-rare.com</a>') === false, true);
 expect_same('french page shows the envelope inside the fiche', strpos($carolineShown, 'envelope-solid.png') < strpos($carolineShown, '</section>'), true);
 expect_same('french page shows linkedin inside the fiche', strpos($carolineShown, 'linkedin-brands.png') < strpos($carolineShown, '</section>'), true);
@@ -116,6 +117,13 @@ expect_same('existing linkedin is not duplicated', substr_count($unchanged, 'lin
 $noLinkedin = perle_rare_fiche_present_english_contacts($caroline, 'caroline.rapptrevisan@perle-rare.com', '');
 expect_same('missing linkedin stays absent on a french page', strpos($noLinkedin, 'linkedin-brands') === false, true);
 expect_same('envelope still replaces the french address', strpos($noLinkedin, 'envelope-solid.png') !== false, true);
+expect_same('envelope without linkedin still uses CP_Mel', strpos($noLinkedin, 'mailto:caroline.rapptrevisan@perle-rare.com') !== false, true);
+
+$aliasIcon = '<p><a href="mailto:crt@perle-rare.com"><img src="https://perle-rare.com/wp-content/uploads/2021/02/envelope-solid.png"></a></p>';
+$aliasFixed = perle_rare_fiche_present_english_contacts($aliasIcon, 'caroline.rapptrevisan@perle-rare.com', '');
+expect_same('existing envelope href becomes CP_Mel', strpos($aliasFixed, 'mailto:caroline.rapptrevisan@perle-rare.com') !== false, true);
+expect_same('existing envelope drops the alias', strpos($aliasFixed, 'mailto:crt@') === false, true);
+expect_same('existing envelope is not duplicated when the href changes', substr_count($aliasFixed, 'envelope-solid'), 1);
 
 if ($failures > 0) {
     fwrite(STDERR, "$failures failed\n");

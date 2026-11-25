@@ -82,7 +82,7 @@ function perle_rare_fiche_insert_block($content, $block)
 }
 
 /**
- * L'adresse écrite devient l'enveloppe. Le mailto déjà publié est conservé.
+ * L'adresse écrite devient l'enveloppe. Le lien est CP_Mel, pas l'alias écrit dans la page.
  * LinkedIn s'ajoute à côté quand la fiche CRM en a un et que la page ne l'affiche pas.
  */
 function perle_rare_fiche_present_english_contacts($content, $email, $linkedin)
@@ -93,31 +93,31 @@ function perle_rare_fiche_present_english_contacts($content, $email, $linkedin)
     $crmEmail = perle_rare_fiche_email($email);
     $linkedin = perle_rare_fiche_linkedin_href($linkedin);
     $mailtoCount = preg_match_all('/<a\b[^>]*mailto:/i', $content);
-    if (stripos($content, 'envelope-solid') === false && ($crmEmail !== '' || $mailtoCount > 0)) {
+    if ($crmEmail !== '' && $mailtoCount === 1) {
         $icon = perle_rare_fiche_envelope_img();
         $count = 0;
         $replaced = preg_replace_callback(
-            '/<a\b[^>]*\bhref\s*=\s*(["\'])mailto:([^"\']+)\1[^>]*>.*?<\/a>/is',
+            '/<a\b[^>]*\bhref\s*=\s*(["\'])mailto:[^"\']+\1[^>]*>(.*?)<\/a>/is',
             static function ($match) use ($icon, $crmEmail) {
-                $pageEmail = perle_rare_fiche_email(rawurldecode(html_entity_decode($match[2], ENT_QUOTES)));
-                $use = $pageEmail !== '' ? $pageEmail : $crmEmail;
-                if ($use === '') {
-                    return $match[0];
+                $href = 'href="mailto:' . htmlspecialchars($crmEmail, ENT_QUOTES) . '"';
+                if (stripos($match[0], 'envelope-solid') !== false) {
+                    $updated = preg_replace('/\bhref\s*=\s*(["\'])mailto:[^"\']+\1/i', $href, $match[0], 1);
+                    return is_string($updated) ? $updated : $match[0];
                 }
-                return '<a href="mailto:' . htmlspecialchars($use, ENT_QUOTES) . '">' . $icon . '</a>';
+                return '<a ' . $href . '>' . $icon . '</a>';
             },
             $content,
             1,
             $count
         );
-        if (is_string($replaced) && $count === 1 && $mailtoCount === 1) {
+        if (is_string($replaced) && $count === 1) {
             $content = $replaced;
-        } elseif ($mailtoCount === 0 && $crmEmail !== '') {
-            $content = perle_rare_fiche_insert_block(
-                $content,
-                '<p><a href="mailto:' . htmlspecialchars($crmEmail, ENT_QUOTES) . '">' . $icon . '</a></p>'
-            );
         }
+    } elseif ($crmEmail !== '' && $mailtoCount === 0 && stripos($content, 'envelope-solid') === false) {
+        $content = perle_rare_fiche_insert_block(
+            $content,
+            '<p><a href="mailto:' . htmlspecialchars($crmEmail, ENT_QUOTES) . '">' . perle_rare_fiche_envelope_img() . '</a></p>'
+        );
     }
     if ($linkedin !== '' && stripos($content, 'linkedin-brands') === false) {
         $link = '<a href="' . htmlspecialchars($linkedin, ENT_QUOTES) . '">' . perle_rare_fiche_linkedin_img() . '</a>';
