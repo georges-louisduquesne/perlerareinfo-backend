@@ -344,3 +344,20 @@ add_filter('the_content', static function ($content) {
     $content = perle_rare_fiche_present_english_contacts($content, $row['email'], $row['linkedin']);
     return perle_rare_fiche_with_carte_button($content, $row['carte'], !empty($row['english']));
 }, 40);
+
+/**
+ * Le thème peut ajouter un second bouton après ce filtre (biographie de Georges-Louis).
+ * On n'en laisse qu'un, une fois la page assemblée.
+ */
+add_filter('the_content', static function ($content) {
+    if (!function_exists('is_singular') || !is_singular('page') || !function_exists('get_permalink')) {
+        return $content;
+    }
+    if (!in_the_loop() || !is_main_query()) {
+        return $content;
+    }
+    if (perle_rare_fiche_carte_lookup(get_permalink()) === null) {
+        return $content;
+    }
+    return perle_rare_fiche_single_carte_button($content);
+}, 100);

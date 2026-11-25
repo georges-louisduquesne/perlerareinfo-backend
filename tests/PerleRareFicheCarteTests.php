@@ -75,6 +75,17 @@ expect_same('the first stored button stays', substr_count($oneButton, '>Carte vi
 expect_same('contact icons stay when the extra button goes', substr_count($oneButton, 'envelope-solid'), 1);
 expect_same('the remaining button stays in the column', strpos($oneButton, 'pr-card-launch') < strpos($oneButton, '</div>'), true);
 
+$themeAdded = $oneButton;
+$themePos = strpos($themeAdded, '</p>');
+$themeAdded = substr($themeAdded, 0, $themePos + 4)
+    . '<p class="pr-card-launch"><a href="https://perle-rare.com/fr/carte-virtuelle-georges-louis-duquesne/">Carte virtuelle</a></p>'
+    . substr($themeAdded, $themePos + 4);
+expect_same(
+    'a button added later by the theme is removed',
+    substr_count(perle_rare_fiche_single_carte_button($themeAdded), 'pr-card-launch'),
+    1
+);
+
 $french = '<p>Déjà publié.</p>';
 $frenchButton = perle_rare_fiche_with_carte_button($french, 'https://perle-rare.com/fr/carte-virtuelle-laurence-berry/', false);
 expect_same('french button label', strpos($frenchButton, '>Carte virtuelle</a>') !== false, true);
