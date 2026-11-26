@@ -25,20 +25,27 @@ public class OodriveMacPdfRepairTests
 
 		Assert.True(repaired.Length > broken.Length);
 		Assert.Equal(broken, repaired.AsSpan(0, broken.Length).ToArray());
-		string tail = Encoding.Latin1.GetString(repaired, broken.Length, repaired.Length - broken.Length);
-		int streamMarker = tail.IndexOf("stream\n", StringComparison.Ordinal);
-		string header = tail.Substring(0, streamMarker);
-		Assert.Contains("/Type /XRef", header);
-		Assert.DoesNotContain("/Prev", header);
-		Assert.DoesNotContain("/W [0", header);
-		var widths = System.Text.RegularExpressions.Regex.Match(header, @"/W \[1 (\d+) (\d+)\]");
-		Assert.True(widths.Success);
-		int field2Width = int.Parse(widths.Groups[1].Value);
-		int stream = broken.Length + streamMarker + "stream\n".Length;
-		Assert.Equal(0, repaired[stream]);
-		Assert.Equal(Be(updatedCatalog, field2Width), repaired.AsSpan(stream + 1 + (1 + field2Width + int.Parse(widths.Groups[2].Value)), field2Width).ToArray());
+		byte[] rows = XrefRows(repaired, broken.Length, out int field2Width, out int field3Width);
+		int width = 1 + field2Width + field3Width;
+		Assert.Equal(0, rows[0]);
+		Assert.Equal(65535, ReadBe(rows, 1 + field2Width, field3Width));
+		Assert.Equal(updatedCatalog, ReadBe(rows, width + 1, field2Width));
 		byte[] again = OodriveMacPdfRepair.Repair(repaired);
 		Assert.Equal(repaired, again);
+	}
+
+	[Fact]
+	public void Repair_replaces_the_uncompressed_trailer_preview_rejects()
+	{
+		byte[] broken = OodriveSignedPdf(out int updatedCatalog);
+		byte[] old = UncompressedTrailer(broken, updatedCatalog);
+		byte[] repaired = OodriveMacPdfRepair.Repair(old);
+		Assert.True(repaired.Length > old.Length);
+		Assert.Equal(old, repaired.AsSpan(0, old.Length).ToArray());
+		byte[] rows = XrefRows(repaired, old.Length, out int field2Width, out int field3Width);
+		Assert.Equal(65535, ReadBe(rows, 1 + field2Width, field3Width));
+		Assert.Equal(updatedCatalog, ReadBe(rows, 1 + field2Width + field3Width + 1, field2Width));
+		Assert.Equal(repaired, OodriveMacPdfRepair.Repair(repaired));
 	}
 
 	[Fact]
@@ -46,16 +53,12 @@ public class OodriveMacPdfRepairTests
 	{
 		byte[] broken = PdfWithCompressedObject(out int streamObject, out int index);
 		byte[] repaired = OodriveMacPdfRepair.Repair(broken);
-		string tail = Encoding.Latin1.GetString(repaired, broken.Length, repaired.Length - broken.Length);
-		int data = broken.Length + tail.IndexOf("stream\n", StringComparison.Ordinal) + "stream\n".Length;
-		var match = System.Text.RegularExpressions.Regex.Match(tail, @"/W \[1 (\d+) (\d+)\]");
-		int field2Width = int.Parse(match.Groups[1].Value);
-		int field3Width = int.Parse(match.Groups[2].Value);
+		byte[] rows = XrefRows(repaired, broken.Length, out int field2Width, out int field3Width);
 		int width = 1 + field2Width + field3Width;
-		int at = data + (2 * width);
-		Assert.Equal(2, repaired[at]);
-		Assert.Equal(Be(streamObject, field2Width), repaired.AsSpan(at + 1, field2Width).ToArray());
-		Assert.Equal(Be(index, field3Width), repaired.AsSpan(at + 1 + field2Width, field3Width).ToArray());
+		int at = 2 * width;
+		Assert.Equal(2, rows[at]);
+		Assert.Equal(streamObject, ReadBe(rows, at + 1, field2Width));
+		Assert.Equal(index, ReadBe(rows, at + 1 + field2Width, field3Width));
 	}
 
 	[Fact]
@@ -97,14 +100,68 @@ public class OodriveMacPdfRepairTests
 		Assert.Contains("trailer", Encoding.ASCII.GetString(repaired, 0, classic.Length));
 	}
 
-	private static byte[] Be(int value, int width)
+	private static byte[] XrefRows(byte[] pdf, int tailAt, out int field2Width, out int field3Width)
 	{
-		var bytes = new byte[width];
-		for (int shift = (width - 1) * 8, i = 0; shift >= 0; shift -= 8, i++)
+		string tail = Encoding.Latin1.GetString(pdf, tailAt, pdf.Length - tailAt);
+		int streamMarker = tail.IndexOf("stream\n", StringComparison.Ordinal);
+		string header = tail.Substring(0, streamMarker);
+		Assert.Contains("/Type /XRef", header);
+		Assert.Contains("/Filter /FlateDecode", header);
+		Assert.DoesNotContain("/Prev", header);
+		Assert.DoesNotContain("/W [0", header);
+		var widths = System.Text.RegularExpressions.Regex.Match(header, @"/W \[1 (\d+) (\d+)\]");
+		Assert.True(widths.Success);
+		field2Width = int.Parse(widths.Groups[1].Value);
+		field3Width = int.Parse(widths.Groups[2].Value);
+		int length = int.Parse(System.Text.RegularExpressions.Regex.Match(header, @"/Length (\d+)").Groups[1].Value);
+		int stream = tailAt + streamMarker + "stream\n".Length;
+		var packed = new byte[length];
+		Buffer.BlockCopy(pdf, stream, packed, 0, length);
+		return Inflate(packed);
+	}
+
+	private static int ReadBe(byte[] data, int index, int width)
+	{
+		int value = 0;
+		for (int i = 0; i < width; i++)
 		{
-			bytes[i] = (byte)((value >> shift) & 0xff);
+			value = (value << 8) | data[index + i];
 		}
-		return bytes;
+		return value;
+	}
+
+	private static byte[] Inflate(byte[] raw)
+	{
+		using (var source = new MemoryStream(raw))
+		using (var zlib = new ZLibStream(source, CompressionMode.Decompress))
+		using (var destination = new MemoryStream())
+		{
+			zlib.CopyTo(destination);
+			return destination.ToArray();
+		}
+	}
+
+	private static byte[] UncompressedTrailer(byte[] broken, int catalog)
+	{
+		bool newline = broken[broken.Length - 1] != (byte)'\n' && broken[broken.Length - 1] != (byte)'\r';
+		int start = broken.Length + (newline ? 1 : 0);
+		var rows = new byte[15];
+		rows[5] = 1;
+		rows[6] = (byte)((catalog >> 16) & 0xff);
+		rows[7] = (byte)((catalog >> 8) & 0xff);
+		rows[8] = (byte)(catalog & 0xff);
+		rows[10] = 1;
+		rows[11] = (byte)((start >> 16) & 0xff);
+		rows[12] = (byte)((start >> 8) & 0xff);
+		rows[13] = (byte)(start & 0xff);
+		string dict = "2 0 obj\n<< /Type /XRef /Size 3 /Root 1 0 R /W [1 3 1] /Length 15 >>\nstream\n";
+		string tail = "\nendstream\nendobj\nstartxref\n" + start + "\n%%EOF\n";
+		return Concat(
+			broken,
+			newline ? new byte[] { 10 } : Array.Empty<byte>(),
+			Encoding.ASCII.GetBytes(dict),
+			rows,
+			Encoding.ASCII.GetBytes(tail));
 	}
 
 	private static byte[] ClassicPdf()

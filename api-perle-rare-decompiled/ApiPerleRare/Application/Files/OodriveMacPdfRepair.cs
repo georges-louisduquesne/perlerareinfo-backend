@@ -9,7 +9,9 @@ namespace ApiPerleRare.Application.Files;
 /// <summary>
 /// Oodrive Sign ajoute, après une signature, une révision dont la table est
 /// <c>/W [0 0 0]</c>. Aperçu macOS s'arrête sur cette table et n'affiche pas le PDF.
-/// On ajoute une table complète, sans renvoyer vers ces révisions. Les octets
+/// On ajoute une table complète compressée, sans renvoyer vers ces révisions.
+/// L'objet 0 y est libre, génération 65535 : une table brute qui commence par
+/// un octet nul, avec une génération 0, est refusée elle aussi. Les octets
 /// déjà signés ne changent pas.
 /// </summary>
 internal static class OodriveMacPdfRepair
@@ -23,7 +25,7 @@ internal static class OodriveMacPdfRepair
 		try
 		{
 			Resolved xref = Resolve(data);
-			if (xref == null || !xref.NeedsRepair || xref.Root == null)
+			if (xref == null || xref.Root == null || (!xref.NeedsRepair && !MacPreviewStillRejects(data, xref)))
 			{
 				return data;
 			}
@@ -36,6 +38,20 @@ internal static class OodriveMacPdfRepair
 		{
 			return data;
 		}
+	}
+
+	/// <summary>
+	/// La première réparation ajoutait une table complète non compressée.
+	/// Aperçu la refuse : le flux commence par un octet nul. On n'y retouche
+	/// que dans ce cas, pour ne pas réécrire un PDF déjà compressible.
+	/// </summary>
+	private static bool MacPreviewStillRejects(byte[] data, Resolved xref)
+	{
+		if (!xref.ActiveUncompressed)
+		{
+			return false;
+		}
+		return ContainsAscii(data, "/W [0 0 0]") || ContainsAscii(data, "/W[0 0 0]");
 	}
 
 	/// <summary>
@@ -138,8 +154,9 @@ internal static class OodriveMacPdfRepair
 			Field2 = objectStart,
 			Field3 = 0
 		};
+		LinkFree(entries);
 		int field2Width = 1;
-		int field3Width = 1;
+		int field3Width = 2;
 		for (int number = 0; number < newSize; number++)
 		{
 			field2Width = Math.Max(field2Width, ByteWidth(entries[number].Field2));
@@ -155,9 +172,10 @@ internal static class OodriveMacPdfRepair
 			WriteBigEndian(stream, ref cursor, entries[number].Field2, field2Width);
 			WriteBigEndian(stream, ref cursor, entries[number].Field3, field3Width);
 		}
+		byte[] compressed = Deflate(stream);
 		var header = new StringBuilder();
 		header.Append(newObject).Append(" 0 obj\n<< /Type /XRef /Size ").Append(newSize);
-		header.Append(" /W [1 ").Append(field2Width).Append(' ').Append(field3Width).Append("] ");
+		header.Append(" /W [1 ").Append(field2Width).Append(' ').Append(field3Width).Append("] /Filter /FlateDecode ");
 		header.Append(xref.Root);
 		if (!string.IsNullOrEmpty(xref.Info))
 		{
@@ -171,11 +189,11 @@ internal static class OodriveMacPdfRepair
 		{
 			header.Append(' ').Append(xref.Id);
 		}
-		header.Append(" /Length ").Append(streamLength).Append(" >>\nstream\n");
+		header.Append(" /Length ").Append(compressed.Length).Append(" >>\nstream\n");
 		string tail = "\nendstream\nendobj\nstartxref\n" + objectStart + "\n%%EOF\n";
 		byte[] headBytes = Latin1(header.ToString());
 		byte[] tailBytes = Latin1(tail);
-		int total = data.Length + (needNewline ? 1 : 0) + headBytes.Length + stream.Length + tailBytes.Length;
+		int total = data.Length + (needNewline ? 1 : 0) + headBytes.Length + compressed.Length + tailBytes.Length;
 		var output = new byte[total];
 		Buffer.BlockCopy(data, 0, output, 0, data.Length);
 		int at = data.Length;
@@ -185,10 +203,42 @@ internal static class OodriveMacPdfRepair
 		}
 		Buffer.BlockCopy(headBytes, 0, output, at, headBytes.Length);
 		at += headBytes.Length;
-		Buffer.BlockCopy(stream, 0, output, at, stream.Length);
-		at += stream.Length;
+		Buffer.BlockCopy(compressed, 0, output, at, compressed.Length);
+		at += compressed.Length;
 		Buffer.BlockCopy(tailBytes, 0, output, at, tailBytes.Length);
 		return output;
+	}
+
+	/// <summary>
+	/// Liste libre exigée par Aperçu : l'objet 0 est libre, génération 65535,
+	/// et chaque objet libre pointe vers le suivant.
+	/// </summary>
+	private static void LinkFree(XEntry[] entries)
+	{
+		XEntry head = entries[0];
+		head.Type = 0;
+		head.Field3 = 65535;
+		entries[0] = head;
+		var free = new List<int>();
+		for (int number = 0; number < entries.Length; number++)
+		{
+			if (entries[number].Type == 0)
+			{
+				free.Add(number);
+			}
+		}
+		for (int i = 0; i < free.Count; i++)
+		{
+			int number = free[i];
+			XEntry entry = entries[number];
+			entry.Type = 0;
+			entry.Field2 = i + 1 < free.Count ? free[i + 1] : 0;
+			if (number == 0)
+			{
+				entry.Field3 = 65535;
+			}
+			entries[number] = entry;
+		}
 	}
 
 	private static Resolved Resolve(byte[] data)
@@ -203,6 +253,7 @@ internal static class OodriveMacPdfRepair
 		}
 		var resolved = new Resolved();
 		var seen = new HashSet<int>();
+		bool first = true;
 		while (offset >= 0)
 		{
 			if (!seen.Add(offset))
@@ -212,6 +263,11 @@ internal static class OodriveMacPdfRepair
 			if (!TryReadSection(data, offset, out Section section))
 			{
 				return null;
+			}
+			if (first)
+			{
+				resolved.ActiveUncompressed = section.Uncompressed;
+				first = false;
 			}
 			if (section.BrokenWidth)
 			{
@@ -410,6 +466,7 @@ internal static class OodriveMacPdfRepair
 		{
 			Entries = entries,
 			BrokenWidth = broken,
+			Uncompressed = dict.IndexOf("/Filter", StringComparison.Ordinal) < 0,
 			Size = size,
 			Root = root,
 			Info = TryDictRef(dict, "/Info", out string info) ? info : null,
@@ -418,6 +475,23 @@ internal static class OodriveMacPdfRepair
 			Prev = TryDictLong(dict, "/Prev", out long prev) ? (int)prev : -1
 		};
 		return true;
+	}
+
+	private static byte[] Deflate(byte[] raw)
+	{
+		using (var destination = new MemoryStream())
+		{
+			using (var zlib = new ZLibStream(destination, CompressionLevel.SmallestSize, true))
+			{
+				zlib.Write(raw, 0, raw.Length);
+			}
+			return destination.ToArray();
+		}
+	}
+
+	private static bool ContainsAscii(byte[] data, string text)
+	{
+		return IndexOf(data, Latin1(text), 0) >= 0;
 	}
 
 	private static byte[] Inflate(byte[] raw)
@@ -971,6 +1045,8 @@ internal static class OodriveMacPdfRepair
 
 		public bool NeedsRepair { get; set; }
 
+		public bool ActiveUncompressed { get; set; }
+
 		public string Root { get; set; }
 
 		public string Info { get; set; }
@@ -987,6 +1063,8 @@ internal static class OodriveMacPdfRepair
 		public Dictionary<int, XEntry> Entries { get; set; }
 
 		public bool BrokenWidth { get; set; }
+
+		public bool Uncompressed { get; set; }
 
 		public int Size { get; set; }
 
