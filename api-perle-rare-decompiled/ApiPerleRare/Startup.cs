@@ -14,6 +14,7 @@ using ApiPerleRare.Application.Events;
 using ApiPerleRare.Application.Exchange;
 using ApiPerleRare.Application.Files;
 using ApiPerleRare.Application.Formation;
+using ApiPerleRare.Application.Reseaux;
 using ApiPerleRare.Application.Search;
 using ApiPerleRare.Application.Tasks;
 using ApiPerleRare.Helpers;
@@ -259,6 +260,10 @@ public class Startup
 		if (FormulairesCandidatsMailJob.Enabled(Environment.GetEnvironmentVariable(FormulairesCandidatsMailJob.EnvVar)))
 		{
 			services.AddHostedService<FormulairesCandidatsMailHostedService>();
+		}
+		if (ReseauxQuotaReset.Enabled(Environment.GetEnvironmentVariable(ReseauxQuotaReset.EnvVar)))
+		{
+			services.AddHostedService<ReseauxQuotaResetHostedService>();
 		}
 		if (!IsLocalSafe)
 		{

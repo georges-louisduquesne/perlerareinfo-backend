@@ -33,6 +33,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
 	public virtual DbSet<ConseillersPersonnelsTypesEvenements> ConseillersPersonnelsTypesEvenements { get; set; }
 
+	public virtual DbSet<ModelesReseaux> ModelesReseaux { get; set; }
+
+	public virtual DbSet<PublicationsReseaux> PublicationsReseaux { get; set; }
+
+	public virtual DbSet<SollicitationsReseaux> SollicitationsReseaux { get; set; }
+
 	public virtual DbSet<ContactAgence> ContactAgence { get; set; }
 
 	public virtual DbSet<ContactAgencePublication> ContactAgencePublication { get; set; }
@@ -1882,6 +1888,43 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 			entity.Property((YanportInterruptions e) => e.YiDateFin).HasColumnType("datetime").HasColumnName("YI_DateFin");
 			entity.Property((YanportInterruptions e) => e.YiRaison).IsRequired().HasMaxLength(50)
 				.HasColumnName("YI_Raison");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<ModelesReseaux> entity)
+		{
+			entity.HasKey((ModelesReseaux e) => e.MrId).HasName("PRIMARY");
+			entity.ToTable("modeles_reseaux").HasCharSet("utf8mb4").UseCollation("utf8mb4_general_ci");
+			entity.Property((ModelesReseaux e) => e.MrId).HasColumnName("MR_Id");
+			entity.Property((ModelesReseaux e) => e.MrActif).HasColumnName("MR_Actif");
+			entity.Property((ModelesReseaux e) => e.MrType).IsRequired().HasMaxLength(20).HasColumnName("MR_Type");
+			entity.Property((ModelesReseaux e) => e.MrTitre).IsRequired().HasMaxLength(120).HasColumnName("MR_Titre");
+			entity.Property((ModelesReseaux e) => e.MrContenu).IsRequired().HasColumnType("text").HasColumnName("MR_Contenu");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<PublicationsReseaux> entity)
+		{
+			entity.HasKey((PublicationsReseaux e) => e.PubId).HasName("PRIMARY");
+			entity.ToTable("publications_reseaux").HasCharSet("utf8mb4").UseCollation("utf8mb4_general_ci");
+			entity.HasIndex((PublicationsReseaux e) => new { e.PubReseau, e.PubPostId }).IsUnique().HasDatabaseName("uq_publications_reseaux");
+			entity.Property((PublicationsReseaux e) => e.PubId).HasColumnName("PUB_Id");
+			entity.Property((PublicationsReseaux e) => e.PubPostId).IsRequired().HasMaxLength(128).HasColumnName("PUB_PostId");
+			entity.Property((PublicationsReseaux e) => e.PubReseau).IsRequired().HasMaxLength(16).HasColumnName("PUB_Reseau");
+			entity.Property((PublicationsReseaux e) => e.PubUrl).IsRequired().HasMaxLength(500).HasColumnName("PUB_Url");
+			entity.Property((PublicationsReseaux e) => e.PubDatePublication).HasColumnType("datetime").HasColumnName("PUB_DatePublication");
+			entity.Property((PublicationsReseaux e) => e.PubVignette).HasColumnType("text").HasColumnName("PUB_Vignette");
+			entity.Property((PublicationsReseaux e) => e.PubTexte).HasMaxLength(500).HasColumnName("PUB_Texte");
+			entity.Property((PublicationsReseaux e) => e.PubMaj).HasColumnType("datetime").HasColumnName("PUB_Maj");
+		});
+		modelBuilder.Entity(delegate(EntityTypeBuilder<SollicitationsReseaux> entity)
+		{
+			entity.HasKey((SollicitationsReseaux e) => e.SrId).HasName("PRIMARY");
+			entity.ToTable("sollicitations_reseaux").HasCharSet("utf8mb4").UseCollation("utf8mb4_general_ci");
+			entity.HasIndex((SollicitationsReseaux e) => new { e.SrReseau, e.SrPostId, e.SrRefConseiller }).IsUnique().HasDatabaseName("uq_sollicitations_reseaux");
+			entity.Property((SollicitationsReseaux e) => e.SrId).HasColumnName("SR_Id");
+			entity.Property((SollicitationsReseaux e) => e.SrPostId).IsRequired().HasMaxLength(128).HasColumnName("SR_PostId");
+			entity.Property((SollicitationsReseaux e) => e.SrReseau).IsRequired().HasMaxLength(16).HasColumnName("SR_Reseau");
+			entity.Property((SollicitationsReseaux e) => e.SrRefConseiller).HasColumnName("SR_RefConseiller");
+			entity.Property((SollicitationsReseaux e) => e.SrDatePublication).HasColumnType("datetime").HasColumnName("SR_DatePublication");
+			entity.Property((SollicitationsReseaux e) => e.SrDateEnvoi).HasColumnType("datetime").HasColumnName("SR_DateEnvoi");
+			entity.Property((SollicitationsReseaux e) => e.SrType).IsRequired().HasMaxLength(20).HasColumnName("SR_Type");
 		});
 	}
 }

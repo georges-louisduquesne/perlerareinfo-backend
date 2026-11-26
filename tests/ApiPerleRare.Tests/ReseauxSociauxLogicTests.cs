@@ -1,0 +1,105 @@
+using System;
+using System.Linq;
+using ApiPerleRare.Application.Reseaux;
+using Xunit;
+
+namespace ApiPerleRare.Tests;
+
+public class ReseauxSociauxLogicTests
+{
+	[Fact]
+	public void Template_replaces_conseiller_and_url()
+	{
+		string message = ReseauxSociauxLogic.ApplyTemplate(
+			"Bonjour {prenom} {nom}, {url} — {prenom}",
+			"Diane",
+			"de Monteynard",
+			"https://www.linkedin.com/posts/perle-rare");
+		Assert.Equal("Bonjour Diane de Monteynard, https://www.linkedin.com/posts/perle-rare — Diane", message);
+		Assert.Equal(string.Empty, ReseauxSociauxLogic.ApplyTemplate(null, null, null, null));
+	}
+
+	[Fact]
+	public void First_quota_fills_the_week_balance()
+	{
+		Assert.Equal((3, 3), ReseauxSociauxLogic.ApplyQuotaEdit(0, 0, 3, 0));
+		Assert.Equal((4, 1), ReseauxSociauxLogic.ApplyQuotaEdit(3, 1, 4, 1));
+		Assert.Equal((2, 2), ReseauxSociauxLogic.ApplyQuotaEdit(4, 3, 2, 3));
+		Assert.Equal((100, 100), ReseauxSociauxLogic.ApplyQuotaEdit(0, 0, 500, 0));
+		Assert.Equal((0, 0), ReseauxSociauxLogic.ApplyQuotaEdit(2, 1, -4, -1));
+	}
+
+	[Fact]
+	public void Eligible_conseillers_keep_a_balance_and_skip_an_existing_pair()
+	{
+		var rows = new[]
+		{
+			new ReseauxConseillerPick { Ref = 1, Prenom = "Zoé", Nom = "Martin", Solde = 1 },
+			new ReseauxConseillerPick { Ref = 2, Prenom = "Anne", Nom = "Bernard", Solde = 4 },
+			new ReseauxConseillerPick { Ref = 3, Prenom = "Anne", Nom = "Albert", Solde = 4 },
+			new ReseauxConseillerPick { Ref = 4, Prenom = "Paul", Nom = "Durand", Solde = 0 },
+		};
+		var pairs = new[] { ("post-1", ReseauxSociauxLogic.LinkedIn, 2u) };
+		var eligible = ReseauxSociauxLogic.Eligible(rows, "post-1", ReseauxSociauxLogic.LinkedIn, pairs);
+		Assert.Equal(new uint[] { 3, 1 }, eligible.Select((ReseauxConseillerPick c) => c.Ref).ToArray());
+		Assert.True(ReseauxSociauxLogic.CanSolicit(1, alreadySolicited: false));
+		Assert.False(ReseauxSociauxLogic.CanSolicit(1, alreadySolicited: true));
+		Assert.False(ReseauxSociauxLogic.CanSolicit(0, alreadySolicited: false));
+	}
+
+	[Fact]
+	public void Week_resets_on_monday_and_the_first_sight_only_records()
+	{
+		Assert.Equal(202601, ReseauxSociauxLogic.IsoWeekKey(new DateTime(2026, 1, 1)));
+		Assert.Equal(202601, ReseauxSociauxLogic.IsoWeekKey(new DateTime(2025, 12, 29)));
+		Assert.Equal(202602, ReseauxSociauxLogic.IsoWeekKey(new DateTime(2026, 1, 5)));
+		int monday = ReseauxSociauxLogic.IsoWeekKey(new DateTime(2026, 11, 23));
+		int sunday = ReseauxSociauxLogic.IsoWeekKey(new DateTime(2026, 11, 22, 23, 59, 0));
+		Assert.NotEqual(sunday, monday);
+		Assert.Equal(ReseauxResetDecision.RecordOnly, ReseauxSociauxLogic.DecideReset(0, monday));
+		Assert.Equal(ReseauxResetDecision.None, ReseauxSociauxLogic.DecideReset(monday, monday));
+		Assert.Equal(ReseauxResetDecision.Reset, ReseauxSociauxLogic.DecideReset(sunday, monday));
+	}
+
+	[Fact]
+	public void Sync_is_stale_until_a_recent_stamp_exists()
+	{
+		Assert.True(ReseauxSociauxLogic.SyncIsStale(0, 1_700_000_000));
+		Assert.True(ReseauxSociauxLogic.SyncIsStale(1_700_000_000, 1_700_000_000 + ReseauxSociauxLogic.SyncStaleSeconds));
+		Assert.False(ReseauxSociauxLogic.SyncIsStale(1_700_000_000, 1_700_000_000 + 60));
+	}
+
+	[Fact]
+	public void Parsers_keep_the_six_latest_posts_from_both_networks()
+	{
+		string linkedIn = """
+		[
+		  {"id":"7531696806913568768","linkedinUrl":"https://www.linkedin.com/posts/perle-rare_hiring","content":"Nous recrutons","postedAt":{"date":"2026-11-26T12:34:10.928Z"},"postImages":[]},
+		  {"id":"2","linkedinUrl":"https://www.linkedin.com/posts/deux","content":"Portrait","postedAt":{"date":"2026-11-23T07:02:14.622Z"},"postImages":[{"url":"https://media.licdn.com/image.jpg","width":940,"height":788}]}
+		]
+		""";
+		string instagram = """
+		[
+		  {"id":"4038447322246164554","url":"https://www.instagram.com/p/DgLcnFmnDBK/","timestamp":"2026-11-25T21:01:22.000Z","displayUrl":"https://cdn.example/ig.jpg","caption":"L'art du détail"}
+		]
+		""";
+		var linked = ReseauxSociauxLogic.ParseLinkedIn(linkedIn);
+		var insta = ReseauxSociauxLogic.ParseInstagram(instagram);
+		Assert.Equal("https://media.licdn.com/image.jpg", linked[1].Vignette);
+		Assert.Equal(string.Empty, linked[0].Vignette);
+		Assert.Equal("https://cdn.example/ig.jpg", insta[0].Vignette);
+		var latest = ReseauxSociauxLogic.Latest(linked.Concat(insta), 2);
+		Assert.Equal(new[] { "7531696806913568768", "4038447322246164554" }, latest.Select((ReseauPost p) => p.Id).ToArray());
+		Assert.Empty(ReseauxSociauxLogic.ParseLinkedIn("not-json"));
+		Assert.Empty(ReseauxSociauxLogic.ParseInstagram(null));
+	}
+
+	[Fact]
+	public void Quota_reset_stays_on_unless_explicitly_off()
+	{
+		Assert.True(ReseauxQuotaReset.Enabled(null));
+		Assert.True(ReseauxQuotaReset.Enabled("on"));
+		Assert.False(ReseauxQuotaReset.Enabled("off"));
+		Assert.False(ReseauxQuotaReset.Enabled(" OFF "));
+	}
+}
