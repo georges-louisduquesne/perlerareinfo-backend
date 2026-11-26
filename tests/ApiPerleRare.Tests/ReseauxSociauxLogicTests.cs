@@ -95,6 +95,29 @@ public class ReseauxSociauxLogicTests
 	}
 
 	[Fact]
+	public void Latest_sollicitations_are_the_newest_fifty()
+	{
+		var rows = new[]
+		{
+			new ReseauSollicitationPick { Id = 1, DateEnvoi = new DateTime(2026, 11, 20, 9, 0, 0) },
+			new ReseauSollicitationPick { Id = 3, DateEnvoi = new DateTime(2026, 11, 26, 18, 5, 0) },
+			new ReseauSollicitationPick { Id = 2, DateEnvoi = new DateTime(2026, 11, 26, 18, 5, 0) },
+			new ReseauSollicitationPick { Id = 4, DateEnvoi = new DateTime(2026, 11, 24, 11, 30, 0) },
+		};
+		var latest = ReseauxSociauxLogic.LatestSollicitations(rows, 2);
+		Assert.Equal(new uint[] { 3, 2 }, latest.Select((ReseauSollicitationPick row) => row.Id).ToArray());
+		var many = Enumerable.Range(1, 51).Select((int i) => new ReseauSollicitationPick
+		{
+			Id = (uint)i,
+			DateEnvoi = new DateTime(2026, 1, 1).AddMinutes(i)
+		}).ToArray();
+		var capped = ReseauxSociauxLogic.LatestSollicitations(many, 0);
+		Assert.Equal(50, capped.Count);
+		Assert.Equal(51u, capped[0].Id);
+		Assert.Empty(ReseauxSociauxLogic.LatestSollicitations(null, 50));
+	}
+
+	[Fact]
 	public void Quota_reset_stays_on_unless_explicitly_off()
 	{
 		Assert.True(ReseauxQuotaReset.Enabled(null));

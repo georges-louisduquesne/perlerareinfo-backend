@@ -28,6 +28,13 @@ internal sealed class ReseauPost
 	public string Texte { get; init; }
 }
 
+internal sealed class ReseauSollicitationPick
+{
+	public uint Id { get; init; }
+
+	public DateTime DateEnvoi { get; init; }
+}
+
 internal sealed class ReseauxConseillerPick
 {
 	public uint Ref { get; init; }
@@ -59,6 +66,8 @@ internal static class ReseauxSociauxLogic
 	internal const int PostsPerNetwork = 6;
 
 	internal const int PostsShown = 6;
+
+	internal const int SollicitationsShown = 50;
 
 	internal const int SyncStaleSeconds = 2 * 60 * 60;
 
@@ -200,6 +209,18 @@ internal static class ReseauxSociauxLogic
 			return true;
 		}
 		return nowUnix - storedUnix >= SyncStaleSeconds;
+	}
+
+	/// <summary>Les dernières sollicitations, du plus récent envoi au plus ancien.</summary>
+	internal static IReadOnlyList<ReseauSollicitationPick> LatestSollicitations(IEnumerable<ReseauSollicitationPick> rows, int limit)
+	{
+		int take = limit <= 0 ? SollicitationsShown : limit;
+		return (rows ?? Array.Empty<ReseauSollicitationPick>())
+			.Where((ReseauSollicitationPick row) => row != null)
+			.OrderByDescending((ReseauSollicitationPick row) => row.DateEnvoi)
+			.ThenByDescending((ReseauSollicitationPick row) => row.Id)
+			.Take(take)
+			.ToList();
 	}
 
 	internal static IReadOnlyList<ReseauPost> Latest(IEnumerable<ReseauPost> posts, int limit)

@@ -93,6 +93,66 @@ public class ReseauxSociauxController : ControllerBase
 				refConseiller = s.SrRefConseiller
 			})
 			.ToListAsync(HttpContext.RequestAborted);
+		List<SollicitationsReseaux> sent = await _context.SollicitationsReseaux.AsNoTracking()
+			.OrderByDescending((SollicitationsReseaux s) => s.SrDateEnvoi)
+			.ThenByDescending((SollicitationsReseaux s) => s.SrId)
+			.Take(ReseauxSociauxLogic.SollicitationsShown)
+			.ToListAsync(HttpContext.RequestAborted);
+		var people = new Dictionary<uint, (string Prenom, string Nom)>();
+		uint[] refs = sent.Select((SollicitationsReseaux s) => s.SrRefConseiller).Distinct().ToArray();
+		if (refs.Length > 0)
+		{
+			var foundPeople = await _context.ConseillersPersonnels.AsNoTracking()
+				.Where((ConseillersPersonnels c) => refs.Contains(c.CpRefConseiller))
+				.Select((ConseillersPersonnels c) => new { c.CpRefConseiller, c.CpPrenom, c.CpNomFamille })
+				.ToListAsync(HttpContext.RequestAborted);
+			foreach (var person in foundPeople)
+			{
+				people[person.CpRefConseiller] = (person.CpPrenom, person.CpNomFamille);
+			}
+		}
+		var urls = new Dictionary<string, string>(StringComparer.Ordinal);
+		string[] postIds = sent.Select((SollicitationsReseaux s) => s.SrPostId).Distinct().ToArray();
+		if (postIds.Length > 0)
+		{
+			var foundPosts = await _context.PublicationsReseaux.AsNoTracking()
+				.Where((PublicationsReseaux p) => postIds.Contains(p.PubPostId))
+				.Select((PublicationsReseaux p) => new { p.PubPostId, p.PubReseau, p.PubUrl })
+				.ToListAsync(HttpContext.RequestAborted);
+			foreach (var publication in foundPosts)
+			{
+				urls[publication.PubReseau + "\n" + publication.PubPostId] = publication.PubUrl;
+			}
+		}
+		var sollicitations = ReseauxSociauxLogic.LatestSollicitations(
+			sent.Select((SollicitationsReseaux s) => new ReseauSollicitationPick
+			{
+				Id = s.SrId,
+				DateEnvoi = s.SrDateEnvoi
+			}),
+			ReseauxSociauxLogic.SollicitationsShown)
+			.Select((ReseauSollicitationPick pick) => sent.First((SollicitationsReseaux s) => s.SrId == pick.Id))
+			.Select((SollicitationsReseaux s) =>
+			{
+				people.TryGetValue(s.SrRefConseiller, out (string Prenom, string Nom) person);
+				urls.TryGetValue(s.SrReseau + "\n" + s.SrPostId, out string url);
+				return new
+				{
+					id = s.SrId,
+					postId = s.SrPostId,
+					reseau = s.SrReseau,
+					refConseiller = s.SrRefConseiller,
+					prenom = person.Prenom ?? string.Empty,
+					nom = person.Nom ?? string.Empty,
+					type = s.SrType,
+					url = url ?? string.Empty,
+					datePublication = s.SrDatePublication.ToString("yyyy-MM-ddTHH:mm:ss"),
+					dateEnvoi = s.SrDateEnvoi.ToString("yyyy-MM-ddTHH:mm:ss"),
+					datePublicationLabel = ReseauxSociauxLogic.FormatParis(s.SrDatePublication),
+					dateEnvoiLabel = ReseauxSociauxLogic.FormatParis(s.SrDateEnvoi)
+				};
+			})
+			.ToList();
 		var modeles = await _context.ModelesReseaux.AsNoTracking()
 			.OrderBy((ModelesReseaux m) => m.MrId)
 			.Select((ModelesReseaux m) => new
@@ -108,6 +168,7 @@ public class ReseauxSociauxController : ControllerBase
 		{
 			conseillers,
 			paires,
+			sollicitations,
 			modeles
 		});
 	}
