@@ -19,6 +19,7 @@ public class ConseillersPersonnelsNonAdminTests
 		CpDateNaissance = new DateOnly(1980, 1, 2),
 		CpMelPerso = "anna@perso.fr",
 		CpLinkedIn = "https://www.linkedin.com/in/anna",
+		CpInstagram = "https://www.instagram.com/anna/",
 		CpAdresse = "1 rue X",
 		CpCp = 75001,
 		CpVille = "PARIS",
@@ -45,6 +46,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Null(cp.CpDateNaissance);
 		Assert.Null(cp.CpMelPerso);
 		Assert.Null(cp.CpLinkedIn);
+		Assert.Null(cp.CpInstagram);
 		Assert.Null(cp.CpAdresse);
 		Assert.Equal(0, cp.CpCp);
 		Assert.Null(cp.CpVille);
@@ -66,6 +68,7 @@ public class ConseillersPersonnelsNonAdminTests
 			CpParcoursFr = "Parcours français",
 			CpParcoursEn = "English bio",
 			CpLinkedIn = "https://www.linkedin.com/in/glduquesne/",
+			CpInstagram = "https://www.instagram.com/perle.rare/",
 			CpGoogle = "https://www.google.com/maps/search/?api=1&query=Perle+Rare",
 			CpCarteVirtuelle = "https://perle-rare.com/fr/carte-virtuelle-georges-louis-duquesne/"
 		};
@@ -78,6 +81,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal(stored.CpParcoursFr, omitted.CpParcoursFr);
 		Assert.Equal(stored.CpParcoursEn, omitted.CpParcoursEn);
 		Assert.Equal(stored.CpLinkedIn, omitted.CpLinkedIn);
+		Assert.Equal(stored.CpInstagram, omitted.CpInstagram);
 		Assert.Equal(stored.CpGoogle, omitted.CpGoogle);
 		Assert.Equal(stored.CpCarteVirtuelle, omitted.CpCarteVirtuelle);
 
@@ -90,6 +94,7 @@ public class ConseillersPersonnelsNonAdminTests
 			CpParcoursFr = "",
 			CpParcoursEn = "New bio",
 			CpLinkedIn = "",
+			CpInstagram = "",
 			CpGoogle = "",
 			CpCarteVirtuelle = ""
 		};
@@ -101,6 +106,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Equal("", cleared.CpParcoursFr);
 		Assert.Equal("New bio", cleared.CpParcoursEn);
 		Assert.Equal("", cleared.CpLinkedIn);
+		Assert.Equal("", cleared.CpInstagram);
 		Assert.Equal("", cleared.CpGoogle);
 		Assert.Equal("", cleared.CpCarteVirtuelle);
 	}
@@ -117,6 +123,7 @@ public class ConseillersPersonnelsNonAdminTests
 		Assert.Null(cp.CpCalendrierCal);
 		Assert.Equal("anna@perso.fr", cp.CpMelPerso);
 		Assert.Equal("https://www.linkedin.com/in/anna", cp.CpLinkedIn);
+		Assert.Equal("https://www.instagram.com/anna/", cp.CpInstagram);
 		Assert.Equal("1 rue X", cp.CpAdresse);
 		Assert.Equal("LinkedIn", cp.CpOrigine);
 		Assert.Equal(75001, cp.CpCp);
@@ -132,6 +139,7 @@ public class ConseillersPersonnelsNonAdminTests
 	[InlineData("CP_PieceIdentite ne null")]
 	[InlineData("CP_Commentaire eq 'x'")]
 	[InlineData("CP_LinkedIn eq 'x'")]
+	[InlineData("CP_Instagram eq 'x'")]
 	[InlineData("CP_googleBusinessProfile eq 'x'")]
 	[InlineData("CP_Google eq 'x'")]
 	[InlineData("CP_CalendrierCal eq 'x'")]

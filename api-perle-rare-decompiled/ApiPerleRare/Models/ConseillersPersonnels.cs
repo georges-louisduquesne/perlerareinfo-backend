@@ -50,6 +50,8 @@ public class ConseillersPersonnels
 
 	public string CpLinkedIn { get; set; }
 
+	public string CpInstagram { get; set; }
+
 	public string CpGoogle { get; set; }
 
 	public string CpCarteVirtuelle { get; set; }

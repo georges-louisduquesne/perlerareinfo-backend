@@ -34,7 +34,7 @@ public class ConseillersPersonnelsController : ControllerBase
 		_publicPages = publicPages;
 	}
 
-	private static readonly string[] RestrictedFilterTokens = new string[12] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "googlebusinessprofile", "cpgoogle", "calendriercal", "origine" };
+	private static readonly string[] RestrictedFilterTokens = new string[13] { "motdepasse", "autologin", "pieceidentite", "datenaissance", "melperso", "adresse", "commentaire", "linkedin", "instagram", "googlebusinessprofile", "cpgoogle", "calendriercal", "origine" };
 
 	private bool IsAdmin => User.IsInRole("Admin");
 
@@ -53,7 +53,7 @@ public class ConseillersPersonnelsController : ControllerBase
 	// Mail send does not need CP_MelMotDePasse in this payload: Exchange/SendEmail reads it for the signed-in conseiller.
 	/// <summary>
 	/// Un PUT de fiche omet les propriétés null (WhenWritingNull). Sans ça, enregistrer
-	/// un autre champ effacerait la page web, le portrait du site, le parcours, le titre anglais, le LinkedIn, la fiche Google ou la carte virtuelle déjà saisis.
+	/// un autre champ effacerait la page web, le portrait du site, le parcours, le titre anglais, le LinkedIn, l’Instagram, la fiche Google ou la carte virtuelle déjà saisis.
 	/// Une chaîne vide est un effacement volontaire.
 	/// </summary>
 	internal static void KeepOmittedWebCopy(ConseillersPersonnels incoming, ConseillersPersonnels stored)
@@ -90,6 +90,10 @@ public class ConseillersPersonnelsController : ControllerBase
 		{
 			incoming.CpLinkedIn = stored.CpLinkedIn;
 		}
+		if (incoming.CpInstagram == null)
+		{
+			incoming.CpInstagram = stored.CpInstagram;
+		}
 		if (incoming.CpGoogle == null)
 		{
 			incoming.CpGoogle = stored.CpGoogle;
@@ -112,6 +116,7 @@ public class ConseillersPersonnelsController : ControllerBase
 			cp.CpDateNaissance = null;
 			cp.CpMelPerso = null;
 			cp.CpLinkedIn = null;
+			cp.CpInstagram = null;
 			cp.CpAdresse = null;
 			cp.CpCp = 0;
 			cp.CpVille = null;
