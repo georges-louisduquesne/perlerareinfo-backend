@@ -161,6 +161,24 @@ internal static class ReseauxSociauxLogic
 		return (quota, solde);
 	}
 
+	/// <summary>Somme des soldes encore envoyables. Un solde nul ou négatif compte pour 0.</summary>
+	internal static int SoldeRestant(IEnumerable<int> soldes)
+	{
+		if (soldes == null)
+		{
+			return 0;
+		}
+		int sum = 0;
+		foreach (int solde in soldes)
+		{
+			if (solde > 0)
+			{
+				sum += solde;
+			}
+		}
+		return sum;
+	}
+
 	internal static bool CanSolicit(int solde, bool alreadySolicited)
 	{
 		return solde > 0 && !alreadySolicited;

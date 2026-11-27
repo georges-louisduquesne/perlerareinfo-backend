@@ -166,6 +166,14 @@ public class ReseauxSociauxLogicTests
 	}
 
 	[Fact]
+	public void Remaining_balance_sums_positive_soldes_only()
+	{
+		Assert.Equal(9, ReseauxSociauxLogic.SoldeRestant(new[] { 4, 5, 0 }));
+		Assert.Equal(3, ReseauxSociauxLogic.SoldeRestant(new[] { 2, -3, 1 }));
+		Assert.Equal(0, ReseauxSociauxLogic.SoldeRestant(null));
+	}
+
+	[Fact]
 	public void Quota_reset_stays_on_unless_explicitly_off()
 	{
 		Assert.True(ReseauxQuotaReset.Enabled(null));

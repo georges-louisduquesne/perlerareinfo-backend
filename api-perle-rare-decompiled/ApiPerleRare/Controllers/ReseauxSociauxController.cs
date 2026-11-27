@@ -182,6 +182,17 @@ public class ReseauxSociauxController : ControllerBase
 		});
 	}
 
+	[HttpGet("Solde")]
+	public async Task<IActionResult> Solde()
+	{
+		if (!await ReseauxQuotaStore.SchemaReady(_context, HttpContext.RequestAborted))
+		{
+			return StatusCode(503, new { message = "Les tables réseaux ne sont pas encore créées." });
+		}
+		List<ReseauxConseillerRow> rows = await ReseauxQuotaStore.ListActifs(_context, HttpContext.RequestAborted);
+		return Ok(new { solde = ReseauxSociauxLogic.SoldeRestant(rows.Select((ReseauxConseillerRow row) => row.Solde)) });
+	}
+
 	[HttpGet("Posts")]
 	public async Task<IActionResult> Posts([FromQuery] bool refresh = false)
 	{
