@@ -35,7 +35,7 @@ public sealed class ListContactsRechercheAccueilUseCase : IListContactsRecherche
 			resa.Add(cra);
 			byId[cra.CRefContact] = cra;
 		}
-		if (resa.Count == 0 || (withAnnonces <= 0 && withTaches <= 0))
+		if (resa.Count == 0)
 		{
 			return resa;
 		}
@@ -44,6 +44,11 @@ public sealed class ListContactsRechercheAccueilUseCase : IListContactsRecherche
 		if (c.State != System.Data.ConnectionState.Open)
 		{
 			await c.OpenAsync();
+		}
+		await FillDoubleCoche(c, resa);
+		if (withAnnonces <= 0 && withTaches <= 0)
+		{
+			return resa;
 		}
 		if (withAnnonces > 0)
 		{
@@ -54,6 +59,23 @@ public sealed class ListContactsRechercheAccueilUseCase : IListContactsRecherche
 			await FillTachesStats(c, resa, byId, applyFilter, userLogin);
 		}
 		return resa;
+	}
+
+	private static async Task FillDoubleCoche(DbConnection c, List<ContactsRechercheAccueil> resa)
+	{
+		string ids = string.Join(",", resa.Select((ContactsRechercheAccueil x) => x.CRefContact));
+		HashSet<uint> closing = new HashSet<uint>();
+		await using DbCommand cmd = c.CreateCommand();
+		cmd.CommandText = ClientDoubleCoche.BuildSql(ids);
+		await using DbDataReader reader = await cmd.ExecuteReaderAsync();
+		while (await reader.ReadAsync())
+		{
+			if (ClientDoubleCoche.TryReadContactId(reader.GetValue(0), out uint contactId))
+			{
+				closing.Add(contactId);
+			}
+		}
+		ClientDoubleCoche.Apply(resa, closing);
 	}
 
 	internal static string BuildAnnoncesStatsSql(string ids)

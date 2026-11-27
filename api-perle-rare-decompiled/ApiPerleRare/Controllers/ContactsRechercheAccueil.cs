@@ -21,4 +21,7 @@ public class ContactsRechercheAccueil : ContactsRechercheEx
 	public DateTime? _AnnoncesNonLuesDate { get; set; }
 
 	public int _NbTaches { get; set; }
+
+	/// <summary>RV COMPROMIS ou RV ACTE AUTHENT. actif lié au contact.</summary>
+	public bool _DoubleCoche { get; set; }
 }
