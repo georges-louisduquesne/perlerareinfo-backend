@@ -26,6 +26,12 @@ internal sealed class ReseauPost
 	public string Vignette { get; init; }
 
 	public string Texte { get; init; }
+
+	public int Likes { get; init; }
+
+	public int Commentaires { get; init; }
+
+	public string Likeurs { get; init; }
 }
 
 internal sealed class ReseauSollicitationPick
@@ -393,6 +399,9 @@ internal static class ReseauxSociauxLogic
 			PublishedUtc = DateTime.SpecifyKind(published, DateTimeKind.Utc),
 			Vignette = ReadLinkedInImage(item),
 			Texte = TrimTexte(ReadString(item, "content")),
+			Likes = ReadEngagement(item, true),
+			Commentaires = ReadEngagement(item, false),
+			Likeurs = ReadLikeurs(item),
 		};
 	}
 
@@ -424,7 +433,143 @@ internal static class ReseauxSociauxLogic
 			PublishedUtc = DateTime.SpecifyKind(published, DateTimeKind.Utc),
 			Vignette = ReadString(item, "displayUrl"),
 			Texte = TrimTexte(ReadString(item, "caption")),
+			Likes = ReadEngagement(item, true),
+			Commentaires = ReadEngagement(item, false),
+			Likeurs = ReadLikeurs(item),
 		};
+	}
+
+
+	internal static string[] SplitNames(string raw)
+	{
+		if (string.IsNullOrWhiteSpace(raw))
+		{
+			return Array.Empty<string>();
+		}
+		return raw.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+	}
+
+	private static int ReadEngagement(JsonElement item, bool likes)
+	{
+		string[] names = likes
+			? new[] { "likesCount", "likeCount", "numLikes", "reactionsCount", "likes" }
+			: new[] { "commentsCount", "commentCount", "numComments", "comments" };
+		if (TryReadCount(item, names, out int direct))
+		{
+			return direct;
+		}
+		if (item.TryGetProperty("engagement", out JsonElement engagement) && TryReadCount(engagement, names, out int nested))
+		{
+			return nested;
+		}
+		if (item.TryGetProperty("socialContent", out JsonElement social) && TryReadCount(social, names, out int socialCount))
+		{
+			return socialCount;
+		}
+		return 0;
+	}
+
+	private static bool TryReadCount(JsonElement item, string[] names, out int count)
+	{
+		count = 0;
+		if (item.ValueKind != JsonValueKind.Object)
+		{
+			return false;
+		}
+		foreach (string name in names)
+		{
+			if (!item.TryGetProperty(name, out JsonElement value))
+			{
+				continue;
+			}
+			if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int number) && number >= 0)
+			{
+				count = number;
+				return true;
+			}
+			if (value.ValueKind == JsonValueKind.String
+				&& int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+				&& parsed >= 0)
+			{
+				count = parsed;
+				return true;
+			}
+			if (value.ValueKind == JsonValueKind.Array)
+			{
+				count = value.GetArrayLength();
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static string ReadLikeurs(JsonElement item)
+	{
+		var names = new List<string>();
+		CollectNames(item, names);
+		if (item.TryGetProperty("engagement", out JsonElement engagement))
+		{
+			CollectNames(engagement, names);
+		}
+		string joined = string.Join("\n", names);
+		return joined.Length <= 2000 ? joined : joined.Substring(0, 2000);
+	}
+
+	private static void CollectNames(JsonElement item, List<string> names)
+	{
+		if (item.ValueKind != JsonValueKind.Object || names.Count >= 100)
+		{
+			return;
+		}
+		foreach (string key in new[] { "likes", "likedBy", "likers", "reactions" })
+		{
+			if (!item.TryGetProperty(key, out JsonElement list) || list.ValueKind != JsonValueKind.Array)
+			{
+				continue;
+			}
+			foreach (JsonElement entry in list.EnumerateArray())
+			{
+				string name = NameOf(entry);
+				if (string.IsNullOrWhiteSpace(name) || names.Contains(name))
+				{
+					continue;
+				}
+				names.Add(name.Trim());
+				if (names.Count >= 100)
+				{
+					return;
+				}
+			}
+		}
+	}
+
+	private static string NameOf(JsonElement entry)
+	{
+		if (entry.ValueKind == JsonValueKind.String)
+		{
+			return entry.GetString();
+		}
+		if (entry.ValueKind != JsonValueKind.Object)
+		{
+			return string.Empty;
+		}
+		foreach (string key in new[] { "fullName", "name", "username", "ownerUsername" })
+		{
+			string value = ReadString(entry, key);
+			if (!string.IsNullOrWhiteSpace(value))
+			{
+				return value;
+			}
+		}
+		if (entry.TryGetProperty("actor", out JsonElement actor))
+		{
+			return NameOf(actor);
+		}
+		if (entry.TryGetProperty("owner", out JsonElement owner))
+		{
+			return NameOf(owner);
+		}
+		return string.Empty;
 	}
 
 	private static string ReadLinkedInImage(JsonElement item)

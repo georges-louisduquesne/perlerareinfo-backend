@@ -75,20 +75,27 @@ public class ReseauxSociauxLogicTests
 	{
 		string linkedIn = """
 		[
-		  {"id":"7531696806913568768","linkedinUrl":"https://www.linkedin.com/posts/perle-rare_hiring","content":"Nous recrutons","postedAt":{"date":"2026-11-26T12:34:10.928Z"},"postImages":[]},
+		  {"id":"7531696806913568768","linkedinUrl":"https://www.linkedin.com/posts/perle-rare_hiring","content":"Nous recrutons","postedAt":{"date":"2026-11-26T12:34:10.928Z"},"postImages":[],"engagement":{"likes":4,"comments":1,"reactions":[{"fullName":"Camille"}]}},
 		  {"id":"2","linkedinUrl":"https://www.linkedin.com/posts/deux","content":"Portrait","postedAt":{"date":"2026-11-23T07:02:14.622Z"},"postImages":[{"url":"https://media.licdn.com/image.jpg","width":940,"height":788}]}
 		]
 		""";
 		string instagram = """
 		[
-		  {"id":"4038447322246164554","url":"https://www.instagram.com/p/DgLcnFmnDBK/","timestamp":"2026-11-25T21:01:22.000Z","displayUrl":"https://cdn.example/ig.jpg","caption":"L'art du détail"}
+		  {"id":"4038447322246164554","url":"https://www.instagram.com/p/DgLcnFmnDBK/","timestamp":"2026-11-25T21:01:22.000Z","displayUrl":"https://cdn.example/ig.jpg","caption":"L'art du détail","likesCount":6,"commentsCount":0,"likes":[{"username":"alice"},{"username":"bob"}]}
 		]
 		""";
 		var linked = ReseauxSociauxLogic.ParseLinkedIn(linkedIn);
 		var insta = ReseauxSociauxLogic.ParseInstagram(instagram);
 		Assert.Equal("https://media.licdn.com/image.jpg", linked[1].Vignette);
+		Assert.Equal(4, linked[0].Likes);
+		Assert.Equal(1, linked[0].Commentaires);
+		Assert.Equal("Camille", linked[0].Likeurs);
 		Assert.Equal(string.Empty, linked[0].Vignette);
 		Assert.Equal("https://cdn.example/ig.jpg", insta[0].Vignette);
+		Assert.Equal(6, insta[0].Likes);
+		Assert.Equal(0, insta[0].Commentaires);
+		Assert.Equal(new[] { "alice", "bob" }, ReseauxSociauxLogic.SplitNames(insta[0].Likeurs));
+		Assert.Empty(ReseauxSociauxLogic.SplitNames("  "));
 		var latest = ReseauxSociauxLogic.Latest(linked.Concat(insta), 2);
 		Assert.Equal(new[] { "7531696806913568768", "4038447322246164554" }, latest.Select((ReseauPost p) => p.Id).ToArray());
 		Assert.Empty(ReseauxSociauxLogic.ParseLinkedIn("not-json"));

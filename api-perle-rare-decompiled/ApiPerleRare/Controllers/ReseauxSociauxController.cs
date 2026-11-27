@@ -215,6 +215,7 @@ public class ReseauxSociauxController : ControllerBase
 		{
 			RefreshInBackground();
 		}
+		var engagement = await ReseauxEngagementStore.LoadAsync(_context, cancellationToken);
 		var posts = rows
 			.OrderByDescending((PublicationsReseaux row) => row.PubDatePublication)
 			.Take(ReseauxSociauxLogic.PostsShown)
@@ -226,7 +227,10 @@ public class ReseauxSociauxController : ControllerBase
 				vignette = row.PubVignette,
 				texte = row.PubTexte,
 				datePublication = row.PubDatePublication.ToString("yyyy-MM-ddTHH:mm:ss"),
-				dateLabel = ReseauxSociauxLogic.FormatParis(row.PubDatePublication)
+				dateLabel = ReseauxSociauxLogic.FormatParis(row.PubDatePublication),
+				likes = ReseauxEngagementStore.Of(engagement, row.PubReseau, row.PubPostId).Likes,
+				commentaires = ReseauxEngagementStore.Of(engagement, row.PubReseau, row.PubPostId).Commentaires,
+				likeurs = ReseauxSociauxLogic.SplitNames(ReseauxEngagementStore.Of(engagement, row.PubReseau, row.PubPostId).Likeurs)
 			})
 			.ToList();
 		return Ok(new

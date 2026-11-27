@@ -108,6 +108,7 @@ internal static class ReseauxPostsSync
 			stamp.AvVersion = unix;
 		}
 		await db.SaveChangesAsync(cancellationToken);
+		await ReseauxEngagementStore.SaveAsync(db, posts, cancellationToken);
 		if (linkedInJson == null && instagramJson == null)
 		{
 			return "Publications indisponibles.";
