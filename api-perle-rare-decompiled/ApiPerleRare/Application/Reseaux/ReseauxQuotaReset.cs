@@ -41,7 +41,7 @@ internal static class ReseauxQuotaReset
 		if (claimed == 1)
 		{
 			await db.Database.ExecuteSqlRawAsync(
-				"UPDATE conseillers_personnels SET CP_Solde_Quota = CP_Quota_Reseaux WHERE CP_Actif = 1",
+				"UPDATE conseillers_personnels SET CP_Solde_Quota = CP_Quota_Reseaux WHERE " + ReseauxSociauxLogic.ConseillerActifPredicate,
 				cancellationToken);
 		}
 		await tx.CommitAsync(cancellationToken);

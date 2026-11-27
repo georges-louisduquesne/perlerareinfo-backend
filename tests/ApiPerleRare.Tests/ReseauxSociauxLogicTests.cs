@@ -118,6 +118,20 @@ public class ReseauxSociauxLogicTests
 	}
 
 	[Fact]
+	public void A_candidate_is_not_an_active_advisor()
+	{
+		Assert.False(ReseauxSociauxLogic.IsConseillerReseaux(1, "Candidat"));
+		Assert.False(ReseauxSociauxLogic.IsConseillerReseaux(1, " candidat "));
+		Assert.False(ReseauxSociauxLogic.IsConseillerReseaux(1, "CANDIDAT"));
+		Assert.True(ReseauxSociauxLogic.IsConseillerReseaux(1, "Agent commercial"));
+		Assert.True(ReseauxSociauxLogic.IsConseillerReseaux(1, "Associé"));
+		Assert.True(ReseauxSociauxLogic.IsConseillerReseaux(1, "Qualité"));
+		Assert.True(ReseauxSociauxLogic.IsConseillerReseaux(1, null));
+		Assert.False(ReseauxSociauxLogic.IsConseillerReseaux(0, "Agent commercial"));
+		Assert.Contains("<> 'candidat'", ReseauxSociauxLogic.ConseillerActifPredicate, StringComparison.Ordinal);
+	}
+
+	[Fact]
 	public void Quota_reset_stays_on_unless_explicitly_off()
 	{
 		Assert.True(ReseauxQuotaReset.Enabled(null));

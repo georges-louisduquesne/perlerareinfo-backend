@@ -58,7 +58,7 @@ WHERE TABLE_SCHEMA = DATABASE()
 		command.CommandText = @"
 SELECT CP_RefConseiller, CP_Prenom, CP_NomFamille, CP_TelPersonnel, CP_Quota_Reseaux, CP_Solde_Quota
 FROM conseillers_personnels
-WHERE CP_Actif = 1
+WHERE " + ReseauxSociauxLogic.ConseillerActifPredicate + @"
 ORDER BY CP_Solde_Quota DESC, CP_Prenom, CP_NomFamille";
 		await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 		while (await reader.ReadAsync(cancellationToken))
@@ -87,7 +87,7 @@ ORDER BY CP_Solde_Quota DESC, CP_Prenom, CP_NomFamille";
 		command.CommandText = @"
 SELECT CP_RefConseiller, CP_Prenom, CP_NomFamille, CP_TelPersonnel, CP_Quota_Reseaux, CP_Solde_Quota
 FROM conseillers_personnels
-WHERE CP_RefConseiller = @id AND CP_Actif = 1";
+WHERE CP_RefConseiller = @id AND " + ReseauxSociauxLogic.ConseillerActifPredicate;
 		var parameter = command.CreateParameter();
 		parameter.ParameterName = "@id";
 		parameter.Value = id;
@@ -110,8 +110,9 @@ WHERE CP_RefConseiller = @id AND CP_Actif = 1";
 
 	internal static async Task<bool> Save(ApplicationDbContext db, uint id, int quota, int solde, CancellationToken cancellationToken)
 	{
-		int updated = await db.Database.ExecuteSqlInterpolatedAsync(
-			$"UPDATE conseillers_personnels SET CP_Quota_Reseaux = {quota}, CP_Solde_Quota = {solde} WHERE CP_RefConseiller = {id} AND CP_Actif = 1",
+		int updated = await db.Database.ExecuteSqlRawAsync(
+			"UPDATE conseillers_personnels SET CP_Quota_Reseaux = {0}, CP_Solde_Quota = {1} WHERE CP_RefConseiller = {2} AND " + ReseauxSociauxLogic.ConseillerActifPredicate,
+			new object[] { quota, solde, id },
 			cancellationToken);
 		return updated == 1;
 	}

@@ -73,6 +73,9 @@ internal static class ReseauxSociauxLogic
 
 	internal const int QuotaMax = 100;
 
+	/// <summary>Conseiller actif hors statut Candidat. Même règle que <see cref="IsConseillerReseaux"/>.</summary>
+	internal const string ConseillerActifPredicate = "CP_Actif = 1 AND LOWER(TRIM(IFNULL(CP_Statut, ''))) <> 'candidat'";
+
 	internal static string DefaultLikeContenu()
 	{
 		return "Bonjour {prenom},\n\nPourrais-tu aimer cette publication Perle Rare ?\n{url}\n\nMerci !";
@@ -91,6 +94,16 @@ internal static class ReseauxSociauxLogic
 	internal static bool IsReseau(string reseau)
 	{
 		return reseau == LinkedIn || reseau == Instagram;
+	}
+
+	/// <summary>Un candidat, même CP_Actif = 1, n'est pas un conseiller à solliciter.</summary>
+	internal static bool IsConseillerReseaux(int? actif, string statut)
+	{
+		if (actif != 1)
+		{
+			return false;
+		}
+		return !string.Equals((statut ?? string.Empty).Trim(), "Candidat", StringComparison.OrdinalIgnoreCase);
 	}
 
 	internal static string ApplyTemplate(string contenu, string prenom, string nom, string url)

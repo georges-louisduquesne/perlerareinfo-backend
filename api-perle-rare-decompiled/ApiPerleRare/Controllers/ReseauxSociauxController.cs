@@ -322,8 +322,9 @@ public class ReseauxSociauxController : ControllerBase
 		}
 		string message = ReseauxSociauxLogic.ApplyTemplate(modele.MrContenu, conseiller.Prenom, conseiller.Nom, post.PubUrl);
 		await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
-		int decremented = await _context.Database.ExecuteSqlInterpolatedAsync(
-			$"UPDATE conseillers_personnels SET CP_Solde_Quota = CP_Solde_Quota - 1 WHERE CP_RefConseiller = {body.RefConseiller} AND CP_Actif = 1 AND CP_Solde_Quota > 0",
+		int decremented = await _context.Database.ExecuteSqlRawAsync(
+			"UPDATE conseillers_personnels SET CP_Solde_Quota = CP_Solde_Quota - 1 WHERE CP_RefConseiller = {0} AND " + ReseauxSociauxLogic.ConseillerActifPredicate + " AND CP_Solde_Quota > 0",
+			new object[] { body.RefConseiller },
 			cancellationToken);
 		if (decremented != 1)
 		{
