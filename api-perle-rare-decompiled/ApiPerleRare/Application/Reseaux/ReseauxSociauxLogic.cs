@@ -76,6 +76,9 @@ internal static class ReseauxSociauxLogic
 
 	internal const int SollicitationsShown = 50;
 
+	/// <summary>Jours civils couverts par l'histogramme, aujourd'hui inclus.</summary>
+	internal const int SollicitationsFenetreJours = 60;
+
 	/// <summary>J, J-1 … J-6 : sept jours civils, heure de Paris.</summary>
 	internal const int JoursVolume = 7;
 
@@ -280,6 +283,12 @@ internal static class ReseauxSociauxLogic
 			return true;
 		}
 		return nowUnix - storedUnix >= SyncStaleSeconds;
+	}
+
+	/// <summary>Minuit du premier jour de la fenêtre (aujourd'hui et les 59 jours d'avant).</summary>
+	internal static DateTime FenetreDepuis(DateTime paris)
+	{
+		return paris.Date.AddDays(1 - SollicitationsFenetreJours);
 	}
 
 	/// <summary>Les dernières sollicitations, du plus récent envoi au plus ancien.</summary>

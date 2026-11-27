@@ -158,6 +158,14 @@ public class ReseauxSociauxLogicTests
 	}
 
 	[Fact]
+	public void Solicitation_window_covers_today_and_the_fifty_nine_days_before()
+	{
+		Assert.Equal(60, ReseauxSociauxLogic.SollicitationsFenetreJours);
+		Assert.Equal(new DateTime(2026, 9, 29), ReseauxSociauxLogic.FenetreDepuis(new DateTime(2026, 11, 27, 14, 30, 0)));
+		Assert.Equal(new DateTime(2026, 9, 29), ReseauxSociauxLogic.FenetreDepuis(new DateTime(2026, 11, 27, 0, 0, 0)));
+	}
+
+	[Fact]
 	public void Quota_reset_stays_on_unless_explicitly_off()
 	{
 		Assert.True(ReseauxQuotaReset.Enabled(null));

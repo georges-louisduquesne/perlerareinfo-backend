@@ -20,6 +20,8 @@ internal sealed class ReseauxConseillerRow
 	public int Quota { get; init; }
 
 	public int Solde { get; init; }
+
+	public string Photo { get; init; }
 }
 
 /// <summary>
@@ -56,7 +58,7 @@ WHERE TABLE_SCHEMA = DATABASE()
 		}
 		await using var command = connection.CreateCommand();
 		command.CommandText = @"
-SELECT CP_RefConseiller, CP_Prenom, CP_NomFamille, CP_TelPersonnel, CP_Quota_Reseaux, CP_Solde_Quota
+SELECT CP_RefConseiller, CP_Prenom, CP_NomFamille, CP_TelPersonnel, CP_Quota_Reseaux, CP_Solde_Quota, CP_PhotoSignature
 FROM conseillers_personnels
 WHERE " + ReseauxSociauxLogic.ConseillerActifPredicate + @"
 ORDER BY CP_Solde_Quota DESC, CP_Prenom, CP_NomFamille";
@@ -70,7 +72,8 @@ ORDER BY CP_Solde_Quota DESC, CP_Prenom, CP_NomFamille";
 				Nom = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
 				Tel = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
 				Quota = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetValue(4)),
-				Solde = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5))
+				Solde = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetValue(5)),
+				Photo = reader.IsDBNull(6) ? string.Empty : Convert.ToString(reader.GetValue(6)) ?? string.Empty
 			});
 		}
 		return rows;

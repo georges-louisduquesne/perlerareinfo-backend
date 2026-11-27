@@ -96,6 +96,7 @@ public class ReseauxSociauxController : ControllerBase
 			tel = cp.Tel,
 			quota = cp.Quota,
 			solde = cp.Solde,
+			photo = cp.Photo,
 			jours = ReseauxSociauxLogic.JoursDe(volumes, cp.Ref)
 		}).ToList();
 		var paires = await _context.SollicitationsReseaux.AsNoTracking()
@@ -107,10 +108,11 @@ public class ReseauxSociauxController : ControllerBase
 				type = s.SrType
 			})
 			.ToListAsync(HttpContext.RequestAborted);
+		DateTime depuisFenetre = ReseauxSociauxLogic.FenetreDepuis(paris);
 		List<SollicitationsReseaux> sent = await _context.SollicitationsReseaux.AsNoTracking()
+			.Where((SollicitationsReseaux s) => s.SrDateEnvoi >= depuisFenetre)
 			.OrderByDescending((SollicitationsReseaux s) => s.SrDateEnvoi)
 			.ThenByDescending((SollicitationsReseaux s) => s.SrId)
-			.Take(ReseauxSociauxLogic.SollicitationsShown)
 			.ToListAsync(HttpContext.RequestAborted);
 		var people = new Dictionary<uint, (string Prenom, string Nom)>();
 		uint[] refs = sent.Select((SollicitationsReseaux s) => s.SrRefConseiller).Distinct().ToArray();
@@ -138,14 +140,7 @@ public class ReseauxSociauxController : ControllerBase
 				urls[publication.PubReseau + "\n" + publication.PubPostId] = publication.PubUrl;
 			}
 		}
-		var sollicitations = ReseauxSociauxLogic.LatestSollicitations(
-			sent.Select((SollicitationsReseaux s) => new ReseauSollicitationPick
-			{
-				Id = s.SrId,
-				DateEnvoi = s.SrDateEnvoi
-			}),
-			ReseauxSociauxLogic.SollicitationsShown)
-			.Select((ReseauSollicitationPick pick) => sent.First((SollicitationsReseaux s) => s.SrId == pick.Id))
+		var sollicitations = sent
 			.Select((SollicitationsReseaux s) =>
 			{
 				people.TryGetValue(s.SrRefConseiller, out (string Prenom, string Nom) person);
