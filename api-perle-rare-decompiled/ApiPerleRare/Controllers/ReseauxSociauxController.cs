@@ -103,7 +103,8 @@ public class ReseauxSociauxController : ControllerBase
 			{
 				postId = s.SrPostId,
 				reseau = s.SrReseau,
-				refConseiller = s.SrRefConseiller
+				refConseiller = s.SrRefConseiller,
+				type = s.SrType
 			})
 			.ToListAsync(HttpContext.RequestAborted);
 		List<SollicitationsReseaux> sent = await _context.SollicitationsReseaux.AsNoTracking()
