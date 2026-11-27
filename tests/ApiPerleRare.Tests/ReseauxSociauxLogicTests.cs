@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using ApiPerleRare.Application.Reseaux;
 using Xunit;
@@ -132,6 +133,28 @@ public class ReseauxSociauxLogicTests
 		Assert.True(ReseauxSociauxLogic.IsConseillerId(12));
 		Assert.False(ReseauxSociauxLogic.IsConseillerId(-1));
 		Assert.Contains("<> 'candidat'", ReseauxSociauxLogic.ConseillerActifPredicate, StringComparison.Ordinal);
+	}
+
+	[Fact]
+	public void Daily_volumes_cover_today_through_six_days_ago()
+	{
+		DateTime today = new DateTime(2026, 11, 27, 12, 30, 0);
+		var envois = new[]
+		{
+			new ReseauEnvoiJour { Ref = 0, DateEnvoi = new DateTime(2026, 11, 27, 9, 0, 0) },
+			new ReseauEnvoiJour { Ref = 0, DateEnvoi = new DateTime(2026, 11, 27, 18, 0, 0) },
+			new ReseauEnvoiJour { Ref = 0, DateEnvoi = new DateTime(2026, 11, 26, 23, 59, 0) },
+			new ReseauEnvoiJour { Ref = 0, DateEnvoi = new DateTime(2026, 11, 21, 0, 0, 0) },
+			new ReseauEnvoiJour { Ref = 0, DateEnvoi = new DateTime(2026, 11, 20, 23, 59, 0) },
+			new ReseauEnvoiJour { Ref = 0, DateEnvoi = new DateTime(2026, 11, 28, 0, 1, 0) },
+			new ReseauEnvoiJour { Ref = 4, DateEnvoi = new DateTime(2026, 11, 25, 8, 0, 0) },
+			null,
+		};
+		Dictionary<uint, int[]> volumes = ReseauxSociauxLogic.VolumesParJour(envois, today);
+		Assert.Equal(new[] { 2, 1, 0, 0, 0, 0, 1 }, volumes[0]);
+		Assert.Equal(new[] { 0, 0, 1, 0, 0, 0, 0 }, ReseauxSociauxLogic.JoursDe(volumes, 4));
+		Assert.Equal(new int[ReseauxSociauxLogic.JoursVolume], ReseauxSociauxLogic.JoursDe(volumes, 9));
+		Assert.Empty(ReseauxSociauxLogic.VolumesParJour(null, today));
 	}
 
 	[Fact]

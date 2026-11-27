@@ -35,6 +35,13 @@ internal sealed class ReseauSollicitationPick
 	public DateTime DateEnvoi { get; init; }
 }
 
+internal sealed class ReseauEnvoiJour
+{
+	public uint Ref { get; init; }
+
+	public DateTime DateEnvoi { get; init; }
+}
+
 internal sealed class ReseauxConseillerPick
 {
 	public uint Ref { get; init; }
@@ -68,6 +75,9 @@ internal static class ReseauxSociauxLogic
 	internal const int PostsShown = 6;
 
 	internal const int SollicitationsShown = 50;
+
+	/// <summary>J, J-1 … J-6 : sept jours civils, heure de Paris.</summary>
+	internal const int JoursVolume = 7;
 
 	internal const int SyncStaleSeconds = 2 * 60 * 60;
 
@@ -189,6 +199,48 @@ internal static class ReseauxSociauxLogic
 			return ReseauxResetDecision.RecordOnly;
 		}
 		return storedWeekKey == currentWeekKey ? ReseauxResetDecision.None : ReseauxResetDecision.Reset;
+	}
+
+	/// <summary>
+	/// Volume de sollicitations par conseiller. L'index 0 est le jour civil de <paramref name="aujourdhuiParis"/>,
+	/// l'index 6 est six jours plus tôt. Les dates d'envoi sont déjà en heure de Paris.
+	/// </summary>
+	internal static Dictionary<uint, int[]> VolumesParJour(IEnumerable<ReseauEnvoiJour> envois, DateTime aujourdhuiParis)
+	{
+		var volumes = new Dictionary<uint, int[]>();
+		if (envois == null)
+		{
+			return volumes;
+		}
+		DateTime jour = aujourdhuiParis.Date;
+		foreach (ReseauEnvoiJour envoi in envois)
+		{
+			if (envoi == null)
+			{
+				continue;
+			}
+			int offset = (jour - envoi.DateEnvoi.Date).Days;
+			if (offset < 0 || offset >= JoursVolume)
+			{
+				continue;
+			}
+			if (!volumes.TryGetValue(envoi.Ref, out int[] counts))
+			{
+				counts = new int[JoursVolume];
+				volumes[envoi.Ref] = counts;
+			}
+			counts[offset]++;
+		}
+		return volumes;
+	}
+
+	internal static int[] JoursDe(IReadOnlyDictionary<uint, int[]> volumes, uint refConseiller)
+	{
+		if (volumes != null && volumes.TryGetValue(refConseiller, out int[] jours) && jours != null && jours.Length == JoursVolume)
+		{
+			return jours;
+		}
+		return new int[JoursVolume];
 	}
 
 	/// <summary>Clé année ISO × 100 + numéro de semaine. Le lundi 00:00 heure de Paris ouvre une nouvelle clé.</summary>

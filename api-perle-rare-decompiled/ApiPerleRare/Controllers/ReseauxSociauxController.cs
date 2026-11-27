@@ -73,9 +73,21 @@ public class ReseauxSociauxController : ControllerBase
 		{
 			return StatusCode(503, new { message = "Les tables réseaux ne sont pas encore créées." });
 		}
-		await ReseauxQuotaReset.ApplyAsync(_context, ParisNow(), HttpContext.RequestAborted);
+		DateTime paris = ParisNow();
+		await ReseauxQuotaReset.ApplyAsync(_context, paris, HttpContext.RequestAborted);
 		await EnsureModeles(HttpContext.RequestAborted);
 		List<ReseauxConseillerRow> rows = await ReseauxQuotaStore.ListActifs(_context, HttpContext.RequestAborted);
+		DateTime depuis = paris.Date.AddDays(1 - ReseauxSociauxLogic.JoursVolume);
+		var envois = await _context.SollicitationsReseaux.AsNoTracking()
+			.Where((SollicitationsReseaux s) => s.SrDateEnvoi >= depuis)
+			.Select((SollicitationsReseaux s) => new { s.SrRefConseiller, s.SrDateEnvoi })
+			.ToListAsync(HttpContext.RequestAborted);
+		var picks = new List<ReseauEnvoiJour>(envois.Count);
+		foreach (var envoi in envois)
+		{
+			picks.Add(new ReseauEnvoiJour { Ref = envoi.SrRefConseiller, DateEnvoi = envoi.SrDateEnvoi });
+		}
+		Dictionary<uint, int[]> volumes = ReseauxSociauxLogic.VolumesParJour(picks, paris);
 		var conseillers = rows.Select((ReseauxConseillerRow cp) => new
 		{
 			refConseiller = cp.Ref,
@@ -83,7 +95,8 @@ public class ReseauxSociauxController : ControllerBase
 			nom = cp.Nom,
 			tel = cp.Tel,
 			quota = cp.Quota,
-			solde = cp.Solde
+			solde = cp.Solde,
+			jours = ReseauxSociauxLogic.JoursDe(volumes, cp.Ref)
 		}).ToList();
 		var paires = await _context.SollicitationsReseaux.AsNoTracking()
 			.Select((SollicitationsReseaux s) => new
