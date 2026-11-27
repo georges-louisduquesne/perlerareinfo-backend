@@ -253,7 +253,7 @@ public class ReseauxSociauxController : ControllerBase
 	[HttpPut("Conseillers/{id:int}")]
 	public async Task<IActionResult> SauverQuota(int id, [FromBody] QuotaBody body)
 	{
-		if (id <= 0 || body == null)
+		if (!ReseauxSociauxLogic.IsConseillerId(id) || body == null)
 		{
 			return BadRequest(new { message = "Quota manquant." });
 		}

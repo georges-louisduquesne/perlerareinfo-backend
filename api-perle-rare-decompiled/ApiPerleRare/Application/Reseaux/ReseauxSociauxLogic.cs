@@ -96,6 +96,12 @@ internal static class ReseauxSociauxLogic
 		return reseau == LinkedIn || reseau == Instagram;
 	}
 
+	/// <summary>Le conseiller admin a la référence 0. Seule une référence négative est invalide.</summary>
+	internal static bool IsConseillerId(int id)
+	{
+		return id >= 0;
+	}
+
 	/// <summary>Un candidat, même CP_Actif = 1, n'est pas un conseiller à solliciter.</summary>
 	internal static bool IsConseillerReseaux(int? actif, string statut)
 	{

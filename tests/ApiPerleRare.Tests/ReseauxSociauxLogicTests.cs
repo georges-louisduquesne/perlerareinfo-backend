@@ -128,6 +128,9 @@ public class ReseauxSociauxLogicTests
 		Assert.True(ReseauxSociauxLogic.IsConseillerReseaux(1, "Qualité"));
 		Assert.True(ReseauxSociauxLogic.IsConseillerReseaux(1, null));
 		Assert.False(ReseauxSociauxLogic.IsConseillerReseaux(0, "Agent commercial"));
+		Assert.True(ReseauxSociauxLogic.IsConseillerId(0));
+		Assert.True(ReseauxSociauxLogic.IsConseillerId(12));
+		Assert.False(ReseauxSociauxLogic.IsConseillerId(-1));
 		Assert.Contains("<> 'candidat'", ReseauxSociauxLogic.ConseillerActifPredicate, StringComparison.Ordinal);
 	}
 
